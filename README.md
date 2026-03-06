@@ -1,23 +1,36 @@
-# Vishwakarma (VK)
+# Signal
 
-Vishwakarma is a local-first pitch deck mentor for founders and student innovators.
+Signal is a local-first pitch mentor and adaptive idea evaluator for founders, student innovators, and early teams.
 
-The current product is a `React + FastAPI + Ollama` app with:
-- a fixed-height chat workspace
-- streamed mentoring responses
-- saved sessions and resume flow
-- a dedicated outline view
-- session-scoped file parsing and retrieval
-- an internal admin route at `/admin` for usage and latency monitoring
+It is built to behave more like a sharp human mentor than a generic chatbot:
+- it pushes on problem clarity, customer understanding, validation, and reasoning
+- it keeps the conversation simple when the founder is early or non-technical
+- it can switch between open mentoring and structured evaluation
+- it stores sessions locally so founders can come back and continue
 
-The old `app.py` Gradio prototype is still in the repo as legacy reference, but it is not the main app surface.
+The current product is a `React + FastAPI` web app with local-first runtime support.
 
-This repo can now run as an open-source-only MVP with no paid services.
+## What The Tool Does
 
-Release notes:
-- [`v0.1.0` changelog](CHANGELOG.md)
+### Mentor mode
+- conversational founder coaching
+- short, VC-style questioning without turning into a lecture
+- session resume, file context, and outline generation
 
-## Quick Start
+### Evaluator mode
+- adaptive questioning based on prior responses
+- handles both short and long answers more naturally
+- keeps scoring hidden during the conversation
+- generates a final report with score, why, and fixes only at the end
+
+### Runtime options
+- local open-source mode through Ollama
+- external provider mode with session-scoped API keys
+- live provider/model switching inside a session
+
+## Local Use
+
+### 1. One-time setup
 
 From the project root:
 
@@ -28,113 +41,124 @@ pip install -r requirements.txt
 npm install
 npm --prefix frontend install
 cp .env.example .env
-python3 vk.py --build
 ```
 
-If Ollama is not running:
+### 2. Choose your runtime
+
+If you want fully local open-source inference, start Ollama first:
 
 ```bash
 ollama serve
 ```
 
-Open:
-- `http://127.0.0.1:7860`
+If you want to use an external provider, you can skip `ollama serve` and choose `Use API key` in the UI instead.
 
-## Open-Source-Only MVP Commands
-
-Normal MVP app:
+### 3. Run the app
 
 ```bash
 npm run mvp
 ```
 
-LAN share with a co-founder on the same network:
+Open:
+
+```text
+http://127.0.0.1:7860
+```
+
+## Main Commands
+
+Run the normal local app:
+
+```bash
+npm run mvp
+```
+
+Run the app for LAN sharing:
 
 ```bash
 npm run mvp:lan
 ```
 
-Open directly into admin:
+Run the app with admin enabled:
 
 ```bash
 npm run admin
 ```
 
-## Run Modes
-
-### Local app
-
-```bash
-python3 vk.py --build
-```
-
-Single port, opens in browser, and auto-stops shortly after the browser closes.
-
-### LAN test with a co-founder
-
-```bash
-python3 vk.py --host 0.0.0.0 --port 7860 --build
-```
-
-### Development mode
+Run backend + frontend separately in development:
 
 ```bash
 npm run dev
 ```
 
-This runs:
-- FastAPI on `http://127.0.0.1:8000`
-- Vite on `http://127.0.0.1:5173`
-
-### Docker
+Direct launcher:
 
 ```bash
-docker build -t vishwakarma .
-docker run -p 8000:8000 vishwakarma
+python3 signal_app.py --build
 ```
 
-### Render blueprint
+The old launcher name still works for compatibility:
 
-```text
-render.yaml
+```bash
+python3 vk.py --build
 ```
 
-The repo now includes a Render service blueprint for a Groq-backed MVP deploy with a persistent disk.
+## How It Works
+
+### Frontend
+- Vite + React + TypeScript
+- fixed-height, single-screen UI
+- hideable session sidebar
+- runtime switcher for provider/model changes
+
+### Backend
+- FastAPI
+- SQLite session persistence
+- session-scoped uploads and retrieval
+- deterministic evaluator scoring during live conversation
+- final evaluator report generation
+
+### Data and storage
+- sessions: `data/sessions.db`
+- uploads: `data/session_uploads/`
+- exports: `data/exports/`
+
+## Models
+
+Default local open-source path:
+- provider: `ollama`
+- speed model: `llama3.2:latest`
+- balanced model: `qwen3:4b`
+
+Supported external providers in the current runtime layer:
+- `cerebras`
+- `groq`
+- `openai`
+- `openrouter`
+- `anthropic`
+- `gemini`
+
+For external providers, API keys are session-scoped in the browser and are not persisted in the database.
+
+## Project Layout
+
+- `frontend/` — React app
+- `backend/` — FastAPI APIs and services
+- `memory.py` — SQLite session and analytics persistence
+- `signal_app.py` — primary single-process launcher
+- `vk.py` — compatibility wrapper for the old launcher name
+- `docs/` — architecture, execution, and platform notes
+
+## Current State
+
+- active product name: `Signal`
+- local-first MVP is fully runnable without paid services
+- admin is exposed only in admin launch mode
+- mentor and evaluator both support resumed sessions
 
 ## Docs
 
-- Platform overview: `docs/PLATFORM_OVERVIEW.md`
-- Execution guide: `docs/EXECUTION.md`
-- Architecture guide: `docs/ARCHITECTURE.md`
-
-## Key Files
-
-- `backend/main.py` - FastAPI entrypoint and frontend serving
-- `backend/api/` - session, chat, outline, and heartbeat APIs
-- `backend/services/prompting.py` - mentor behavior, chip logic, compact prompt rules
-- `backend/services/model_router.py` - Ollama profiles and fallback
-- `backend/api/admin.py` - admin metrics and recent activity
-- `backend/api/analytics.py` - event capture for monitoring
-- `frontend/src/` - React app shell, onboarding, chat, outline, styling
-- `memory.py` - SQLite session persistence and JSONL export
-- `vk.py` - single-process local launcher
-
-## Current Defaults
-
-- default profile: `speed`
-- default local model: `llama3.2:latest`
-- optional balanced model: `qwen3:4b`
-- persistence: `data/sessions.db`
-- uploads: `data/session_uploads/`
-- runtime mode: `VK_MODEL_PROVIDER=ollama`
-
-## Product Direction
-
-Vishwakarma is not meant to behave like a generic chatbot.
-
-It should:
-- clarify the real problem
-- test assumptions with evidence
-- stay grounded in customer discovery and early validation
-- explain jargon simply when needed
-- end wrap-up turns with concrete next steps
+- [Architecture](docs/ARCHITECTURE.md)
+- [Execution Guide](docs/EXECUTION.md)
+- [Platform Overview](docs/PLATFORM_OVERVIEW.md)
+- [Changelog](CHANGELOG.md)

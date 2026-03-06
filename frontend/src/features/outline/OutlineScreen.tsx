@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import type { ThemeMode } from "../../app/types";
+import { ThemePicker } from "../../app/ThemePicker";
 import { getOutline, postAnalyticsEvent } from "../../lib/api/client";
 
 type Props = {
-  theme: "light" | "dark";
-  onToggleTheme: () => void;
+  theme: ThemeMode;
+  onThemeChange: (theme: ThemeMode) => void;
   onExitSession: () => void;
   clientId: string;
   displayName: string;
 };
 
-export function OutlineScreen({ theme, onToggleTheme, onExitSession, clientId, displayName }: Props) {
+export function OutlineScreen({ theme, onThemeChange, onExitSession, clientId, displayName }: Props) {
   const navigate = useNavigate();
   const { sessionId = "" } = useParams();
   const [content, setContent] = useState("Loading outline...");
@@ -55,7 +57,7 @@ export function OutlineScreen({ theme, onToggleTheme, onExitSession, clientId, d
         <div className="brand-lockup">
           <span className="brand-dot" />
           <div>
-            <strong>Vishwakarma</strong>
+            <strong>Signal</strong>
             <p>{status}</p>
           </div>
         </div>
@@ -63,15 +65,10 @@ export function OutlineScreen({ theme, onToggleTheme, onExitSession, clientId, d
           <button type="button" className="ghost-button" onClick={() => navigate("/")}>
             Back to chat
           </button>
-          <button type="button" className="ghost-button" onClick={() => navigate("/admin")}>
-            Admin
-          </button>
           <button type="button" className="ghost-button" onClick={onExitSession}>
             Exit session
           </button>
-          <button type="button" className="ghost-button" onClick={onToggleTheme}>
-            {theme === "light" ? "Dark theme" : "Light theme"}
-          </button>
+          <ThemePicker theme={theme} onChange={onThemeChange} />
         </div>
       </aside>
       <main className="outline-main">

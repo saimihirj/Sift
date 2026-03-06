@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import type { AdminEvent, AdminOverview, SessionSummary } from "../../app/types";
+import type { AdminEvent, AdminOverview, SessionSummary, ThemeMode } from "../../app/types";
+import { ThemePicker } from "../../app/ThemePicker";
 import { getAdminEvents, getAdminOverview } from "../../lib/api/client";
 
 const ADMIN_TOKEN_STORAGE_KEY = "vishwakarma-admin-token";
 
 type Props = {
-  theme: "light" | "dark";
-  onToggleTheme: () => void;
+  theme: ThemeMode;
+  onThemeChange: (theme: ThemeMode) => void;
 };
 
 type MetricCard = {
@@ -23,16 +24,16 @@ function metricCards(overview: AdminOverview | null): MetricCard[] {
   return [
     { label: "Unique visitors", value: String(overview.uniqueVisitors) },
     { label: "Total sessions", value: String(overview.totalSessions) },
-    { label: "Chats completed", value: String(overview.chatCompletions) },
-    { label: "Uploads", value: String(overview.uploads) },
-    { label: "Outline opens", value: String(overview.outlineOpens) },
+    { label: "Evaluator sessions", value: String(overview.evaluatorSessions) },
+    { label: "Completion rate", value: `${overview.evaluatorCompletionRate}%` },
+    { label: "Avg success", value: `${overview.averageSuccessScore}` },
     { label: "Avg first token", value: `${overview.averageFirstTokenSeconds}s` },
-    { label: "Avg total time", value: `${overview.averageTotalSeconds}s` },
-    { label: "Events (24h)", value: String(overview.eventsLast24Hours) },
+    { label: "Uploads", value: String(overview.uploads) },
+    { label: "Website fails", value: String(overview.websiteFetchFailures) },
   ];
 }
 
-export function AdminScreen({ theme, onToggleTheme }: Props) {
+export function AdminScreen({ theme, onThemeChange }: Props) {
   const [token, setToken] = useState(() => localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? "");
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [events, setEvents] = useState<AdminEvent[]>([]);
@@ -52,9 +53,9 @@ export function AdminScreen({ theme, onToggleTheme }: Props) {
           return;
         }
         setOverview(overviewResponse);
-        setEvents(eventsResponse.events);
+        setEvents(eventsResponse.events.slice(0, 18));
         setSessions(eventsResponse.sessions);
-        setStatus("Live product activity");
+        setStatus("Admin mode");
       })
       .catch((error) => {
         if (cancelled) {
@@ -73,6 +74,11 @@ export function AdminScreen({ theme, onToggleTheme }: Props) {
       Object.entries(overview?.eventBreakdown ?? {}).sort((left, right) => right[1] - left[1]),
     [overview],
   );
+  const providerBreakdown = useMemo(
+    () =>
+      Object.entries(overview?.providerBreakdown ?? {}).sort((left, right) => right[1] - left[1]),
+    [overview],
+  );
 
   return (
     <div className="outline-shell admin-shell">
@@ -80,7 +86,7 @@ export function AdminScreen({ theme, onToggleTheme }: Props) {
         <div className="brand-lockup">
           <span className="brand-dot" />
           <div>
-            <strong>Vishwakarma Admin</strong>
+            <strong>Signal Admin</strong>
             <p>{status}</p>
           </div>
         </div>
@@ -94,9 +100,7 @@ export function AdminScreen({ theme, onToggleTheme }: Props) {
           <Link to="/" className="ghost-button">
             Back to app
           </Link>
-          <button type="button" className="ghost-button" onClick={onToggleTheme}>
-            {theme === "light" ? "Dark theme" : "Light theme"}
-          </button>
+          <ThemePicker theme={theme} onChange={onThemeChange} />
         </div>
       </aside>
 
@@ -114,7 +118,7 @@ export function AdminScreen({ theme, onToggleTheme }: Props) {
           <article className="outline-card admin-card admin-card-large">
             <div className="admin-card-head">
               <strong>Recent activity</strong>
-              <span className="rail-label">{events.length} latest events</span>
+              <span className="rail-label">{events.length} latest signals</span>
             </div>
             <div className="admin-list">
               {events.map((event, index) => (
@@ -135,8 +139,8 @@ export function AdminScreen({ theme, onToggleTheme }: Props) {
           <div className="admin-stack">
             <article className="outline-card admin-card">
               <div className="admin-card-head">
-                <strong>Recent sessions</strong>
-                <span className="rail-label">{sessions.length} latest sessions</span>
+                <strong>Session feed</strong>
+                <span className="rail-label">{sessions.length} recent sessions</span>
               </div>
               <div className="admin-list">
                 {sessions.map((session) => (
@@ -156,11 +160,26 @@ export function AdminScreen({ theme, onToggleTheme }: Props) {
 
             <article className="outline-card admin-card">
               <div className="admin-card-head">
+                <strong>Runtime signals</strong>
+                <span className="rail-label">{overview?.dropOffQuestion || "No drop-off data yet"}</span>
+              </div>
+              <div className="admin-list">
+                {providerBreakdown.map(([label, count]) => (
+                  <div key={label} className="admin-row compact-row">
+                    <strong>{label}</strong>
+                    <span>{count}</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="outline-card admin-card">
+              <div className="admin-card-head">
                 <strong>Event breakdown</strong>
                 <span className="rail-label">What users are doing</span>
               </div>
               <div className="admin-list">
-                {eventBreakdown.map(([label, count]) => (
+                {eventBreakdown.slice(0, 8).map(([label, count]) => (
                   <div key={label} className="admin-row compact-row">
                     <strong>{label.replace(/_/g, " ")}</strong>
                     <span>{count}</span>

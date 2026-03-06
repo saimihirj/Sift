@@ -14,7 +14,13 @@ from backend.schemas import AdminEventsResponse, AdminOverviewResponse, SessionS
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
+def _admin_mode_enabled() -> bool:
+    return os.environ.get("VK_ADMIN_MODE", "false").strip().lower() == "true"
+
+
 def _require_admin_token(header_token: str | None) -> None:
+    if not _admin_mode_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
     expected = os.environ.get("VK_ADMIN_TOKEN", "").strip()
     if not expected:
         return

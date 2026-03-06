@@ -1,20 +1,35 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import type { ChatTurn, CoverageItem, ResponseProfile, SessionPayload, SessionSummary, UploadSummary } from "../../app/types";
-import { streamChat } from "../../lib/api/client";
+import type {
+  ChatTurn,
+  CoverageItem,
+  ProviderOption,
+  ResponseProfile,
+  SessionPayload,
+  SessionSummary,
+  ThemeMode,
+  UploadSummary,
+} from "../../app/types";
+import { ThemePicker } from "../../app/ThemePicker";
+import { streamChat, updateSessionRuntime } from "../../lib/api/client";
+import { loadSessionCredential, saveSessionCredential } from "../../lib/sessionCredentials";
+import { RuntimeSidebar } from "../session/RuntimeSidebar";
+import { SessionSidebar } from "../session/SessionSidebar";
 import { ChatMessageList } from "./ChatMessageList";
 import { Composer } from "./Composer";
 
 type Props = {
   session: SessionPayload;
-  recentSessions: SessionSummary[];
   setSession: (updater: (previous: SessionPayload) => SessionPayload) => void;
-  onOpenSession: (sessionId: string) => Promise<void>;
   onNewSession: () => void;
   onExitSession: () => void;
-  theme: "light" | "dark";
-  onToggleTheme: () => void;
+  onOpenSession: (sessionId: string) => void | Promise<void>;
+  onSessionActivity: () => void;
+  recentSessions: SessionSummary[];
+  providerOptions: ProviderOption[];
+  theme: ThemeMode;
+  onThemeChange: (theme: ThemeMode) => void;
 };
 
 type MobilePane = "chat" | "coverage";
@@ -67,15 +82,25 @@ function coverageStatus(score: number) {
   return "Strong";
 }
 
+function defaultModelForProvider(providerOptions: ProviderOption[], provider: string, profile: ResponseProfile): string {
+  const providerMeta = providerOptions.find((item) => item.key === provider);
+  if (!providerMeta) {
+    return "";
+  }
+  return profile === "balanced" ? providerMeta.defaultBalancedModel : providerMeta.defaultSpeedModel;
+}
+
 export function ChatScreen({
   session,
-  recentSessions,
   setSession,
-  onOpenSession,
   onNewSession,
   onExitSession,
+  onOpenSession,
+  onSessionActivity,
+  recentSessions,
+  providerOptions,
   theme,
-  onToggleTheme,
+  onThemeChange,
 }: Props) {
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
@@ -84,6 +109,27 @@ export function ChatScreen({
   const [pending, setPending] = useState(false);
   const [mobilePane, setMobilePane] = useState<MobilePane>("chat");
   const [statusLine, setStatusLine] = useState("Local-first mentoring");
+  const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [runtimeOpen, setRuntimeOpen] = useState(false);
+  const [applyingRuntime, setApplyingRuntime] = useState(false);
+  const [runtimeProvider, setRuntimeProvider] = useState<SessionPayload["provider"]>(session.provider);
+  const [runtimeModel, setRuntimeModel] = useState(session.model);
+  const [runtimeApiKey, setRuntimeApiKey] = useState(() => loadSessionCredential(session.sessionId)?.apiKey ?? "");
+
+  useEffect(() => {
+    setRuntimeProvider(session.provider);
+    setRuntimeModel(session.model);
+    setRuntimeApiKey(loadSessionCredential(session.sessionId)?.apiKey ?? "");
+    setSessionsOpen(false);
+    setRuntimeOpen(false);
+  }, [session.sessionId, session.provider, session.model]);
+
+  const selectedProvider = useMemo(
+    () => providerOptions.find((item) => item.key === runtimeProvider) ?? providerOptions[0] ?? null,
+    [providerOptions, runtimeProvider],
+  );
+  const requiresApiKey = Boolean(selectedProvider?.requiresApiKey);
+  const effectiveModel = runtimeModel.trim() || defaultModelForProvider(providerOptions, runtimeProvider, session.responseProfile);
 
   const coverageSummary = useMemo(
     () => session.coverage.reduce((acc, item) => acc + item.score, 0) / Math.max(session.coverage.length, 1),
@@ -100,9 +146,54 @@ export function ChatScreen({
   );
   const nextGapMeta = useMemo(() => sectionMeta(session.nextGap), [session.nextGap]);
 
+  const applyRuntime = async () => {
+    if (!runtimeProvider) {
+      return;
+    }
+    if (requiresApiKey && !runtimeApiKey.trim()) {
+      setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} before switching.`);
+      return;
+    }
+
+    setApplyingRuntime(true);
+    try {
+      const response = await updateSessionRuntime({
+        sessionId: session.sessionId,
+        provider: runtimeProvider,
+        model: effectiveModel,
+      });
+      if (runtimeApiKey.trim()) {
+        saveSessionCredential(session.sessionId, {
+          provider: response.provider,
+          model: response.model,
+          apiKey: runtimeApiKey.trim(),
+        });
+      } else {
+        saveSessionCredential(session.sessionId, null);
+      }
+      setSession((previous) => ({
+        ...previous,
+        provider: response.provider as SessionPayload["provider"],
+        model: response.model,
+      }));
+      setStatusLine(`${selectedProvider?.label || response.provider} · ${response.model}`);
+      setRuntimeOpen(false);
+      onSessionActivity();
+    } catch (error) {
+      setStatusLine(error instanceof Error ? error.message : "Failed to update runtime");
+    } finally {
+      setApplyingRuntime(false);
+    }
+  };
+
   const submit = async (chipText?: string) => {
     const message = (chipText ?? draft).trim();
-    if (!message && !selectedFile) {
+    if ((!message && !selectedFile) || pending) {
+      return;
+    }
+    if (requiresApiKey && !runtimeApiKey.trim()) {
+      setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} to use this runtime.`);
+      setRuntimeOpen(true);
       return;
     }
 
@@ -129,13 +220,22 @@ export function ChatScreen({
         sessionId: session.sessionId,
         message,
         responseProfile: session.responseProfile,
+        provider: runtimeProvider,
+        model: effectiveModel,
+        apiKey: runtimeApiKey.trim() || undefined,
         file: selectedFile,
         handlers: {
           onMeta: (data) => {
             const profile = (data.responseProfile as ResponseProfile) ?? session.responseProfile;
-            const model = (data.model as string | undefined) ?? "local model";
+            const provider = (data.provider as string | undefined) ?? runtimeProvider;
+            const model = (data.model as string | undefined) ?? effectiveModel;
             const fallbackUsed = Boolean(data.fallbackUsed);
-            setStatusLine(fallbackUsed ? `Balanced fell back to ${model}` : `${profile.toUpperCase()} · ${model}`);
+            setSession((previous) => ({
+              ...previous,
+              provider: provider as SessionPayload["provider"],
+              model,
+            }));
+            setStatusLine(fallbackUsed ? `${provider} fell back to ${model}` : `${profile.toUpperCase()} · ${provider} · ${model}`);
           },
           onDelta: (delta) => {
             setStreamingAssistant((current) => current + delta);
@@ -143,6 +243,8 @@ export function ChatScreen({
           onDone: (data) => {
             const assistantMessage = (data.message as string) ?? "";
             const timings = data.timings as Record<string, number> | undefined;
+            const provider = ((data.provider as string | undefined) ?? runtimeProvider) as SessionPayload["provider"];
+            const model = (data.model as string | undefined) ?? effectiveModel;
             setSession((previous) => ({
               ...previous,
               history: [...previous.history, { role: "assistant", content: assistantMessage }],
@@ -152,7 +254,16 @@ export function ChatScreen({
               nextGap: data.nextGap as string,
               responseProfile: (data.responseProfile as ResponseProfile) ?? previous.responseProfile,
               activeUploads: data.activeUploads as UploadSummary[],
+              provider,
+              model,
             }));
+            if (runtimeApiKey.trim()) {
+              saveSessionCredential(session.sessionId, {
+                provider,
+                model,
+                apiKey: runtimeApiKey.trim(),
+              });
+            }
             if (timings?.firstTokenSeconds !== undefined) {
               setStatusLine(
                 `${((data.responseProfile as ResponseProfile) ?? session.responseProfile).toUpperCase()} · first token ${timings.firstTokenSeconds}s`,
@@ -160,6 +271,7 @@ export function ChatScreen({
             }
             setStreamingAssistant("");
             setSelectedFile(null);
+            onSessionActivity();
           },
           onError: (error) => {
             setStatusLine(error);
@@ -185,8 +297,8 @@ export function ChatScreen({
           <div className="brand-lockup">
             <span className="brand-dot" />
             <div>
-              <strong>Vishwakarma</strong>
-              <p>VK · pitch mentor</p>
+              <strong>Signal</strong>
+              <p>Pitch mentor</p>
             </div>
           </div>
 
@@ -198,7 +310,10 @@ export function ChatScreen({
                   key={profile}
                   type="button"
                   className={session.responseProfile === profile ? "segment active" : "segment"}
-                  onClick={() => setSession((previous) => ({ ...previous, responseProfile: profile }))}
+                  onClick={() => {
+                    setSession((previous) => ({ ...previous, responseProfile: profile }));
+                    setRuntimeModel((current) => current || defaultModelForProvider(providerOptions, runtimeProvider, profile));
+                  }}
                 >
                   {profile === "speed" ? "Speed" : "Balanced"}
                 </button>
@@ -225,44 +340,27 @@ export function ChatScreen({
                 <dt>Next gap</dt>
                 <dd>{nextGapMeta.title}</dd>
               </div>
+              <div>
+                <dt>Runtime</dt>
+                <dd>{session.provider}</dd>
+              </div>
             </dl>
-          </div>
-
-          <div className="rail-card">
-            <div className="rail-stack-head">
-              <span className="rail-label">Sessions</span>
-              <button type="button" className="ghost-button compact" onClick={onNewSession}>
-                New
-              </button>
-            </div>
-            <div className="session-list">
-              {recentSessions.slice(0, 8).map((item) => (
-                <button
-                  key={item.sessionId}
-                  type="button"
-                  className={item.sessionId === session.sessionId ? "session-card active" : "session-card"}
-                  onClick={() => void onOpenSession(item.sessionId)}
-                >
-                  <strong>{item.title}</strong>
-                  <span>{item.subtitle}</span>
-                </button>
-              ))}
-            </div>
           </div>
         </div>
 
         <div className="rail-footer">
-          <button type="button" className="ghost-button" onClick={onToggleTheme}>
-            {theme === "light" ? "Dark theme" : "Light theme"}
+          <ThemePicker theme={theme} onChange={onThemeChange} />
+          <button type="button" className="ghost-button" onClick={() => setSessionsOpen(true)}>
+            Sessions
+          </button>
+          <button type="button" className="ghost-button" onClick={() => setRuntimeOpen(true)}>
+            Runtime
           </button>
           <button type="button" className="ghost-button" onClick={onNewSession}>
             Start new session
           </button>
           <button type="button" className="ghost-button" onClick={() => navigate(`/outline/${session.sessionId}`)}>
             Open outline
-          </button>
-          <button type="button" className="ghost-button" onClick={() => navigate("/admin")}>
-            Admin
           </button>
           <button type="button" className="ghost-button" onClick={onExitSession}>
             Exit session
@@ -273,23 +371,26 @@ export function ChatScreen({
       <main className={mobilePane === "chat" ? "main-pane mobile-chat" : "main-pane mobile-coverage"}>
         <header className="pane-header">
           <div>
-            <span className="eyebrow">Vishwakarma live</span>
+            <span className="eyebrow">Signal</span>
             <h2>{session.state.company_name || "Mentor Console"}</h2>
           </div>
           <div className="status-stack">
             <span>{statusLine}</span>
             <div className="header-actions">
+              <button type="button" className="ghost-button compact" onClick={() => setSessionsOpen(true)}>
+                Sessions
+              </button>
+              <button type="button" className="ghost-button compact" onClick={() => setRuntimeOpen(true)}>
+                Runtime
+              </button>
               <button type="button" className="ghost-button compact" onClick={onNewSession}>
                 New
               </button>
               <button type="button" className="ghost-button compact" onClick={() => navigate(`/outline/${session.sessionId}`)}>
                 Outline
               </button>
-              <button type="button" className="ghost-button compact" onClick={() => navigate("/admin")}>
-                Admin
-              </button>
               <button type="button" className="ghost-button compact" onClick={onExitSession}>
-                Exit session
+                Exit
               </button>
             </div>
             {session.activeUploads.length > 0 && <small>{session.activeUploads.length} active uploads</small>}
@@ -297,26 +398,24 @@ export function ChatScreen({
         </header>
 
         {mobilePane === "chat" ? (
-          <>
-            <div className="chat-panel">
-              <ChatMessageList history={session.history} streamingAssistant={streamingAssistant} />
-              <div className="chip-row">
-                {session.chips.map((chip) => (
-                  <button key={chip} type="button" className="chip-button" onClick={() => submit(chip)} disabled={pending}>
-                    {chip}
-                  </button>
-                ))}
-              </div>
-              <Composer
-                value={draft}
-                onChange={setDraft}
-                onSubmit={() => void submit()}
-                pending={pending}
-                selectedFile={selectedFile}
-                onFileSelected={setSelectedFile}
-              />
+          <div className="chat-panel">
+            <ChatMessageList history={session.history} streamingAssistant={streamingAssistant} />
+            <div className="chip-row">
+              {session.chips.map((chip) => (
+                <button key={chip} type="button" className="chip-button" onClick={() => void submit(chip)} disabled={pending}>
+                  {chip}
+                </button>
+              ))}
             </div>
-          </>
+            <Composer
+              value={draft}
+              onChange={setDraft}
+              onSubmit={() => void submit()}
+              pending={pending}
+              selectedFile={selectedFile}
+              onFileSelected={setSelectedFile}
+            />
+          </div>
         ) : (
           <div className="mobile-coverage-panel">
             <div className="drawer-card">
@@ -390,7 +489,7 @@ export function ChatScreen({
         <div className="drawer-card">
           <span className="rail-label">Files in context</span>
           {session.activeUploads.length === 0 ? (
-            <p className="muted-copy">Attach a deck, notes, or research. VK will pull only the relevant parts.</p>
+            <p className="muted-copy">Attach a deck, notes, or research. Only the relevant parts will be used.</p>
           ) : (
             <ul className="upload-list">
               {session.activeUploads.map((upload) => (
@@ -403,6 +502,37 @@ export function ChatScreen({
           )}
         </div>
       </aside>
+
+      <SessionSidebar
+        isOpen={sessionsOpen}
+        sessions={recentSessions}
+        currentSessionId={session.sessionId}
+        onClose={() => setSessionsOpen(false)}
+        onOpenSession={(sessionId) => {
+          setSessionsOpen(false);
+          void onOpenSession(sessionId);
+        }}
+      />
+
+      <RuntimeSidebar
+        isOpen={runtimeOpen}
+        title="Switch model live"
+        providerOptions={providerOptions}
+        provider={runtimeProvider}
+        model={runtimeModel}
+        apiKey={runtimeApiKey}
+        responseProfile={session.responseProfile}
+        applying={applyingRuntime}
+        onClose={() => setRuntimeOpen(false)}
+        onProviderChange={(provider) => {
+          setRuntimeProvider(provider as SessionPayload["provider"]);
+          setRuntimeModel(defaultModelForProvider(providerOptions, provider, session.responseProfile));
+        }}
+        onModelChange={setRuntimeModel}
+        onApiKeyChange={setRuntimeApiKey}
+        onUseDefaultModel={(profile) => setRuntimeModel(defaultModelForProvider(providerOptions, runtimeProvider, profile))}
+        onApply={() => void applyRuntime()}
+      />
 
       <nav className="mobile-nav">
         <button

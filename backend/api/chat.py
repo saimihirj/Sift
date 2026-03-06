@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 import memory
 from state import ConversationState
 
-from backend.services.model_router import stream_chat_completion
+from backend.services.model_router import default_model_for_provider, normalize_provider, stream_chat_completion
 from backend.services.prompting import DEFAULT_RESPONSE_PROFILE, build_system_prompt, get_chip_suggestions
 from backend.services.retrieval import build_retrieval_context
 from backend.services.state_engine import coverage_items, next_gap, update_state_from_turn
@@ -49,6 +49,9 @@ async def chat(
     sessionId: str = Form(...),
     message: str = Form(""),
     responseProfile: str = Form(DEFAULT_RESPONSE_PROFILE),
+    provider: str = Form(""),
+    model: str = Form(""),
+    apiKey: str = Form(""),
     file: UploadFile | None = File(default=None),
 ) -> StreamingResponse:
     session_row = memory.get_session(sessionId)
@@ -60,6 +63,14 @@ async def chat(
 
     turns = memory.get_session_turns(sessionId)
     restored_state = _restore_state(turns, session_row)
+    chosen_provider = normalize_provider(provider or session_row.get("provider", "ollama"))
+    chosen_model = (model or session_row.get("model", "")).strip() or default_model_for_provider(chosen_provider, responseProfile)
+    api_key = (apiKey or "").strip() or None
+
+    if chosen_provider != session_row.get("provider", "ollama") or chosen_model != (session_row.get("model", "") or ""):
+        memory.update_session_runtime(sessionId, chosen_provider, chosen_model)
+        session_row["provider"] = chosen_provider
+        session_row["model"] = chosen_model
 
     async def event_stream() -> AsyncIterator[str]:
         started_at = time.perf_counter()
@@ -101,6 +112,9 @@ async def chat(
                 system=system_prompt,
                 messages=[*history_window, {"role": "user", "content": user_message}],
                 response_profile=responseProfile,
+                provider_override=chosen_provider,
+                model_override=chosen_model,
+                api_key=api_key,
             ):
                 if event == "meta":
                     payload["activeUploads"] = active_uploads
@@ -122,6 +136,8 @@ async def chat(
 
             user_metadata = {
                 "responseProfileRequested": responseProfile,
+                "provider": chosen_provider,
+                "model": chosen_model,
                 "upload": upload_entry,
                 "retrievalChars": retrieval["promptChars"],
                 "researchSources": retrieval["researchSources"],
@@ -129,6 +145,7 @@ async def chat(
             assistant_metadata = {
                 "responseProfile": completion_payload["responseProfile"],
                 "model": completion_payload["model"],
+                "provider": completion_payload.get("provider", chosen_provider),
                 "fallbackUsed": completion_payload.get("fallbackUsed", False),
                 "timings": {
                     **completion_payload["timings"],
@@ -164,6 +181,7 @@ async def chat(
                 pathname="/",
                 metadata={
                     "responseProfile": completion_payload["responseProfile"],
+                    "provider": completion_payload.get("provider", chosen_provider),
                     "model": completion_payload["model"],
                     "fallbackUsed": completion_payload.get("fallbackUsed", False),
                     "firstTokenSeconds": assistant_metadata["timings"].get("firstTokenSeconds", 0),
@@ -182,6 +200,7 @@ async def chat(
                     "coverage": coverage_items(current_state),
                     "nextGap": next_gap(current_state),
                     "responseProfile": completion_payload["responseProfile"],
+                    "provider": completion_payload.get("provider", chosen_provider),
                     "model": completion_payload["model"],
                     "timings": assistant_metadata["timings"],
                     "fallbackUsed": completion_payload.get("fallbackUsed", False),

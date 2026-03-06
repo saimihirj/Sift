@@ -37,7 +37,7 @@ WRAP_UP_CUES = (
     "thats all",
 )
 
-BASE_MENTOR_PROMPT = """You are Vishwakarma (VK), a sharp pitch-deck mentor for startup founders.
+BASE_MENTOR_PROMPT = """You are a sharp pitch mentor for startup founders.
 
 You are not a generic chatbot. You are a proper mentor helping founders sharpen investor thinking.
 
@@ -349,7 +349,7 @@ SECTION_CHIPS = {
     ],
 }
 
-OUTLINE_PROMPT = """Turn the transcript into a founder-ready markdown outline for Vishwakarma.
+OUTLINE_PROMPT = """Turn the transcript into a founder-ready markdown outline for Signal.
 
 Use these sections exactly:
 # Company Name — Pitch Outline
@@ -372,14 +372,14 @@ Rules:
 
 
 def build_personalized_opening(founder_type: str, sector: str, stage: str) -> str:
-    prefix = OPENING_PREFIX.get(founder_type, OPENING_PREFIX["unknown"])
+    prompt = STAGE_PROMPTS.get(stage, STAGE_PROMPTS["unknown"])
     sector_line = get_sector_prompt_snippet(sector)
-    stage_line = STAGE_PROMPTS.get(stage, STAGE_PROMPTS["unknown"])
-    bits = [prefix]
+    parts = ["Hi. What are you building?"]
+    if prompt:
+        parts.append(prompt)
     if sector_line:
-        bits.append(sector_line)
-    bits.append(stage_line)
-    return " ".join(bits[:3])
+        parts.append(sector_line)
+    return " ".join(parts[:3])
 
 
 def get_starter_chips(state: ConversationState) -> list[str]:

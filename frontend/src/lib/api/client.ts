@@ -1,10 +1,15 @@
 import type {
   AdminEventsPayload,
   AdminOverview,
+  AuthSessionPayload,
+  EvaluatorAnswerPayload,
+  EvaluatorReportPayload,
   OutlinePayload,
+  ProviderCatalogPayload,
   ResponseProfile,
   SessionListPayload,
   SessionPayload,
+  SessionRuntimePayload,
   StartSessionPayload,
 } from "../../app/types";
 
@@ -27,9 +32,35 @@ type StreamHandlers = {
   onError?: (error: string) => void;
 };
 
+export function authLoginUrl(provider: "google" | "apple", nextPath = "/"): string {
+  const next = nextPath.startsWith("/") ? nextPath : "/";
+  return `${API_BASE}/api/auth/login/${provider}?next=${encodeURIComponent(next)}`;
+}
+
+export async function getAuthSession(): Promise<AuthSessionPayload> {
+  const response = await fetch(`${API_BASE}/api/auth/session`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to load auth session");
+  }
+  return response.json();
+}
+
+export async function logoutAuth(): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to sign out");
+  }
+}
+
 export async function startSession(payload: Record<string, unknown>): Promise<StartSessionPayload> {
   const response = await fetch(`${API_BASE}/api/session/start`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -40,7 +71,9 @@ export async function startSession(payload: Record<string, unknown>): Promise<St
 }
 
 export async function listSessions(clientId: string): Promise<SessionListPayload> {
-  const response = await fetch(`${API_BASE}/api/session?clientId=${encodeURIComponent(clientId)}`);
+  const response = await fetch(`${API_BASE}/api/session?clientId=${encodeURIComponent(clientId)}`, {
+    credentials: "include",
+  });
   if (!response.ok) {
     throw new Error("Failed to load session list");
   }
@@ -48,9 +81,38 @@ export async function listSessions(clientId: string): Promise<SessionListPayload
 }
 
 export async function getSession(sessionId: string): Promise<SessionPayload> {
-  const response = await fetch(`${API_BASE}/api/session/${sessionId}`);
+  const response = await fetch(`${API_BASE}/api/session/${sessionId}`, {
+    credentials: "include",
+  });
   if (!response.ok) {
     throw new Error("Failed to load session");
+  }
+  return response.json();
+}
+
+export async function updateSessionRuntime(args: {
+  sessionId: string;
+  provider: string;
+  model: string;
+}): Promise<SessionRuntimePayload> {
+  const response = await fetch(`${API_BASE}/api/session/${args.sessionId}/runtime`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: args.provider, model: args.model }),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to update session runtime");
+  }
+  return response.json();
+}
+
+export async function listProviders(): Promise<ProviderCatalogPayload> {
+  const response = await fetch(`${API_BASE}/api/session/providers`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to load provider catalog");
   }
   return response.json();
 }
@@ -58,6 +120,7 @@ export async function getSession(sessionId: string): Promise<SessionPayload> {
 export async function sendHeartbeat(clientId: string): Promise<void> {
   await fetch(`${API_BASE}/api/client/heartbeat`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ clientId }),
   });
@@ -73,6 +136,7 @@ export async function postAnalyticsEvent(payload: {
 }): Promise<void> {
   await fetch(`${API_BASE}/api/analytics/event`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
@@ -81,11 +145,58 @@ export async function postAnalyticsEvent(payload: {
 export async function getOutline(sessionId: string): Promise<OutlinePayload> {
   const response = await fetch(`${API_BASE}/api/outline`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sessionId }),
   });
   if (!response.ok) {
     throw new Error("Failed to load outline");
+  }
+  return response.json();
+}
+
+export async function answerEvaluator(args: {
+  sessionId: string;
+  answer: string;
+  provider?: string;
+  model?: string;
+  apiKey?: string;
+  file?: File | null;
+}): Promise<EvaluatorAnswerPayload> {
+  const form = new FormData();
+  form.set("sessionId", args.sessionId);
+  form.set("answer", args.answer);
+  if (args.provider) {
+    form.set("provider", args.provider);
+  }
+  if (args.model) {
+    form.set("model", args.model);
+  }
+  if (args.apiKey) {
+    form.set("apiKey", args.apiKey);
+  }
+  if (args.file) {
+    form.set("file", args.file);
+  }
+
+  const response = await fetch(`${API_BASE}/api/evaluator/answer`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to submit evaluator answer");
+  }
+  return response.json();
+}
+
+export async function getEvaluatorReport(sessionId: string): Promise<EvaluatorReportPayload> {
+  const response = await fetch(`${API_BASE}/api/evaluator/${sessionId}/report`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to load evaluator report");
   }
   return response.json();
 }
@@ -112,6 +223,9 @@ export async function streamChat(args: {
   sessionId: string;
   message: string;
   responseProfile: ResponseProfile;
+  provider?: string;
+  model?: string;
+  apiKey?: string;
   file?: File | null;
   handlers: StreamHandlers;
 }): Promise<void> {
@@ -119,12 +233,22 @@ export async function streamChat(args: {
   form.set("sessionId", args.sessionId);
   form.set("message", args.message);
   form.set("responseProfile", args.responseProfile);
+  if (args.provider) {
+    form.set("provider", args.provider);
+  }
+  if (args.model) {
+    form.set("model", args.model);
+  }
+  if (args.apiKey) {
+    form.set("apiKey", args.apiKey);
+  }
   if (args.file) {
     form.set("file", args.file);
   }
 
   const response = await fetch(`${API_BASE}/api/chat`, {
     method: "POST",
+    credentials: "include",
     body: form,
   });
   if (!response.ok || !response.body) {
@@ -170,6 +294,7 @@ export async function streamChat(args: {
 
 export async function getAdminOverview(token: string): Promise<AdminOverview> {
   const response = await fetch(`${API_BASE}/api/admin/overview`, {
+    credentials: "include",
     headers: token ? { "x-admin-token": token } : {},
   });
   if (!response.ok) {
@@ -180,6 +305,7 @@ export async function getAdminOverview(token: string): Promise<AdminOverview> {
 
 export async function getAdminEvents(token: string): Promise<AdminEventsPayload> {
   const response = await fetch(`${API_BASE}/api/admin/events`, {
+    credentials: "include",
     headers: token ? { "x-admin-token": token } : {},
   });
   if (!response.ok) {
