@@ -158,8 +158,8 @@ Important:
 For container-style deployment:
 
 ```bash
-docker build -t vishwakarma .
-docker run -p 8000:8000 vishwakarma
+docker build -t signal .
+docker run -p 8000:8000 signal
 ```
 
 App URL:
@@ -186,7 +186,7 @@ Recommended deploy path:
 
 Important:
 - the current blueprint uses a persistent disk
-- app data is written under `/var/data/vishwakarma`
+- app data is written under `/var/data/signal`
 - admin monitoring is available at `/admin`
 
 If you want zero paid dependencies, skip this section and stay on local / LAN mode.
@@ -365,6 +365,6 @@ npm --prefix frontend run build
 Run Docker:
 
 ```bash
-docker build -t vishwakarma .
-docker run -p 8000:8000 vishwakarma
+docker build -t signal .
+docker run -p 8000:8000 signal
 ```

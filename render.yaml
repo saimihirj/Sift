@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: vishwakarma
+    name: signal
     runtime: docker
     plan: starter
     autoDeploy: true
@@ -9,7 +9,7 @@ services:
       - key: VK_MODEL_PROVIDER
         value: groq
       - key: VK_DATA_DIR
-        value: /var/data/vishwakarma
+        value: /var/data/signal
       - key: OLLAMA_BASE_URL
         value: http://127.0.0.1:11434
       - key: GROQ_API_KEY
@@ -21,6 +21,6 @@ services:
       - key: VK_ADMIN_TOKEN
         sync: false
     disk:
-      name: vishwakarma-data
+      name: signal-data
       mountPath: /var/data
       sizeGB: 2

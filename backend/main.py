@@ -44,7 +44,7 @@ app.add_middleware(
 if SessionMiddleware is not None:
     app.add_middleware(
         SessionMiddleware,
-        secret_key=os.environ.get("VK_SESSION_SECRET", "vishwakarma-local-dev-secret"),
+        secret_key=os.environ.get("VK_SESSION_SECRET", "signal-local-dev-secret"),
         same_site="lax",
         https_only=os.environ.get("VK_COOKIE_SECURE", "false").strip().lower() == "true",
         max_age=60 * 60 * 24 * 30,

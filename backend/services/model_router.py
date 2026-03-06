@@ -366,7 +366,7 @@ async def _stream_from_openai_compatible(
     )
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     if provider == "openrouter":
-        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://vishwakarma.local")
+        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://signal.local")
         headers["X-Title"] = "Signal"
 
     start = time.perf_counter()
@@ -547,7 +547,7 @@ async def _complete_openai(
     payload = _openai_payload(model, system, messages, max_tokens, temperature, top_p, False)
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     if provider == "openrouter":
-        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://vishwakarma.local")
+        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://signal.local")
         headers["X-Title"] = "Signal"
     timeout = httpx.Timeout(timeout_seconds, connect=3.0, read=timeout_seconds)
     start = time.perf_counter()

@@ -464,7 +464,7 @@ VK_ADMIN_TOKEN=your_secret_token
 Run from the project root:
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/vishwakarma
+cd /Users/saimihirj/Desktop/Ideas/signal
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -491,7 +491,7 @@ ollama pull qwen3:4b
 ### Normal MVP app
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/vishwakarma
+cd /Users/saimihirj/Desktop/Ideas/signal
 source .venv/bin/activate
 npm run mvp
 ```
@@ -505,7 +505,7 @@ http://127.0.0.1:7860
 ### Admin directly
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/vishwakarma
+cd /Users/saimihirj/Desktop/Ideas/signal
 source .venv/bin/activate
 npm run admin
 ```
@@ -519,7 +519,7 @@ http://127.0.0.1:7860/admin
 ### LAN share
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/vishwakarma
+cd /Users/saimihirj/Desktop/Ideas/signal
 source .venv/bin/activate
 npm run mvp:lan
 ```
@@ -535,7 +535,7 @@ http://YOUR-LAN-IP:7860/admin
 ### Dev mode
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/vishwakarma
+cd /Users/saimihirj/Desktop/Ideas/signal
 source .venv/bin/activate
 npm run dev
 ```
@@ -549,9 +549,9 @@ http://127.0.0.1:5173
 ### Docker
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/vishwakarma
-docker build -t vishwakarma .
-docker run -p 8000:8000 --env-file .env vishwakarma
+cd /Users/saimihirj/Desktop/Ideas/signal
+docker build -t signal .
+docker run -p 8000:8000 --env-file .env signal
 ```
 
 Open:
