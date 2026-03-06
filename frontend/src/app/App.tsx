@@ -9,8 +9,8 @@ import { LandingScreen } from "../features/onboarding/LandingScreen";
 import { OnboardingCard } from "../features/onboarding/OnboardingCard";
 import { OutlineScreen } from "../features/outline/OutlineScreen";
 
-const SESSION_STORAGE_KEY = "pitch-deck-mentor-session-id";
-const THEME_STORAGE_KEY = "pitch-deck-mentor-theme";
+const SESSION_STORAGE_KEY = "vishwakarma-session-id";
+const THEME_STORAGE_KEY = "vishwakarma-theme";
 const CLIENT_STORAGE_KEY = "vishwakarma-client-id";
 const DISPLAY_NAME_STORAGE_KEY = "vishwakarma-display-name";
 

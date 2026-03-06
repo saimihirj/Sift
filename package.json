@@ -1,6 +1,7 @@
 {
-  "name": "pitch-deck-mentor",
+  "name": "vishwakarma",
   "private": true,
+  "version": "0.1.0",
   "scripts": {
     "mvp": "python3 vk.py --build",
     "mvp:lan": "python3 vk.py --host 0.0.0.0 --build",
