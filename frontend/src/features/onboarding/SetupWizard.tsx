@@ -1,18 +1,22 @@
-import { useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useMemo, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import { SignalLockup } from "../../app/SignalBrand";
-import type { FounderType, Mode, Provider, ProviderOption, Sector, SessionType, Stage } from "../../app/types";
+import type { Provider, ProviderOption, SetupDraft } from "../../app/types";
 
 type Props = {
   providerOptions: ProviderOption[];
   loading: boolean;
+  step: number;
+  draft: SetupDraft;
+  onStepChange: (step: number) => void;
+  onDraftChange: (updater: (current: SetupDraft) => SetupDraft) => void;
   onBack: () => void;
   onStart: (payload: {
-    sessionType: SessionType;
-    founderType: FounderType;
-    sector: Sector;
-    stage: Stage;
-    mode: Mode;
+    sessionType: SetupDraft["sessionType"];
+    founderType: SetupDraft["founderType"];
+    sector: SetupDraft["sector"];
+    stage: SetupDraft["stage"];
+    mode: SetupDraft["mode"];
     provider: Provider;
     model: string;
     apiKey: string;
@@ -22,16 +26,14 @@ type Props = {
   }) => Promise<void>;
 };
 
-type RuntimeKind = "local" | "external";
-
-const founderOptions: Array<{ value: FounderType; label: string }> = [
+const founderOptions: Array<{ value: SetupDraft["founderType"]; label: string }> = [
   { value: "student", label: "Student innovator" },
   { value: "professional", label: "Working professional" },
   { value: "founder", label: "First-time founder" },
   { value: "serial", label: "Repeat founder" },
 ];
 
-const sectorOptions: Array<{ value: Sector; label: string }> = [
+const sectorOptions: Array<{ value: SetupDraft["sector"]; label: string }> = [
   { value: "saas", label: "Software / SaaS" },
   { value: "d2c", label: "Consumer / D2C" },
   { value: "fintech", label: "Fintech" },
@@ -42,21 +44,21 @@ const sectorOptions: Array<{ value: Sector; label: string }> = [
   { value: "unknown", label: "Other" },
 ];
 
-const stageOptions: Array<{ value: Stage; label: string }> = [
+const stageOptions: Array<{ value: SetupDraft["stage"]; label: string }> = [
   { value: "idea", label: "Exploring" },
   { value: "pre-revenue", label: "Testing or building" },
   { value: "early-revenue", label: "Early proof" },
   { value: "growth", label: "Growing" },
 ];
 
-const modeOptions: Array<{ value: Mode; label: string; note: string }> = [
+const modeOptions: Array<{ value: SetupDraft["mode"]; label: string; note: string }> = [
   { value: "think_it_through", label: "Guided build", note: "Calmer coaching with more teaching." },
   { value: "quick_stress_test", label: "Pressure test", note: "Sharper follow-ups and less cushioning." },
 ];
 
-const workflowOptions: Array<{ value: SessionType; label: string; note: string }> = [
-  { value: "mentor", label: "Mentor", note: "Open-ended refinement, back and forth." },
-  { value: "evaluator", label: "Evaluator", note: "Adaptive interview, final score and report at the end." },
+const workflowOptions: Array<{ value: SetupDraft["sessionType"]; label: string; note: string }> = [
+  { value: "mentor", label: "Ideate", note: "Open-ended refinement, back and forth." },
+  { value: "evaluator", label: "Evaluate", note: "Adaptive interview, final score and report at the end." },
 ];
 
 const budgetOptions: Array<{ value: 10 | 15 | 20; label: string; note: string }> = [
@@ -74,7 +76,7 @@ function stepTitle(step: number) {
 function stepSubtitle(step: number) {
   if (step === 0) return "Use local open-source models or bring your own provider key for this session.";
   if (step === 1) return "This keeps the next conversation adaptive without wasting time on basics.";
-  return "Mentor stays open-ended. Evaluator stays conversational and gives the score only at the end.";
+  return "Ideate stays open-ended. Evaluate stays conversational and gives the score only at the end.";
 }
 
 function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
@@ -96,39 +98,25 @@ function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
   nextButton.click();
 }
 
-export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props) {
-  const [step, setStep] = useState(0);
-  const [runtimeKind, setRuntimeKind] = useState<RuntimeKind>("local");
-  const [provider, setProvider] = useState<Provider>("ollama");
-  const [model, setModel] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [founderType, setFounderType] = useState<FounderType>("founder");
-  const [sector, setSector] = useState<Sector>("saas");
-  const [stage, setStage] = useState<Stage>("idea");
-  const [websiteUrl, setWebsiteUrl] = useState("");
-  const [setupContext, setSetupContext] = useState("");
-  const [sessionType, setSessionType] = useState<SessionType>("mentor");
-  const [mode, setMode] = useState<Mode>("think_it_through");
-  const [questionBudget, setQuestionBudget] = useState<10 | 15 | 20>(15);
-
+export function SetupWizard({ providerOptions, loading, step, draft, onStepChange, onDraftChange, onBack, onStart }: Props) {
   const filteredProviders = useMemo(
-    () => (runtimeKind === "local" ? providerOptions.filter((item) => item.key === "ollama") : providerOptions.filter((item) => item.key !== "ollama")),
-    [providerOptions, runtimeKind],
+    () => (draft.runtimeKind === "local" ? providerOptions.filter((item) => item.key === "ollama") : providerOptions.filter((item) => item.key !== "ollama")),
+    [providerOptions, draft.runtimeKind],
   );
   const providerMeta = useMemo(() => {
-    const fallback = runtimeKind === "local"
+    const fallback = draft.runtimeKind === "local"
       ? providerOptions.find((item) => item.key === "ollama")
       : filteredProviders[0];
-    return providerOptions.find((item) => item.key === provider) ?? fallback ?? providerOptions[0];
-  }, [filteredProviders, provider, providerOptions, runtimeKind]);
+    return providerOptions.find((item) => item.key === draft.provider) ?? fallback ?? providerOptions[0];
+  }, [draft.provider, draft.runtimeKind, filteredProviders, providerOptions]);
 
-  const resolvedProvider = runtimeKind === "local" ? "ollama" : (providerMeta?.key ?? "cerebras");
-  const resolvedModel = model.trim()
-    || (runtimeKind === "local"
+  const resolvedProvider = draft.runtimeKind === "local" ? "ollama" : (providerMeta?.key ?? "cerebras");
+  const resolvedModel = draft.model.trim()
+    || (draft.runtimeKind === "local"
       ? providerMeta?.defaultSpeedModel
       : providerMeta?.defaultBalancedModel || providerMeta?.defaultSpeedModel)
     || "";
-  const canAdvanceRuntime = Boolean(resolvedModel) && (runtimeKind === "local" || apiKey.trim());
+  const canAdvanceRuntime = Boolean(resolvedModel) && (draft.runtimeKind === "local" || draft.apiKey.trim());
 
   return (
     <section className="onboarding-shell">
@@ -152,13 +140,16 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
             <div className="workflow-row" onKeyDown={handleArrowSelection}>
               <button
                 type="button"
-                className={runtimeKind === "local" ? "choice-card active" : "choice-card"}
+                className={draft.runtimeKind === "local" ? "choice-card active" : "choice-card"}
                 onClick={() => {
-                  setRuntimeKind("local");
-                  setProvider("ollama");
                   const ollama = providerOptions.find((item) => item.key === "ollama");
-                  setModel(ollama?.defaultSpeedModel || "");
-                  setApiKey("");
+                  onDraftChange((current) => ({
+                    ...current,
+                    runtimeKind: "local",
+                    provider: "ollama",
+                    model: ollama?.defaultSpeedModel || current.model,
+                    apiKey: "",
+                  }));
                 }}
               >
                 <span>Local open source</span>
@@ -166,12 +157,15 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
               </button>
               <button
                 type="button"
-                className={runtimeKind === "external" ? "choice-card active" : "choice-card"}
+                className={draft.runtimeKind === "external" ? "choice-card active" : "choice-card"}
                 onClick={() => {
-                  setRuntimeKind("external");
                   const firstExternal = providerOptions.find((item) => item.key !== "ollama");
-                  setProvider(firstExternal?.key ?? "cerebras");
-                  setModel(firstExternal?.defaultBalancedModel || firstExternal?.defaultSpeedModel || "");
+                  onDraftChange((current) => ({
+                    ...current,
+                    runtimeKind: "external",
+                    provider: firstExternal?.key ?? "cerebras",
+                    model: firstExternal?.defaultBalancedModel || firstExternal?.defaultSpeedModel || current.model,
+                  }));
                 }}
               >
                 <span>Use API key</span>
@@ -188,10 +182,13 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
                     type="button"
                     className={resolvedProvider === option.key ? "chip-card active" : "chip-card"}
                     onClick={() => {
-                      setProvider(option.key);
-                      setModel(runtimeKind === "local"
-                        ? option.defaultSpeedModel
-                        : option.defaultBalancedModel || option.defaultSpeedModel);
+                      onDraftChange((current) => ({
+                        ...current,
+                        provider: option.key,
+                        model: draft.runtimeKind === "local"
+                          ? option.defaultSpeedModel
+                          : option.defaultBalancedModel || option.defaultSpeedModel,
+                      }));
                     }}
                   >
                     <span>{option.label}</span>
@@ -207,17 +204,17 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
                   <span className="rail-label">Model</span>
                   <input
                     value={resolvedModel}
-                    onChange={(event) => setModel(event.target.value)}
+                    onChange={(event) => onDraftChange((current) => ({ ...current, model: event.target.value }))}
                     placeholder={resolvedProvider === "cerebras" ? "Example: gpt-oss-120b" : "Type the model id"}
                   />
                 </label>
-                {runtimeKind === "external" ? (
+                {draft.runtimeKind === "external" ? (
                   <label className="identity-field">
                     <span className="rail-label">API key</span>
                     <input
                       type="password"
-                      value={apiKey}
-                      onChange={(event) => setApiKey(event.target.value)}
+                      value={draft.apiKey}
+                      onChange={(event) => onDraftChange((current) => ({ ...current, apiKey: event.target.value }))}
                       placeholder="Paste the key for this session"
                     />
                   </label>
@@ -242,8 +239,8 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
                   <button
                     key={option.value}
                     type="button"
-                    className={founderType === option.value ? "chip-card active" : "chip-card"}
-                    onClick={() => setFounderType(option.value)}
+                    className={draft.founderType === option.value ? "chip-card active" : "chip-card"}
+                    onClick={() => onDraftChange((current) => ({ ...current, founderType: option.value }))}
                   >
                     <span>{option.label}</span>
                   </button>
@@ -258,8 +255,8 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
                   <button
                     key={option.value}
                     type="button"
-                    className={sector === option.value ? "chip-card active" : "chip-card"}
-                    onClick={() => setSector(option.value)}
+                    className={draft.sector === option.value ? "chip-card active" : "chip-card"}
+                    onClick={() => onDraftChange((current) => ({ ...current, sector: option.value }))}
                   >
                     <span>{option.label}</span>
                   </button>
@@ -274,8 +271,8 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
                   <button
                     key={option.value}
                     type="button"
-                    className={stage === option.value ? "chip-card active" : "chip-card"}
-                    onClick={() => setStage(option.value)}
+                    className={draft.stage === option.value ? "chip-card active" : "chip-card"}
+                    onClick={() => onDraftChange((current) => ({ ...current, stage: option.value }))}
                   >
                     <span>{option.label}</span>
                   </button>
@@ -287,13 +284,17 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
               <div className="field-grid">
                 <label className="identity-field field-span">
                   <span className="rail-label">Website URL</span>
-                  <input value={websiteUrl} onChange={(event) => setWebsiteUrl(event.target.value)} placeholder="https://yourproduct.com" />
+                  <input
+                    value={draft.websiteUrl}
+                    onChange={(event) => onDraftChange((current) => ({ ...current, websiteUrl: event.target.value }))}
+                    placeholder="https://yourproduct.com"
+                  />
                 </label>
                 <label className="identity-field field-span">
                   <span className="rail-label">What should the first reply know?</span>
                   <textarea
-                    value={setupContext}
-                    onChange={(event) => setSetupContext(event.target.value)}
+                    value={draft.setupContext}
+                    onChange={(event) => onDraftChange((current) => ({ ...current, setupContext: event.target.value }))}
                     placeholder="Short summary, draft idea, current users, deck notes, or anything else that helps the conversation start deeper."
                     rows={5}
                   />
@@ -310,8 +311,8 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
                 <button
                   key={option.value}
                   type="button"
-                  className={sessionType === option.value ? "choice-card active" : "choice-card"}
-                  onClick={() => setSessionType(option.value)}
+                  className={draft.sessionType === option.value ? "choice-card active" : "choice-card"}
+                  onClick={() => onDraftChange((current) => ({ ...current, sessionType: option.value }))}
                 >
                   <span>{option.label}</span>
                   <small>{option.note}</small>
@@ -326,8 +327,8 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
                   <button
                     key={option.value}
                     type="button"
-                    className={mode === option.value ? "choice-card active" : "choice-card"}
-                    onClick={() => setMode(option.value)}
+                    className={draft.mode === option.value ? "choice-card active" : "choice-card"}
+                    onClick={() => onDraftChange((current) => ({ ...current, mode: option.value }))}
                   >
                     <span>{option.label}</span>
                     <small>{option.note}</small>
@@ -336,7 +337,7 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
               </div>
             </div>
 
-            {sessionType === "evaluator" ? (
+            {draft.sessionType === "evaluator" ? (
               <div className="drawer-card">
                 <span className="rail-label">Assessment depth</span>
                 <div className="workflow-row" onKeyDown={handleArrowSelection}>
@@ -344,8 +345,8 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
                     <button
                       key={option.value}
                       type="button"
-                      className={questionBudget === option.value ? "choice-card active" : "choice-card"}
-                      onClick={() => setQuestionBudget(option.value)}
+                      className={draft.questionBudget === option.value ? "choice-card active" : "choice-card"}
+                      onClick={() => onDraftChange((current) => ({ ...current, questionBudget: option.value }))}
                     >
                       <span>{option.label}</span>
                       <small>{option.note}</small>
@@ -366,7 +367,7 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
                 onBack();
                 return;
               }
-              setStep((current) => current - 1);
+              onStepChange(step - 1);
             }}
           >
             Back
@@ -376,7 +377,7 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
             <button
               type="button"
               className="solid-button"
-              onClick={() => setStep((current) => current + 1)}
+              onClick={() => onStepChange(step + 1)}
               disabled={step === 0 && !canAdvanceRuntime}
             >
               Continue
@@ -388,17 +389,17 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
               disabled={loading}
               onClick={() =>
                 void onStart({
-                  sessionType,
-                  founderType,
-                  sector,
-                  stage,
-                  mode,
+                  sessionType: draft.sessionType,
+                  founderType: draft.founderType,
+                  sector: draft.sector,
+                  stage: draft.stage,
+                  mode: draft.mode,
                   provider: resolvedProvider as Provider,
                   model: resolvedModel,
-                  apiKey: runtimeKind === "external" ? apiKey.trim() : "",
-                  questionBudget,
-                  websiteUrl,
-                  setupContext,
+                  apiKey: draft.runtimeKind === "external" ? draft.apiKey.trim() : "",
+                  questionBudget: draft.questionBudget,
+                  websiteUrl: draft.websiteUrl,
+                  setupContext: draft.setupContext,
                 })
               }
             >

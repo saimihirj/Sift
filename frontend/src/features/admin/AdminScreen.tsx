@@ -25,7 +25,7 @@ function metricCards(overview: AdminOverview | null): MetricCard[] {
   return [
     { label: "Unique visitors", value: String(overview.uniqueVisitors) },
     { label: "Total sessions", value: String(overview.totalSessions) },
-    { label: "Evaluator sessions", value: String(overview.evaluatorSessions) },
+    { label: "Evaluate sessions", value: String(overview.evaluatorSessions) },
     { label: "Completion rate", value: `${overview.evaluatorCompletionRate}%` },
     { label: "Avg success", value: `${overview.averageSuccessScore}` },
     { label: "Avg first token", value: `${overview.averageFirstTokenSeconds}s` },

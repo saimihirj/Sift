@@ -16,6 +16,22 @@ export type Sector =
   | "unknown";
 export type Stage = "idea" | "pre-revenue" | "early-revenue" | "growth" | "unknown";
 export type Mode = "think_it_through" | "quick_stress_test";
+export type RuntimeKind = "local" | "external";
+
+export type SetupDraft = {
+  runtimeKind: RuntimeKind;
+  provider: Provider;
+  model: string;
+  apiKey: string;
+  founderType: FounderType;
+  sector: Sector;
+  stage: Stage;
+  websiteUrl: string;
+  setupContext: string;
+  sessionType: SessionType;
+  mode: Mode;
+  questionBudget: 10 | 15 | 20;
+};
 
 export type ChatTurn = {
   role: "user" | "assistant";

@@ -109,7 +109,7 @@ export function ChatScreen({
   const [streamingAssistant, setStreamingAssistant] = useState("");
   const [pending, setPending] = useState(false);
   const [mobilePane, setMobilePane] = useState<MobilePane>("chat");
-  const [statusLine, setStatusLine] = useState("Local-first mentoring");
+  const [statusLine, setStatusLine] = useState("Local-first ideation");
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [runtimeOpen, setRuntimeOpen] = useState(false);
   const [applyingRuntime, setApplyingRuntime] = useState(false);
@@ -367,7 +367,7 @@ export function ChatScreen({
         <header className="pane-header">
           <div>
             <span className="eyebrow">Cut Through The Noise.</span>
-            <h2>{session.state.company_name || "Mentor Console"}</h2>
+            <h2>{session.state.company_name || "Ideate"}</h2>
           </div>
           <div className="status-stack">
             <span>{statusLine}</span>
@@ -394,7 +394,7 @@ export function ChatScreen({
 
         {mobilePane === "chat" ? (
           <div className="chat-panel">
-            <ChatMessageList history={session.history} streamingAssistant={streamingAssistant} />
+            <ChatMessageList history={session.history} streamingAssistant={streamingAssistant} assistantLabel="Ideate" />
             <div className="chip-row">
               {session.chips.map((chip) => (
                 <button key={chip} type="button" className="chip-button" onClick={() => void submit(chip)} disabled={pending}>

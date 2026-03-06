@@ -32,8 +32,7 @@ export function LandingScreen({
 }: Props) {
   const google = providerState("google", authProviders);
   const apple = providerState("apple", authProviders);
-  const effectiveName = displayName || authUser?.displayName || "";
-  const canContinue = Boolean(effectiveName.trim());
+  const canContinue = Boolean(displayName.trim() || authUser);
   const authNote = authError
     || (authUser
       ? `Signed in with ${authUser.provider}.`
@@ -59,8 +58,8 @@ export function LandingScreen({
         {authUser ? (
           <div className="auth-summary-card">
             <div>
-              <strong>{authUser.displayName}</strong>
-              <p>{authUser.email || "Authenticated session"}</p>
+              <strong>Signed in</strong>
+              <p>{authUser.provider === "google" ? "Google account connected" : "Apple account connected"}</p>
             </div>
             <button type="button" className="ghost-button compact" onClick={() => void onSignOut()}>
               Sign out
@@ -80,7 +79,7 @@ export function LandingScreen({
                 onContinue();
               }
             }}
-            placeholder={authUser?.displayName || "Your name"}
+            placeholder="Your name"
             aria-required="true"
           />
         </label>

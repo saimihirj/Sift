@@ -52,7 +52,7 @@ export function SessionSidebar({ isOpen, sessions, currentSessionId, onClose, on
                 <strong>{item.title}</strong>
                 <span>{item.subtitle}</span>
                 <span>
-                  {item.sessionType === "evaluator" ? "Evaluator" : "Mentor"} · {formatTime(item.lastActive)}
+                  {item.sessionType === "evaluator" ? "Evaluate" : "Ideate"} · {formatTime(item.lastActive)}
                 </span>
               </button>
             ))}

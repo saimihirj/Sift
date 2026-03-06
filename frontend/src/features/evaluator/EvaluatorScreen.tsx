@@ -248,7 +248,7 @@ export function EvaluatorScreen({
             Runtime
           </button>
           <button type="button" className="ghost-button" onClick={() => navigate(`/evaluate/${session.sessionId}/report`)}>
-            View report
+            View score report
           </button>
           <button type="button" className="ghost-button" onClick={onExitSession}>
             Exit session
@@ -259,11 +259,11 @@ export function EvaluatorScreen({
       <main className="main-pane">
         <header className="pane-header">
           <div>
-            <span className="eyebrow">Cut Through The Noise.</span>
-            <h2>{currentQuestion ? currentQuestion.text : "Assessment status"}</h2>
+            <span className="eyebrow">Adaptive conversation</span>
+            <h2>Evaluate</h2>
           </div>
           <div className="status-stack">
-            <span>{statusLine}</span>
+            <span>{progress ? `${progress.answeredQuestions}/${progress.questionBudget} complete` : statusLine}</span>
             <div className="header-actions">
               <button type="button" className="ghost-button compact" onClick={() => setSessionsOpen(true)}>
                 Sessions
@@ -281,7 +281,7 @@ export function EvaluatorScreen({
                 Exit
               </button>
             </div>
-            {progress?.website?.warning ? <small>{String(progress.website.warning)}</small> : null}
+            <small>{progress?.website?.warning ? String(progress.website.warning) : statusLine}</small>
           </div>
         </header>
 
@@ -292,7 +292,7 @@ export function EvaluatorScreen({
             <p>{progress?.lastFeedback || "Keep it natural. Clear specifics help the final evaluation."}</p>
           </div>
 
-          <ChatMessageList history={session.history} streamingAssistant="" />
+          <ChatMessageList history={session.history} streamingAssistant="" assistantLabel="Evaluate" />
 
           <div className="composer-shell">
             <div className="attachment-row">
@@ -373,7 +373,7 @@ export function EvaluatorScreen({
 
       <RuntimeSidebar
         isOpen={runtimeOpen}
-        title="Change evaluator model"
+        title="Change model"
         providerOptions={providerOptions}
         provider={runtimeProvider}
         model={runtimeModel}

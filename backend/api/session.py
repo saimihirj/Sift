@@ -74,14 +74,14 @@ def _session_profile(turns: list[dict]) -> str:
 def _session_summary(row: dict) -> dict:
     title = row.get("company_name") or f"{row.get('sector', 'unknown').upper()} · {row.get('stage', 'unknown')}"
     if row.get("session_type") == "evaluator" and not row.get("company_name"):
-        title = f"Evaluator · {row.get('sector', 'unknown').upper()}"
+        title = f"Evaluate · {row.get('sector', 'unknown').upper()}"
     subtitle_bits = [
         row.get("display_name", "").strip(),
         row.get("founder_type", "unknown"),
         (
-            f"evaluation · {row.get('mode', 'think_it_through').replace('_', ' ')}"
+            f"evaluate · {row.get('mode', 'think_it_through').replace('_', ' ')}"
             if row.get("session_type") == "evaluator"
-            else row.get("mode", "think_it_through").replace("_", " ")
+            else f"ideate · {row.get('mode', 'think_it_through').replace('_', ' ')}"
         ),
     ]
     subtitle = " · ".join(bit for bit in subtitle_bits if bit)

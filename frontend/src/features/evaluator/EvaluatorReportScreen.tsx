@@ -50,7 +50,7 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession }: P
         <div className="brand-lockup">
           <span className="brand-dot" />
           <div>
-            <strong>Evaluator report</strong>
+            <strong>Evaluate report</strong>
             <p>{status}</p>
           </div>
         </div>
@@ -80,7 +80,7 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession }: P
       <main className="outline-main">
         <section className="report-grid">
           <article className="outline-card report-hero">
-            <span className="eyebrow">Signal report</span>
+            <span className="eyebrow">Evaluate report</span>
             <h2>{report?.summary || "No report available yet."}</h2>
             <p>{report?.why?.[0] || "Answer more questions to generate stronger evaluation feedback."}</p>
           </article>

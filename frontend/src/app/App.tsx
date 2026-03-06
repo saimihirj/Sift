@@ -7,6 +7,7 @@ import type {
   ProviderOption,
   SessionPayload,
   SessionSummary,
+  SetupDraft,
   StartSessionPayload,
   ThemeMode,
 } from "./types";
@@ -22,9 +23,9 @@ import { saveSessionCredential } from "../lib/sessionCredentials";
 
 const SESSION_STORAGE_KEY = "signal-session-id";
 const LEGACY_SESSION_STORAGE_KEY = "vishwakarma-session-id";
+const LEGACY_DISPLAY_NAME_STORAGE_KEY = "vishwakarma-display-name";
 const THEME_STORAGE_KEY = "vishwakarma-theme";
 const CLIENT_STORAGE_KEY = "vishwakarma-client-id";
-const DISPLAY_NAME_STORAGE_KEY = "vishwakarma-display-name";
 const DEFAULT_AUTH_PROVIDERS: AuthProviderOption[] = [
   { key: "google", label: "Google", configured: false },
   { key: "apple", label: "Apple", configured: false },
@@ -38,6 +39,21 @@ const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
   { key: "anthropic", label: "Anthropic", requiresApiKey: true, defaultSpeedModel: "claude-3-5-haiku-latest", defaultBalancedModel: "claude-3-7-sonnet-latest" },
   { key: "gemini", label: "Gemini", requiresApiKey: true, defaultSpeedModel: "gemini-2.0-flash", defaultBalancedModel: "gemini-1.5-pro" },
 ];
+const DEFAULT_SETUP_DRAFT: SetupDraft = {
+  runtimeKind: "local",
+  provider: "ollama",
+  model: "llama3.2:latest",
+  apiKey: "",
+  founderType: "founder",
+  sector: "saas",
+  stage: "idea",
+  websiteUrl: "",
+  setupContext: "",
+  sessionType: "mentor",
+  mode: "think_it_through",
+  questionBudget: 15,
+};
+const LAST_SETUP_STEP = 2;
 
 function getClientId(): string {
   const existing = localStorage.getItem(CLIENT_STORAGE_KEY);
@@ -89,10 +105,12 @@ function AppBody() {
   const [loadingSession, setLoadingSession] = useState(true);
   const [starting, setStarting] = useState(false);
   const [entryScreen, setEntryScreen] = useState<"landing" | "setup">("landing");
+  const [setupStep, setSetupStep] = useState(0);
+  const [setupDraft, setSetupDraft] = useState<SetupDraft>(DEFAULT_SETUP_DRAFT);
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>(DEFAULT_PROVIDER_OPTIONS);
   const [recentSessions, setRecentSessions] = useState<SessionSummary[]>([]);
   const [anonymousClientId] = useState<string>(() => getClientId());
-  const [displayName, setDisplayName] = useState<string>(() => localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) ?? "");
+  const [displayName, setDisplayName] = useState<string>("");
   const [theme, setTheme] = useState<ThemeMode>(
     () => (localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null) ?? "dark",
   );
@@ -108,8 +126,8 @@ function AppBody() {
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, displayName);
-  }, [displayName]);
+    localStorage.removeItem(LEGACY_DISPLAY_NAME_STORAGE_KEY);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,9 +140,6 @@ function AppBody() {
         setAuthProviders(response.providers.length > 0 ? response.providers : DEFAULT_AUTH_PROVIDERS);
         setAuthError(response.error || "");
         setAdminEnabled(Boolean(response.adminMode));
-        if (response.user?.displayName) {
-          setDisplayName((current) => current || response.user?.displayName || "");
-        }
       })
       .catch(() => {
         if (!cancelled) {
@@ -295,7 +310,8 @@ function AppBody() {
   const handleExitSession = () => {
     clearStoredSessionId();
     setSession(null);
-    setEntryScreen("landing");
+    setEntryScreen("setup");
+    setSetupStep(LAST_SETUP_STEP);
     void refreshSessions();
     navigate("/");
   };
@@ -303,7 +319,8 @@ function AppBody() {
   const handleNewSession = () => {
     clearStoredSessionId();
     setSession(null);
-    setEntryScreen("landing");
+    setEntryScreen("setup");
+    setSetupStep(LAST_SETUP_STEP);
     void refreshSessions();
     navigate("/");
   };
@@ -319,6 +336,7 @@ function AppBody() {
     await logoutAuth();
     setAuthUser(null);
     setAuthError("");
+    setDisplayName("");
   };
 
   if (loadingSession) {
@@ -363,7 +381,10 @@ function AppBody() {
               <LandingScreen
                 displayName={displayName}
                 onDisplayNameChange={setDisplayName}
-                onContinue={() => setEntryScreen("setup")}
+                onContinue={() => {
+                  setEntryScreen("setup");
+                  setSetupStep(0);
+                }}
                 theme={theme}
                 onThemeChange={setTheme}
                 authUser={authUser}
@@ -375,7 +396,15 @@ function AppBody() {
               <SetupWizard
                 providerOptions={providerOptions}
                 loading={starting}
-                onBack={() => setEntryScreen("landing")}
+                step={setupStep}
+                draft={setupDraft}
+                onStepChange={setSetupStep}
+                onDraftChange={setSetupDraft}
+                onBack={() => {
+                  setDisplayName("");
+                  setEntryScreen("landing");
+                  setSetupStep(0);
+                }}
                 onStart={handleStartSession}
               />
             )

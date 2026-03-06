@@ -15,6 +15,16 @@ OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 MODEL_PROVIDER = os.environ.get("VK_MODEL_PROVIDER", "auto").lower()
 
 
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 @dataclass(frozen=True)
 class ModelProfileConfig:
     key: str
@@ -113,7 +123,7 @@ OLLAMA_MODEL_PROFILES = {
     "speed": ModelProfileConfig(
         key="speed",
         model=PROVIDER_CONFIGS["ollama"].default_speed_model,
-        timeout_seconds=12.0,
+        timeout_seconds=_env_float("OLLAMA_TIMEOUT_SPEED", 30.0),
         options={
             "num_ctx": 8192,
             "temperature": 0.7,
@@ -125,7 +135,7 @@ OLLAMA_MODEL_PROFILES = {
     "balanced": ModelProfileConfig(
         key="balanced",
         model=PROVIDER_CONFIGS["ollama"].default_balanced_model,
-        timeout_seconds=18.0,
+        timeout_seconds=_env_float("OLLAMA_TIMEOUT_BALANCED", 45.0),
         options={
             "num_ctx": 8192,
             "temperature": 0.7,
@@ -204,7 +214,7 @@ def _profile_config_for_provider(
     chosen_model = model_override.strip() or default_model_for_provider(normalized_provider, profile)
 
     if normalized_provider == "ollama":
-        timeout_seconds = 12.0 if profile == "speed" else 18.0
+        timeout_seconds = _env_float("OLLAMA_TIMEOUT_SPEED", 30.0) if profile == "speed" else _env_float("OLLAMA_TIMEOUT_BALANCED", 45.0)
         options = {
             "num_ctx": 8192,
             "temperature": 0.7,

@@ -132,7 +132,7 @@ a {
 .onboarding-shell,
 .landing-shell {
   min-height: 100dvh;
-  padding: clamp(10px, 1.5vw, 18px);
+  padding: clamp(8px, 1.1vw, 14px);
   width: min(1600px, 100%);
   margin: 0 auto;
 }
@@ -151,7 +151,7 @@ a {
 .landing-shell {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(320px, 398px);
-  gap: 12px;
+  gap: 10px;
   align-items: stretch;
   overflow: hidden;
 }
@@ -173,9 +173,9 @@ a {
 }
 
 .landing-panel {
-  padding: clamp(18px, 2vw, 28px);
+  padding: clamp(16px, 1.8vw, 24px);
   display: grid;
-  gap: 16px;
+  gap: 14px;
   align-content: center;
   min-height: 0;
 }
@@ -188,9 +188,9 @@ a {
 }
 
 .landing-card {
-  padding: 18px;
+  padding: 16px;
   display: grid;
-  gap: 14px;
+  gap: 12px;
   align-content: start;
   min-height: 0;
   max-height: calc(100dvh - 24px);
@@ -207,7 +207,7 @@ a {
 .signal-brand-card {
   display: grid;
   place-items: center;
-  padding: 22px 20px 10px;
+  padding: 18px 18px 8px;
   border-radius: 26px;
   border: 1px solid var(--line);
   background:
@@ -366,7 +366,7 @@ a {
 .landing-highlight {
   display: grid;
   gap: 8px;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--panel-muted);
@@ -439,9 +439,9 @@ a {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 32px;
-  padding: 20px;
+  padding: 18px;
   display: grid;
-  gap: 16px;
+  gap: 14px;
   overflow: auto;
   box-shadow: var(--shadow-soft);
   scrollbar-gutter: stable;
@@ -451,7 +451,7 @@ a {
 
 .clean-wizard-card {
   width: min(1040px, 100%);
-  min-height: min(760px, calc(100dvh - 28px));
+  min-height: min(700px, calc(100dvh - 24px));
 }
 
 .onboarding-meta,
@@ -487,8 +487,9 @@ a {
 .header-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
+  max-width: 100%;
 }
 
 .brand-dot,
@@ -699,7 +700,7 @@ a {
 .choice-card,
 .chip-card {
   text-align: left;
-  min-height: 68px;
+  min-height: 60px;
   display: grid;
   gap: 4px;
 }
@@ -814,7 +815,7 @@ a:focus-visible,
 }
 
 .compact {
-  padding: 9px 11px;
+  padding: 7px 10px;
   border-radius: 999px;
 }
 
@@ -822,15 +823,15 @@ a:focus-visible,
 .outline-shell {
   height: 100dvh;
   display: grid;
-  grid-template-columns: clamp(220px, 16vw, 240px) minmax(0, 1fr) clamp(250px, 19vw, 280px);
-  gap: 12px;
-  padding: 12px;
+  grid-template-columns: clamp(204px, 14.5vw, 228px) minmax(0, 1fr) clamp(232px, 17vw, 256px);
+  gap: 10px;
+  padding: 10px;
   width: min(1660px, 100%);
   margin: 0 auto;
 }
 
 .outline-shell {
-  grid-template-columns: clamp(220px, 16vw, 240px) minmax(0, 1fr);
+  grid-template-columns: clamp(204px, 14.5vw, 228px) minmax(0, 1fr);
 }
 
 .left-rail,
@@ -845,7 +846,7 @@ a:focus-visible,
 
 .left-rail,
 .right-drawer {
-  padding: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -859,9 +860,9 @@ a:focus-visible,
   background: var(--panel-muted);
   border: 1px solid var(--line);
   border-radius: 24px;
-  padding: 14px;
+  padding: 12px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .floating-panel {
@@ -899,11 +900,11 @@ a:focus-visible,
   top: 10px;
   bottom: 10px;
   left: 10px;
-  width: min(360px, calc(100vw - 20px));
+  width: min(344px, calc(100vw - 20px));
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  padding: 10px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 32px;
@@ -920,7 +921,7 @@ a:focus-visible,
 }
 
 .runtime-card {
-  width: min(420px, calc(100vw - 20px));
+  width: min(390px, calc(100vw - 20px));
 }
 
 .floating-head,
@@ -951,7 +952,7 @@ a:focus-visible,
 .theme-picker {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: 4px;
 }
 
 .theme-option {
@@ -1000,7 +1001,7 @@ a:focus-visible,
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .evaluator-setup-card {
@@ -1031,7 +1032,7 @@ a:focus-visible,
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 32px;
-  padding: 14px 18px;
+  padding: 12px 16px;
   backdrop-filter: blur(10px);
 }
 
@@ -1066,8 +1067,8 @@ a:focus-visible,
 
 .evaluator-question-card {
   display: grid;
-  gap: 8px;
-  padding: 16px;
+  gap: 6px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: 24px;
   background: var(--panel);
@@ -1106,17 +1107,17 @@ a:focus-visible,
 
 .chat-panel {
   min-height: 0;
-  padding: 14px;
+  padding: 12px;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto auto;
-  gap: 10px;
+  gap: 8px;
   backdrop-filter: blur(10px);
 }
 
 .message-list {
   overflow: auto;
   display: grid;
-  gap: 10px;
+  gap: 8px;
   padding-right: 6px;
   scrollbar-gutter: stable;
 }
@@ -1174,8 +1175,8 @@ a:focus-visible,
 .chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  max-height: 84px;
+  gap: 6px;
+  max-height: 72px;
   overflow: auto;
   scrollbar-gutter: stable;
 }
@@ -1188,9 +1189,9 @@ a:focus-visible,
 
 .composer-shell {
   border-top: 1px solid var(--line);
-  padding-top: 10px;
+  padding-top: 8px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .composer-row {
@@ -1199,7 +1200,7 @@ a:focus-visible,
 
 .composer-row textarea {
   flex: 1;
-  min-height: 92px;
+  min-height: 80px;
   resize: none;
   border: 1px solid var(--line);
   background: var(--panel);
@@ -1216,7 +1217,7 @@ a:focus-visible,
 }
 
 .composer-send {
-  min-width: 110px;
+  min-width: 96px;
 }
 
 .attachment-meta,
@@ -1253,7 +1254,7 @@ a:focus-visible,
 }
 
 .deck-item {
-  padding: 12px;
+  padding: 10px;
   border-radius: 22px;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -1269,7 +1270,7 @@ a:focus-visible,
 .focus-card {
   display: grid;
   gap: 6px;
-  padding: 12px;
+  padding: 10px;
   border-radius: 22px;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -1370,7 +1371,7 @@ a:focus-visible,
 
 .admin-grid {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   overflow: auto;
   padding-bottom: 2px;
   min-height: 0;
@@ -1390,22 +1391,22 @@ a:focus-visible,
 
 .admin-dashboard {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  gap: 10px;
   min-height: 0;
 }
 
 .admin-stack {
   display: grid;
   grid-template-rows: minmax(0, 1fr) minmax(0, 0.78fr);
-  gap: 12px;
+  gap: 10px;
   min-height: 0;
 }
 
 .admin-card {
   display: grid;
-  gap: 10px;
-  padding: 18px;
+  gap: 8px;
+  padding: 14px;
   min-height: 0;
   overflow: hidden;
 }
