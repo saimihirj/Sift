@@ -10,6 +10,7 @@
     "dev:backend": "uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000",
     "dev:frontend": "npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173",
     "build": "npm --prefix frontend run build",
+    "knowledge:vc": "./.venv/bin/python scripts/build_vc_firm_cluster.py",
     "run:signal": "python3 signal_app.py",
     "run:signal:lan": "python3 signal_app.py --host 0.0.0.0",
     "run:vk": "python3 vk.py",

@@ -95,18 +95,20 @@ async def answer_question(
     updated_metadata = result["metadata"]
     answered = result.get("answered", {})
     report = result["report"]
-    progress = public_progress(updated_metadata)
+    progress = public_progress(updated_metadata, state)
 
     assistant_content = answered.get("reciprocal", "Assessment updated.")
     question_label = answered.get("questionLabel", "")
     if result.get("question"):
+        context_hint = str(result["question"].get("contextHint", "") or "").strip()
         if not question_label:
             question_label = f"Question {progress['answeredQuestions'] + 1}"
             if progress["answeredQuestions"] == 0:
                 question_label = "First question"
             elif progress["questionBudget"] - progress["answeredQuestions"] <= 1:
                 question_label = "Final question"
-        assistant_content = f"{assistant_content}\n\n{question_label}: {result['question']['text']}"
+        hint_block = f"{context_hint}\n\n" if context_hint else ""
+        assistant_content = f"{assistant_content}\n\n{hint_block}{question_label}: {result['question']['text']}"
     elif updated_metadata.get("completed"):
         assistant_content = f"{assistant_content}\n\nThat is enough. Let me evaluate the idea and build the report."
 

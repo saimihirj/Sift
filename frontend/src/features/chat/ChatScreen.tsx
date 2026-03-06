@@ -345,19 +345,21 @@ export function ChatScreen({
 
         <div className="rail-footer">
           <ThemePicker theme={theme} onChange={onThemeChange} />
-          <button type="button" className="ghost-button" onClick={() => setSessionsOpen(true)}>
-            Sessions
-          </button>
-          <button type="button" className="ghost-button" onClick={() => setRuntimeOpen(true)}>
-            Runtime
-          </button>
-          <button type="button" className="ghost-button" onClick={onNewSession}>
-            Start new session
-          </button>
-          <button type="button" className="ghost-button" onClick={() => navigate(`/outline/${session.sessionId}`)}>
-            Open outline
-          </button>
-          <button type="button" className="ghost-button" onClick={onExitSession}>
+          <div className="rail-action-grid">
+            <button type="button" className="ghost-button" onClick={() => setSessionsOpen(true)}>
+              Sessions
+            </button>
+            <button type="button" className="ghost-button" onClick={() => setRuntimeOpen(true)}>
+              Runtime
+            </button>
+            <button type="button" className="ghost-button" onClick={onNewSession}>
+              New session
+            </button>
+            <button type="button" className="ghost-button" onClick={() => navigate(`/outline/${session.sessionId}`)}>
+              Outline
+            </button>
+          </div>
+          <button type="button" className="ghost-button rail-action-wide" onClick={onExitSession}>
             Exit session
           </button>
         </div>

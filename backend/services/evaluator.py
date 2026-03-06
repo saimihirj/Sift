@@ -10,6 +10,7 @@ from typing import Any
 from state import ConversationState
 
 from backend.services.model_router import default_model_for_provider, generate_provider_text
+from knowledge import get_stage_metrics_context, get_vc_pass_reasons_context, get_yc_frameworks_context
 
 
 DIMENSION_LABELS = {
@@ -50,6 +51,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "problem_specific",
         "text": "What exact painful problem are you solving, and for whom?",
+        "variants": {
+            "stage:idea": "What problem have you spotted, and who feels it most intensely?",
+            "stage:pre-revenue": "Define the problem precisely — who is the user and what exactly breaks down for them?",
+            "stage:early-revenue": "Your early users came to you with a problem — what was it, stated as sharply as possible?",
+            "stage:growth": "State the core problem your company exists to solve. Who is the most acute sufferer today, and what is the measurable cost to them of not solving it?",
+            "founderType:student": "Tell me about the problem you've spotted — describe it like you're explaining it to someone who's never faced it.",
+            "founderType:serial": "State the problem with precision — user, failure mode, measurable cost. Skip the narrative.",
+        },
         "category": "Problem",
         "weightTier": "critical",
         "stages": ["idea", "pre-revenue", "early-revenue", "growth", "unknown"],
@@ -61,6 +70,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "current_workaround",
         "text": "How does that user solve this problem today without you?",
+        "variants": {
+            "stage:idea": "How do people deal with this today — what's the clunky workaround they're using?",
+            "stage:pre-revenue": "What's the current workaround, and what does it cost them in time, money, or friction?",
+            "stage:early-revenue": "When your early users found you, what were they using before? Why wasn't that good enough?",
+            "stage:growth": "Map the alternative landscape — direct competitors, indirect workarounds, and the status quo. Where is the structural weakness you're exploiting?",
+            "founderType:student": "How does someone deal with this problem today, even if the solution is clunky or manual?",
+            "founderType:serial": "Lay out the competitive status quo. What's being used, what's the switching cost, and where is the vulnerability?",
+        },
         "category": "Problem",
         "weightTier": "critical",
         "stages": ["idea", "pre-revenue", "early-revenue", "growth", "unknown"],
@@ -72,6 +89,13 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "why_now",
         "text": "Why is this the right time for this idea to exist?",
+        "variants": {
+            "stage:idea": "What's changed recently — in technology, regulation, or behavior — that makes this possible now when it wasn't 3 years ago?",
+            "stage:pre-revenue": "What specific shift created the opening you're building into? And why will that shift continue?",
+            "stage:early-revenue": "What made your early users ready for this now? What would have stopped them from adopting it 3 years ago?",
+            "stage:growth": "What secular trend is accelerating your market — and why does your timing advantage hold against well-funded incumbents entering now?",
+            "founderType:serial": "You've built before — you know timing kills companies. What's the specific inflection point that makes this window real?",
+        },
         "category": "Market",
         "weightTier": "important",
         "stages": ["idea", "pre-revenue", "early-revenue", "growth", "unknown"],
@@ -83,6 +107,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "segment_focus",
         "text": "Which exact customer segment will you win first?",
+        "variants": {
+            "stage:idea": "Who is the most desperate customer for this — the one person who would pay anything for a solution?",
+            "stage:pre-revenue": "Which exact type of customer are you targeting first, and why that segment over all others?",
+            "stage:early-revenue": "Looking at your early users — who came back most? That's probably your beachhead. Can you describe that archetype precisely?",
+            "stage:growth": "You have real customer data now — what's the single highest-value segment profile you've confirmed, and what expansion path does it unlock?",
+            "founderType:student": "Picture the one person who would be most helped by this. Describe them specifically — job, situation, what they're struggling with.",
+            "founderType:serial": "Define your ICP with the precision you'd put in a sales playbook — industry, company size, role, trigger event.",
+        },
         "category": "Market",
         "weightTier": "critical",
         "stages": ["idea", "pre-revenue", "early-revenue", "growth", "unknown"],
@@ -94,6 +126,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "value_outcome",
         "text": "What clear result or value does the user get from using this?",
+        "variants": {
+            "stage:idea": "If this works perfectly, what does the user's life or work look like after using it?",
+            "stage:pre-revenue": "What specific result does the user walk away with — faster, cheaper, simpler, more confident?",
+            "stage:early-revenue": "What outcome are your best users actually getting? If you asked them, what's the one thing they'd say your product does for them?",
+            "stage:growth": "Quantify the value you deliver to your best customers — time saved, revenue generated, cost reduced. What does your data say?",
+            "founderType:student": "Imagine the user after using your product for a month. What's noticeably different about their day?",
+            "founderType:serial": "State the value proposition in ROI terms. What's the measurable before-and-after for your best customer segment?",
+        },
         "category": "Solution",
         "weightTier": "critical",
         "stages": ["all"],
@@ -105,6 +145,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "quantified_outcome",
         "text": "How would you quantify that result in a believable way?",
+        "variants": {
+            "stage:idea": "Even a rough estimate — how would you put a number on the value this creates for one user?",
+            "stage:pre-revenue": "You don't have users yet, so estimate — what could a customer measure to know this is working? Time? Money? Error rate?",
+            "stage:early-revenue": "What data do you have from early users that quantifies the impact? Even rough numbers from 3–5 users count.",
+            "stage:growth": "Give me your best cohort data on customer outcomes. What's the measured improvement and how many data points back it up?",
+            "founderType:student": "Can you put any number on this — even a rough estimate of time saved or money saved for one user?",
+            "founderType:serial": "Show me the outcome metric. Not a qualitative claim — a before-and-after number that would hold up in a data room.",
+        },
         "category": "Traction",
         "weightTier": "critical",
         "stages": ["idea", "pre-revenue", "early-revenue", "growth", "unknown"],
@@ -116,6 +164,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "validation_signal",
         "text": "What is the strongest proof that this problem is real today?",
+        "variants": {
+            "stage:idea": "What's the strongest signal you have that this problem is real — even before building anything?",
+            "stage:pre-revenue": "What did you learn from user conversations that convinced you this problem is painful enough to build for?",
+            "stage:early-revenue": "What behavior from your early users is the most honest proof that the problem is real and acute?",
+            "stage:growth": "What customer retention or revenue data most convincingly proves that this problem is recurring and worth paying to solve?",
+            "founderType:student": "Have you talked to anyone who has this problem? What did they say that made you believe it's genuinely painful?",
+            "founderType:serial": "What's the evidence that this is a structural market problem, not a niche edge case? What gives you confidence on the TAM?",
+        },
         "category": "Traction",
         "weightTier": "critical",
         "stages": ["idea", "pre-revenue", "early-revenue", "growth", "unknown"],
@@ -127,6 +183,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "testing_method",
         "text": "How have you tested this idea so far, even in a rough way?",
+        "variants": {
+            "stage:idea": "What's the smallest, fastest thing you could do to find out if people actually want this?",
+            "stage:pre-revenue": "What experiments have you run — landing page, manual service, prototype — to validate the idea so far?",
+            "stage:early-revenue": "Walk me through how you got your first users. What did you have to promise or do manually to get them to try it?",
+            "stage:growth": "How are you running product experiments now? What's your framework for deciding what to build next?",
+            "founderType:student": "What's one small experiment you could run this week to test whether this is a real problem?",
+            "founderType:serial": "What's your validation cadence — how quickly can you run an experiment and read a meaningful result?",
+        },
         "category": "Traction",
         "weightTier": "important",
         "stages": ["idea", "pre-revenue", "early-revenue", "growth", "unknown"],
@@ -138,6 +202,13 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "willingness_to_pay",
         "text": "Why would someone pay for this, and what might they pay for first?",
+        "variants": {
+            "stage:pre-revenue": "Why would someone open their wallet for this — what pain is big enough, and what's the first thing they'd pay for?",
+            "stage:early-revenue": "Are your current users paying? If not, what would it take for them to pay? If yes, what made them say yes?",
+            "stage:growth": "What does your pricing architecture look like, and what data tells you that's the right number to charge?",
+            "founderType:student": "If you asked someone to pay even a small amount for this right now, why would they say yes?",
+            "founderType:serial": "State your pricing strategy and the data that drove it. What experiments have you run on price sensitivity?",
+        },
         "category": "Business Model",
         "weightTier": "critical",
         "stages": ["pre-revenue", "early-revenue", "growth", "unknown"],
@@ -149,6 +220,13 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "cost_to_serve",
         "text": "What does it roughly cost you to deliver this to one user?",
+        "variants": {
+            "stage:pre-revenue": "Rough estimate only — what would it cost to serve one customer for a month, fully loaded?",
+            "stage:early-revenue": "What does it actually cost you to deliver this to one user today — including your time, infrastructure, and support?",
+            "stage:growth": "Break down your unit economics — COGS, gross margin, and where you see the biggest leverage to improve it.",
+            "founderType:student": "If you had 10 paying customers tomorrow, what would you actually spend to serve each of them?",
+            "founderType:serial": "Walk me through unit economics at current scale and the path to target gross margin. Where's the biggest lever?",
+        },
         "category": "Business Model",
         "weightTier": "important",
         "stages": ["pre-revenue", "early-revenue", "growth", "unknown"],
@@ -160,6 +238,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "differentiation",
         "text": "Why would a customer choose this over the current alternative?",
+        "variants": {
+            "stage:idea": "What would make this meaningfully better than what exists — not 10% better, but an order of magnitude better?",
+            "stage:pre-revenue": "How is this different from the alternatives — and why would a customer switch instead of staying with what they know?",
+            "stage:early-revenue": "Why did your early users pick you over the alternatives? What did they say was the real reason — not your reason?",
+            "stage:growth": "What's your defensible moat at this stage — switching costs, data advantages, network effects, or brand? What stops a well-funded competitor from copying you?",
+            "founderType:student": "If someone built a similar product tomorrow, why would users still pick yours?",
+            "founderType:serial": "Define your moat precisely. What structurally gets harder for a competitor to replicate as you scale?",
+        },
         "category": "Solution",
         "weightTier": "critical",
         "stages": ["all"],
@@ -171,6 +257,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "acquisition_path",
         "text": "How will you realistically get your first 10 users or customers?",
+        "variants": {
+            "stage:idea": "How would you get your first 10 users — who would you call, and why would they say yes?",
+            "stage:pre-revenue": "What's your plan for the first 10 customers — channel, message, and who specifically?",
+            "stage:early-revenue": "How did you get your current users — and which channel is showing the most promise for the next 100?",
+            "stage:growth": "What's your CAC by channel, and which acquisition channel do you have the most confidence in scaling?",
+            "founderType:student": "Who would you tell about this first, and how would you convince them to try it?",
+            "founderType:serial": "Walk me through your GTM motion — primary channel, CAC, and conversion economics.",
+        },
         "category": "Market",
         "weightTier": "important",
         "stages": ["idea", "pre-revenue", "early-revenue", "growth", "unknown"],
@@ -182,6 +276,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "usage_frequency",
         "text": "How often would the user come back to this if it works?",
+        "variants": {
+            "stage:idea": "How often would a user naturally reach for this — daily, weekly, or only during specific moments?",
+            "stage:pre-revenue": "Think about your intended user's daily or weekly routine — when would this product naturally fit?",
+            "stage:early-revenue": "How often are your current users coming back, and what triggers a return visit?",
+            "stage:growth": "What does your DAU/WAU/MAU ratio look like, and what's the activation event that predicts long-term retention?",
+            "founderType:student": "If this worked well, how often would someone use it in a week? What would bring them back?",
+            "founderType:serial": "State your D1/D7/D30/D90 retention curve. What's the aha moment that separates retained users from churned ones?",
+        },
         "category": "Solution",
         "weightTier": "important",
         "stages": ["all"],
@@ -193,6 +295,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "team_right_to_win",
         "text": "Why is your team the right one to solve this problem?",
+        "variants": {
+            "stage:idea": "Why are you the right person to build this — what do you know about this problem that someone else doesn't?",
+            "stage:pre-revenue": "What's your unfair advantage — domain knowledge, network, technical depth, or lived experience with this problem?",
+            "stage:early-revenue": "You've gotten early traction — what about you and your team made that possible in a way a well-funded competitor couldn't replicate easily?",
+            "stage:growth": "What's your team composition, and what's the one hire that would most unlock your next phase of growth?",
+            "founderType:student": "What drew you personally to this problem — have you experienced it yourself, or do you have deep knowledge of it from somewhere?",
+            "founderType:serial": "You've built before — what's genuinely different about this team compared to your previous ventures, and why does that matter for this specific market?",
+        },
         "category": "Team",
         "weightTier": "important",
         "stages": ["all"],
@@ -204,6 +314,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "next_milestone",
         "text": "What is the single most important next milestone for this idea?",
+        "variants": {
+            "stage:idea": "What's the one thing you need to prove in the next 3 months to know whether this idea is worth building?",
+            "stage:pre-revenue": "What milestone would tell you that you've found something real — what does that moment look like?",
+            "stage:early-revenue": "What's the metric or milestone that would make a seed investor say yes — and what would it take to get there in 6 months?",
+            "stage:growth": "What does the Series A milestone look like — ARR target, NRR, gross margin? What are you solving for in this round?",
+            "founderType:student": "What's the one thing you'd need to prove to yourself — and to others — that this idea is worth pursuing seriously?",
+            "founderType:serial": "Define the milestone this capital unlocks. What does success look like at 18 months, and what's the exit thesis from there?",
+        },
         "category": "Ask",
         "weightTier": "standard",
         "stages": ["all"],
@@ -215,6 +333,14 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "key_risk",
         "text": "What is the biggest reason this idea might fail right now?",
+        "variants": {
+            "stage:idea": "What's the biggest reason this idea might not work — be honest with yourself?",
+            "stage:pre-revenue": "What assumption in your model worries you most? If it's wrong, what happens to the business?",
+            "stage:early-revenue": "What's the biggest fragility in what you've built so far — the thing that's hardest to talk about?",
+            "stage:growth": "What's the existential risk at this stage — the one thing that could take this from strong growth to zero?",
+            "founderType:student": "If someone tried to talk you out of this idea, what's the best argument they could make?",
+            "founderType:serial": "You've seen companies fail. What pattern from those failures do you recognise in this business right now?",
+        },
         "category": "Ask",
         "weightTier": "important",
         "stages": ["all"],
@@ -226,6 +352,12 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "saas_workflow",
         "text": "Which workflow becomes materially easier or faster for a SaaS customer?",
+        "variants": {
+            "stage:idea": "Which specific workflow are you targeting — what does the user do today that you'd make dramatically faster or easier?",
+            "stage:early-revenue": "Which workflow did your early customers say improved the most — and by how much?",
+            "stage:growth": "What's the measurable workflow improvement you can prove at scale — time saved, error rate reduction, or throughput increase?",
+            "founderType:serial": "State the workflow ROI. What's the before-and-after that justifies the contract value?",
+        },
         "category": "Solution",
         "weightTier": "important",
         "stages": ["all"],
@@ -237,6 +369,12 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "saas_technical_risk",
         "text": "What technical risk, integration issue, or data concern could block adoption?",
+        "variants": {
+            "stage:pre-revenue": "What's the hardest technical problem to solve — integration, data access, security, or compliance?",
+            "stage:early-revenue": "What technical or integration issue came up with your early customers that slowed them down?",
+            "stage:growth": "At scale, where does your architecture or security posture become a selling risk — and how are you addressing it?",
+            "founderType:serial": "What's the enterprise blocker — security review, data residency, SSO/SOC2 requirement — and what's your timeline to clear it?",
+        },
         "category": "Solution",
         "weightTier": "important",
         "stages": ["pre-revenue", "early-revenue", "growth", "unknown"],
@@ -248,6 +386,13 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "marketplace_liquidity",
         "text": "How will you get both sides of the marketplace moving at the start?",
+        "variants": {
+            "stage:idea": "Which side of the marketplace do you seed first — supply or demand — and why?",
+            "stage:pre-revenue": "What's your cold-start strategy — how do you create enough liquidity on one side to attract the other?",
+            "stage:early-revenue": "How did you crack the chicken-and-egg? What's the ratio of supply to demand you've achieved, and is it healthy?",
+            "stage:growth": "What's your liquidity metric — fill rate, take rate, repeat transaction rate — and how does it benchmark against comparable marketplaces?",
+            "founderType:serial": "Walk me through the liquidity flywheel. At what GMV does the marketplace become self-sustaining without acquisition spend?",
+        },
         "category": "Market",
         "weightTier": "important",
         "stages": ["idea", "pre-revenue", "early-revenue", "growth", "unknown"],
@@ -259,6 +404,13 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "fintech_trust",
         "text": "What trust, compliance, or behavior barrier will users need to overcome?",
+        "variants": {
+            "stage:idea": "What's the trust or regulatory barrier that could stop users from adopting this — and how do you plan to clear it?",
+            "stage:pre-revenue": "What compliance requirements or user behavior changes are you building against — and have you mapped the regulatory path?",
+            "stage:early-revenue": "What trust or compliance objection came up most with early users — and how did you handle it?",
+            "stage:growth": "What's your regulatory posture — licenses held, audits passed, partnerships secured — and where are the remaining gaps?",
+            "founderType:serial": "Map the compliance stack — what licences, certifications, and partnership agreements are required to operate at scale in your target market?",
+        },
         "category": "Solution",
         "weightTier": "important",
         "stages": ["all"],
@@ -270,6 +422,12 @@ QUESTION_BANK: list[dict[str, Any]] = [
     {
         "id": "sustainability_signal",
         "text": "If sustainability matters here, what concrete environmental gain would you prove first?",
+        "variants": {
+            "stage:idea": "What's the measurable environmental outcome you're aiming for — and how would you prove it at small scale first?",
+            "stage:early-revenue": "What sustainability metric have you actually measured so far — emissions avoided, waste reduced, energy saved?",
+            "stage:growth": "What's your sustainability KPI and how does it compare to the incumbent's baseline? Is it audited or certified?",
+            "founderType:serial": "Define the unit-level impact metric you'd report to an ESG-focused investor. What's the per-customer or per-transaction environmental delta?",
+        },
         "category": "Solution",
         "weightTier": "standard",
         "stages": ["all"],
@@ -282,6 +440,228 @@ QUESTION_BANK: list[dict[str, Any]] = [
 ]
 
 QUESTION_LOOKUP = {question["id"]: question for question in QUESTION_BANK}
+
+CATEGORY_BELIEF_KEYS = {
+    "Problem": "problem",
+    "Market": "market",
+    "Solution": "solution",
+    "Traction": "traction",
+    "Business Model": "business_model",
+    "Team": "team",
+    "Ask": "ask",
+}
+
+DEFAULT_BELIEF_STATE = {
+    "problem": 0.45,
+    "market": 0.45,
+    "solution": 0.45,
+    "traction": 0.35,
+    "business_model": 0.35,
+    "team": 0.45,
+    "ask": 0.4,
+    "evidence": 0.35,
+    "quantification": 0.3,
+    "clarity": 0.45,
+    "logic": 0.45,
+}
+
+MARKOV_TRANSITIONS = {
+    "explore": {
+        "narrow": "narrow",
+        "validate": "validate",
+        "quantify": "quantify",
+        "de-risk": "de-risk",
+        "advance": "explore",
+        "close": "close",
+    },
+    "narrow": {
+        "narrow": "narrow",
+        "validate": "validate",
+        "quantify": "quantify",
+        "de-risk": "de-risk",
+        "advance": "explore",
+        "close": "close",
+    },
+    "validate": {
+        "narrow": "narrow",
+        "validate": "validate",
+        "quantify": "quantify",
+        "de-risk": "de-risk",
+        "advance": "explore",
+        "close": "close",
+    },
+    "quantify": {
+        "narrow": "narrow",
+        "validate": "validate",
+        "quantify": "quantify",
+        "de-risk": "de-risk",
+        "advance": "explore",
+        "close": "close",
+    },
+    "de-risk": {
+        "narrow": "narrow",
+        "validate": "validate",
+        "quantify": "quantify",
+        "de-risk": "de-risk",
+        "advance": "explore",
+        "close": "close",
+    },
+    "close": {
+        "narrow": "narrow",
+        "validate": "validate",
+        "quantify": "quantify",
+        "de-risk": "de-risk",
+        "advance": "close",
+        "close": "close",
+    },
+}
+
+
+def _belief_state(metadata: dict[str, Any]) -> dict[str, float]:
+    state = DEFAULT_BELIEF_STATE.copy()
+    for key, value in (metadata.get("beliefState") or {}).items():
+        if key in state and isinstance(value, (int, float)):
+            state[key] = max(0.05, min(float(value), 0.98))
+    return state
+
+
+def _bayesian_blend(prior: float, observed: float, strength: float) -> float:
+    prior = max(0.05, min(prior, 0.95))
+    observed = max(0.01, min(observed, 0.99))
+    alpha = prior * 4.0
+    beta = (1.0 - prior) * 4.0
+    alpha += observed * strength
+    beta += (1.0 - observed) * strength
+    return round(alpha / max(alpha + beta, 1e-6), 4)
+
+
+def _observation_label(
+    question: dict[str, Any],
+    scores: dict[str, float],
+    contradictions: list[str],
+    answer_count: int,
+    budget: int,
+) -> str:
+    if contradictions:
+        return "de-risk"
+    if scores["comprehension"] < 2.5 or scores["clarity"] < 2.5:
+        return "narrow"
+    if scores["evidence"] < 2.5:
+        return "validate"
+    if question.get("expectsQuantification") or scores["quantification"] < 2.5:
+        return "quantify"
+    if budget - answer_count <= 2:
+        return "close"
+    return "advance"
+
+
+def _update_belief_state(
+    metadata: dict[str, Any],
+    question: dict[str, Any],
+    scores: dict[str, float],
+    contradictions: list[str],
+) -> dict[str, float]:
+    beliefs = _belief_state(metadata)
+    category_key = CATEGORY_BELIEF_KEYS.get(question["category"])
+    question_strength = 1.2 + (WEIGHT_MULTIPLIERS[question["weightTier"]] * 1.5)
+    if category_key:
+        category_observation = max(0.05, min(_question_overall_score(scores, question) / 100.0, 0.99))
+        beliefs[category_key] = _bayesian_blend(beliefs[category_key], category_observation, question_strength)
+
+    for dimension in ("evidence", "quantification", "clarity", "logic"):
+        beliefs[dimension] = _bayesian_blend(
+            beliefs[dimension],
+            max(0.05, min(scores[dimension] / 5.0, 0.99)),
+            1.0 + WEIGHT_MULTIPLIERS[question["weightTier"]],
+        )
+    beliefs["problem"] = max(0.05, min(beliefs["problem"], 0.98))
+    if contradictions:
+        beliefs["logic"] = max(0.05, round(beliefs["logic"] - 0.08, 4))
+        if category_key:
+            beliefs[category_key] = max(0.05, round(beliefs[category_key] - 0.08, 4))
+
+    metadata["beliefState"] = beliefs
+    current_state = metadata.get("conversationState", "explore")
+    observation = _observation_label(
+        question,
+        scores,
+        contradictions,
+        len(metadata.get("answers", [])),
+        normalize_budget(metadata.get("questionBudget")),
+    )
+    metadata["conversationState"] = MARKOV_TRANSITIONS.get(current_state, MARKOV_TRANSITIONS["explore"]).get(
+        observation,
+        "explore",
+    )
+    metadata["lastObservation"] = observation
+    return beliefs
+
+
+def _question_context_hint(question: dict[str, Any], state: "ConversationState | None", metadata: dict[str, Any] | None) -> str:
+    if metadata is None:
+        return ""
+    if not metadata.get("answers"):
+        return ""
+
+    beliefs = _belief_state(metadata)
+    conversation_state = metadata.get("conversationState", "explore")
+    category_key = CATEGORY_BELIEF_KEYS.get(question["category"], "")
+    category_confidence = beliefs.get(category_key, 0.5)
+
+    if conversation_state == "narrow":
+        if state and state.founder_type == "student":
+            return "Keep it simple and specific."
+        return "Answer narrowly and stay concrete."
+    if conversation_state == "validate":
+        if question["category"] == "Traction":
+            return "Use one honest proof point, even if it is small."
+        return "Anchor this in real behavior, not a belief."
+    if conversation_state == "quantify":
+        if state and state.founder_type == "student":
+            return "A rough estimate is enough."
+        return "Use one believable number if you can."
+    if conversation_state == "de-risk":
+        return "Address the biggest uncertainty directly."
+    if conversation_state == "close":
+        return "Treat this as a make-or-break answer."
+
+    if category_confidence < 0.42:
+        if question["category"] == "Problem":
+            return "Name the user and the failure clearly."
+        if question["category"] == "Market":
+            return "Be precise about who says yes first."
+        if question["category"] == "Solution":
+            return "Focus on the outcome, not the feature list."
+        if question["category"] == "Traction":
+            return "Use proof, not intention."
+        if question["category"] == "Business Model":
+            return "Keep the economics simple and believable."
+        if question["category"] == "Team":
+            return "Say why this team can win here."
+        if question["category"] == "Ask":
+            return "Focus on the next proof point, not the big vision."
+
+    return "Go one layer deeper."
+
+
+def get_question_text(question: dict[str, Any], state: "ConversationState | None" = None) -> str:
+    """Resolve the most specific question text variant for the given state.
+
+    Priority order: stage-specific > founder-type-specific > default text.
+    """
+    variants = question.get("variants")
+    if not variants or state is None:
+        return question["text"]
+
+    stage_key = f"stage:{state.stage}"
+    if stage_key in variants:
+        return variants[stage_key]
+
+    founder_key = f"founderType:{state.founder_type}"
+    if founder_key in variants:
+        return variants[founder_key]
+
+    return question["text"]
 
 
 def _now() -> str:
@@ -337,13 +717,24 @@ def initial_evaluation_metadata(
         "partial": False,
         "startedAt": _now(),
         "completedAt": None,
+        "beliefState": DEFAULT_BELIEF_STATE.copy(),
+        "conversationState": "explore",
+        "lastObservation": "advance",
     }
 
 
-def public_question(question: dict[str, Any]) -> dict[str, Any]:
+def public_question(
+    question: dict[str, Any],
+    state: "ConversationState | None" = None,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    base_text = get_question_text(question, state)
     return {
         "id": question["id"],
-        "text": question["text"],
+        "text": base_text,
+        "baseText": base_text,
+        "contextHint": _question_context_hint(question, state, metadata),
+        "contextMode": metadata.get("conversationState", "explore") if metadata else "explore",
         "category": question["category"],
         "weightTier": question["weightTier"],
     }
@@ -372,6 +763,7 @@ def _applicable(question: dict[str, Any], state: ConversationState, metadata: di
 def select_next_question(state: ConversationState, metadata: dict[str, Any]) -> dict[str, Any] | None:
     asked_ids = set(metadata.get("askedQuestionIds", []))
     answers = metadata.get("answers", [])
+    beliefs = _belief_state(metadata)
 
     if len(answers) >= normalize_budget(metadata.get("questionBudget")):
         return None
@@ -411,6 +803,15 @@ def select_next_question(state: ConversationState, metadata: dict[str, Any]) -> 
             score += 2
         if any(tag in question["tags"] for tag in weak_tags):
             score += 8
+        category_key = CATEGORY_BELIEF_KEYS.get(question["category"])
+        if category_key:
+            score += int((1.0 - beliefs.get(category_key, 0.5)) * 10)
+        if "validation" in question["tags"]:
+            score += int((1.0 - beliefs.get("evidence", 0.5)) * 8)
+        if question.get("expectsQuantification"):
+            score += int((1.0 - beliefs.get("quantification", 0.5)) * 10)
+        if question["category"] in {"Problem", "Market", "Solution"}:
+            score += int((1.0 - beliefs.get("clarity", 0.5)) * 4)
         if state.mode == "think_it_through" and question["id"] == "key_risk" and len(answers) < 4:
             score -= 4
         if question["id"] == "next_milestone" and len(answers) < max(metadata.get("questionBudget", 15) - 2, 1):
@@ -578,12 +979,17 @@ async def score_answer_with_model(
 ) -> dict[str, Any]:
     website_text = metadata.get("website", {}).get("text", "")
     setup_context = metadata.get("setupContext", "")
+    stage_knowledge = get_stage_metrics_context(state.stage)
+    pass_reasons = get_vc_pass_reasons_context()
+    yc_benchmarks = get_yc_frameworks_context()
     system = (
-        "You are Signal's evaluator grader. "
-        "Score only the founder's latest answer. "
-        "Return valid JSON only. "
+        "You are Signal's evaluator grader. Score only the founder's latest answer. Return valid JSON only. "
         "Use 0 to 5 scores. Keep why and coachLine short. "
-        "coachLine must be one coaching sentence, not a question, and must not include the next question."
+        "coachLine must be one coaching sentence, not a question, and must not include the next question.\n\n"
+        "Use the following VC evaluation standards to calibrate your scoring:\n\n"
+        f"{stage_knowledge[:800]}\n\n"
+        f"{pass_reasons[:600]}\n\n"
+        f"{yc_benchmarks[:400]}"
     )
     prompt = f"""
 Founder type: {state.founder_type}
@@ -799,7 +1205,7 @@ def build_evaluation_report(metadata: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def public_progress(metadata: dict[str, Any]) -> dict[str, Any]:
+def public_progress(metadata: dict[str, Any], state: "ConversationState | None" = None) -> dict[str, Any]:
     answers = metadata.get("answers", [])
     report = build_evaluation_report(metadata)
     current_question = metadata.get("clarifyingQuestion") or QUESTION_LOOKUP.get(metadata.get("currentQuestionId", ""))
@@ -809,7 +1215,7 @@ def public_progress(metadata: dict[str, Any]) -> dict[str, Any]:
         "answeredQuestions": len(answers),
         "completed": completed,
         "partial": bool(report.get("partial", False)),
-        "currentQuestion": public_question(current_question) if current_question else None,
+        "currentQuestion": public_question(current_question, state, metadata) if current_question else None,
         "currentScore": report["overallScore"] if completed else 0.0,
         "dimensionScores": report["dimensionScores"] if completed else [],
         "website": metadata.get("website", {}),
@@ -847,7 +1253,7 @@ async def evaluate_answer(
         metadata["currentQuestionId"] = first_question["id"]
         return {
             "metadata": metadata,
-            "question": public_question(first_question),
+            "question": public_question(first_question, state, metadata),
             "report": build_evaluation_report(metadata),
             "answered": {
                 "reciprocal": "Got it. That is enough context to dive in properly.",
@@ -890,7 +1296,7 @@ async def evaluate_answer(
                 "reciprocal": "Got it, but I need one more specific line before I move on.",
                 "questionLabel": "Quick follow-up",
             },
-            "question": public_question(follow_up),
+            "question": public_question(follow_up, state, metadata),
             "report": build_evaluation_report(metadata),
         }
 
@@ -907,7 +1313,7 @@ async def evaluate_answer(
 
     answered = {
         "questionId": question["id"],
-        "question": question["text"],
+        "question": get_question_text(question, state),
         "category": question["category"],
         "weightTier": question["weightTier"],
         "weight": WEIGHT_MULTIPLIERS[question["weightTier"]],
@@ -923,6 +1329,7 @@ async def evaluate_answer(
         "contradictions": contradictions,
     }
     answers.append(answered)
+    _update_belief_state(metadata, question, combined_scores, contradictions)
 
     budget = normalize_budget(metadata.get("questionBudget"))
     if len(answers) >= budget:
@@ -956,6 +1363,6 @@ async def evaluate_answer(
     return {
         "metadata": metadata,
         "answered": answered,
-        "question": public_question(next_question),
+        "question": public_question(next_question, state, metadata),
         "report": report,
     }

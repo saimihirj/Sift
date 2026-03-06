@@ -76,6 +76,9 @@ export type UploadSummary = {
 export type EvaluationQuestion = {
   id: string;
   text: string;
+  baseText: string;
+  contextHint: string;
+  contextMode: string;
   category: string;
   weightTier: string;
 };

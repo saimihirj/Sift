@@ -22,6 +22,7 @@ from backend.services.evaluator import (
     initial_evaluation_metadata,
     normalize_budget,
     normalize_session_type,
+    public_question,
     public_progress,
     select_next_question,
 )
@@ -146,7 +147,13 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
                 raise HTTPException(status_code=500, detail="Failed to initialize evaluator questions")
             metadata["askedQuestionIds"].append(first_question["id"])
             metadata["currentQuestionId"] = first_question["id"]
-            opening = f"I've got enough context to dive in. We’ll keep this {evaluator_style} and adaptive.\n\nFirst question: {first_question['text']}"
+            first_public_question = public_question(first_question, state, metadata)
+            context_hint = first_public_question.get("contextHint", "").strip()
+            hint_block = f"{context_hint}\n\n" if context_hint else ""
+            opening = (
+                f"I've got enough context to dive in. We’ll keep this {evaluator_style} and adaptive.\n\n"
+                f"{hint_block}First question: {first_public_question['text']}"
+            )
         else:
             opening = "Hi. What are you building? Give me the problem, who it is for, and anything you already know."
     else:

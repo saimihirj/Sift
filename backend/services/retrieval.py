@@ -7,6 +7,7 @@ from state import ConversationState
 from backend.services.external_sources import retrieve_external_research_context
 from backend.services.prompting import get_sector_prompt_snippet
 from backend.services.uploads import retrieve_upload_context
+from backend.services.vc_firm_knowledge import retrieve_vc_firm_context
 
 
 def build_retrieval_context(session_id: str, state: ConversationState, query: str) -> dict:
@@ -18,6 +19,10 @@ def build_retrieval_context(session_id: str, state: ConversationState, query: st
     external_research = retrieve_external_research_context(state, query=query, top_k=2, max_chars=560)
     if external_research["text"]:
         parts.append(external_research["text"])
+
+    vc_firm_context = retrieve_vc_firm_context(state, query=query, top_k=2, max_chars=760)
+    if vc_firm_context["text"]:
+        parts.append(vc_firm_context["text"])
 
     upload_snippets = retrieve_upload_context(session_id, query=query, top_k=2, max_chars=1200)
     if upload_snippets:
@@ -32,7 +37,7 @@ def build_retrieval_context(session_id: str, state: ConversationState, query: st
     return {
         "text": context_text,
         "sectorSnippet": sector_snippet,
-        "researchSources": external_research["sources"],
+        "researchSources": external_research["sources"] + vc_firm_context["sources"],
         "uploadSnippets": upload_snippets,
         "promptChars": len(context_text),
     }

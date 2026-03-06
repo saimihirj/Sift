@@ -31,6 +31,7 @@ _client = None
 _ef = None
 _knowledge_col = None
 _conversations_col = None
+_vc_firms_col = None
 
 
 def _embedding_fn():
@@ -67,6 +68,20 @@ def get_collections():
             metadata={"hnsw:space": "cosine"},
         )
     return _knowledge_col, _conversations_col
+
+
+def get_vc_firms_collection():
+    """Return the dedicated VC firm collection."""
+    global _vc_firms_col
+    if _vc_firms_col is None:
+        client = _chroma_client()
+        ef = _embedding_fn()
+        _vc_firms_col = client.get_or_create_collection(
+            name="vc_firms",
+            embedding_function=ef,
+            metadata={"hnsw:space": "cosine"},
+        )
+    return _vc_firms_col
 
 
 def _rag_available() -> bool:
@@ -180,6 +195,36 @@ def ingest_url(url: str, sector: str = "general") -> int:
         return 0
 
 
+def ingest_vc_firm_documents(documents: list[dict]) -> int:
+    """Upsert aggregated VC firm profiles into the dedicated collection."""
+    if not _rag_available() or not documents:
+        return 0
+    try:
+        vc_firms_col = get_vc_firms_collection()
+        ids = []
+        texts = []
+        metadatas = []
+        for index, document in enumerate(documents):
+            source = document.get("source", f"vc-firm-{index}")
+            stable = document.get("id") or hashlib.md5(source.encode()).hexdigest()
+            ids.append(stable)
+            texts.append(document.get("text", ""))
+            metadatas.append(
+                {
+                    "source": source,
+                    "doc_type": document.get("doc_type", "vc_firm_profile"),
+                    "website": document.get("website", ""),
+                    "portfolio_count": int(document.get("portfolio_count", 0) or 0),
+                    "date_added": document.get("date_added", datetime.now(timezone.utc).isoformat()),
+                }
+            )
+        vc_firms_col.upsert(ids=ids, documents=texts, metadatas=metadatas)
+        return len(ids)
+    except Exception as e:
+        logger.error(f"ingest_vc_firm_documents failed: {e}")
+        return 0
+
+
 def ingest_inbox() -> int:
     """Index any unindexed files in knowledge_inbox/. Returns new chunk count."""
     INBOX_DIR.mkdir(exist_ok=True)
@@ -243,6 +288,40 @@ def retrieve_knowledge(
         return chunks
     except Exception as e:
         logger.error(f"retrieve_knowledge failed: {e}")
+        return []
+
+
+def retrieve_vc_firm_documents(query: str, top_k: int = 3) -> list[dict]:
+    """Retrieve top VC firm profiles from the dedicated collection."""
+    if not _rag_available():
+        return []
+    try:
+        vc_firms_col = get_vc_firms_collection()
+        if vc_firms_col.count() == 0:
+            return []
+        results = vc_firms_col.query(
+            query_texts=[query],
+            n_results=min(top_k, vc_firms_col.count()),
+            include=["documents", "metadatas", "distances"],
+        )
+        chunks = []
+        for doc, meta, dist in zip(
+            results["documents"][0],
+            results["metadatas"][0],
+            results["distances"][0],
+        ):
+            chunks.append(
+                {
+                    "text": doc,
+                    "source": meta.get("source", ""),
+                    "website": meta.get("website", ""),
+                    "portfolio_count": int(meta.get("portfolio_count", 0) or 0),
+                    "distance": dist,
+                }
+            )
+        return chunks
+    except Exception as e:
+        logger.error(f"retrieve_vc_firm_documents failed: {e}")
         return []
 
 
@@ -393,12 +472,14 @@ def get_rag_stats() -> dict:
         return {"available": False}
     try:
         knowledge_col, conversations_col = get_collections()
+        vc_firms_col = get_vc_firms_collection()
         sources = list_knowledge_sources()
         return {
             "available": True,
             "knowledge_chunks": knowledge_col.count(),
             "knowledge_sources": len(sources),
             "conversation_turns": conversations_col.count(),
+            "vc_firm_profiles": vc_firms_col.count(),
         }
     except Exception as e:
         return {"available": False, "error": str(e)}

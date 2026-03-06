@@ -41,7 +41,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run Signal as a single local web app.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=7860)
-    parser.add_argument("--idle-timeout", type=int, default=20, help="Stop after this many idle seconds once the browser disappears.")
+    parser.add_argument("--idle-timeout", type=int, default=90, help="Stop after this many idle seconds once the browser disappears.")
     parser.add_argument("--no-open", action="store_true", help="Do not open a browser window automatically.")
     parser.add_argument("--build", action="store_true", help="Force a frontend build before launch.")
     parser.add_argument("--path", default="/", help="Open the browser to this app path.")

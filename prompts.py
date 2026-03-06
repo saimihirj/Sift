@@ -16,6 +16,8 @@ from knowledge import (
     get_capital_efficiency_context,
     get_vc_pass_reasons_context,
     get_missionary_mercenary_context,
+    get_vc_firms_intel_context,
+    get_firm_fit_context,
 )
 
 
@@ -474,6 +476,9 @@ def build_system_prompt(
         parts.append(f"\n{get_anti_portfolio_lessons()}")
         parts.append(f"\n{get_firm_frameworks_context()}")
         parts.append(f"\n{get_missionary_mercenary_context()}")
+        # VC firm intelligence — which firms are relevant for this stage/sector
+        parts.append(f"\n{get_firm_fit_context('', sector=sector, stage=rag_context[:20] if not rag_context else '')}")
+        parts.append(f"\n{get_vc_firms_intel_context()}")
 
     # Capital efficiency — once business model is being explored
     if phase in ("deep_dive", "synthesis") or ask_coverage > 15:

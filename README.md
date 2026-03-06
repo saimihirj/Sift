@@ -27,6 +27,7 @@ The current product is a `React + FastAPI` web app with local-first runtime supp
 - local open-source mode through Ollama
 - external provider mode with session-scoped API keys
 - live provider/model switching inside a session
+- optional offline VC-firm knowledge cluster built from `knowledge_inbox/Investor.xlsx` and `knowledge_inbox/Investor Firm.xlsx`
 
 ## Local Use
 
@@ -91,6 +92,19 @@ Run backend + frontend separately in development:
 npm run dev
 ```
 
+Build the VC firm knowledge cluster from the spreadsheet inputs:
+
+```bash
+npm run knowledge:vc
+```
+
+Useful variants:
+
+```bash
+./.venv/bin/python scripts/build_vc_firm_cluster.py --max-firms 100
+./.venv/bin/python scripts/build_vc_firm_cluster.py --firm sequoia --force-refresh
+```
+
 Direct launcher:
 
 ```bash
@@ -122,6 +136,8 @@ python3 vk.py --build
 - sessions: `data/sessions.db`
 - uploads: `data/session_uploads/`
 - exports: `data/exports/`
+- VC firm crawl cache: `data/vc_firms/cache/`
+- VC firm ingest manifest: `data/vc_firms/manifest.json`
 
 ## Models
 

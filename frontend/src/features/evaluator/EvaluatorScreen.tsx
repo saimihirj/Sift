@@ -241,16 +241,21 @@ export function EvaluatorScreen({
 
         <div className="rail-footer">
           <ThemePicker theme={theme} onChange={onThemeChange} />
-          <button type="button" className="ghost-button" onClick={() => setSessionsOpen(true)}>
-            Sessions
-          </button>
-          <button type="button" className="ghost-button" onClick={() => setRuntimeOpen(true)}>
-            Runtime
-          </button>
-          <button type="button" className="ghost-button" onClick={() => navigate(`/evaluate/${session.sessionId}/report`)}>
-            View score report
-          </button>
-          <button type="button" className="ghost-button" onClick={onExitSession}>
+          <div className="rail-action-grid">
+            <button type="button" className="ghost-button" onClick={() => setSessionsOpen(true)}>
+              Sessions
+            </button>
+            <button type="button" className="ghost-button" onClick={() => setRuntimeOpen(true)}>
+              Runtime
+            </button>
+            <button type="button" className="ghost-button" onClick={() => navigate(`/evaluate/${session.sessionId}/report`)}>
+              Score report
+            </button>
+            <button type="button" className="ghost-button" onClick={onNewSession}>
+              New session
+            </button>
+          </div>
+          <button type="button" className="ghost-button rail-action-wide" onClick={onExitSession}>
             Exit session
           </button>
         </div>
@@ -288,6 +293,7 @@ export function EvaluatorScreen({
         <div className="chat-panel evaluator-panel">
           <div className="evaluator-question-card">
             <span className="rail-label">{currentQuestion?.category || "Assessment"}</span>
+            {currentQuestion?.contextHint ? <span className="question-context-hint">{currentQuestion.contextHint}</span> : null}
             <strong>{currentQuestion?.text || "Start with the idea. The next question will adapt to what you say."}</strong>
             <p>{progress?.lastFeedback || "Keep it natural. Clear specifics help the final evaluation."}</p>
           </div>

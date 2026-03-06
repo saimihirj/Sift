@@ -32,6 +32,9 @@ class CoverageItem(BaseModel):
 class EvaluationQuestion(BaseModel):
     id: str
     text: str
+    baseText: str = ""
+    contextHint: str = ""
+    contextMode: str = "explore"
     category: str
     weightTier: str
 

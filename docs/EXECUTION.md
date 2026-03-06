@@ -1,6 +1,6 @@
 # Execution Guide
 
-This document is the accurate runbook for the current Vishwakarma app.
+This document is the accurate runbook for the current Signal app.
 
 It covers:
 - local setup
@@ -90,7 +90,7 @@ What it does:
 - builds the frontend if needed
 - serves frontend and backend on one port
 - opens a browser window automatically
-- stops a short time after the browser heartbeat disappears
+- stops 90 seconds after the browser heartbeat disappears by default
 
 Default URL:
 
@@ -103,7 +103,7 @@ Useful flags:
 ```bash
 python3 vk.py --build --port 7870
 python3 vk.py --build --no-open
-python3 vk.py --build --idle-timeout 30
+python3 signal_app.py --build --idle-timeout 90
 ```
 
 ### B. LAN Test Mode
@@ -191,7 +191,38 @@ Important:
 
 If you want zero paid dependencies, skip this section and stay on local / LAN mode.
 
-## 5. Runtime Behavior
+## 5. VC Firm Knowledge Cluster
+
+Signal can build a dedicated `vc_firms` retrieval cluster from:
+
+```text
+knowledge_inbox/Investor.xlsx
+knowledge_inbox/Investor Firm.xlsx
+```
+
+Default build command:
+
+```bash
+npm run knowledge:vc
+```
+
+Useful variants:
+
+```bash
+./.venv/bin/python scripts/build_vc_firm_cluster.py --max-firms 100
+./.venv/bin/python scripts/build_vc_firm_cluster.py --firm sequoia --force-refresh
+```
+
+What it does:
+- reads firm websites from `Investor.xlsx`
+- ranks firms by mapped portfolio footprint from `Investor Firm.xlsx`
+- crawls a few high-signal pages on each firm website
+- stores a crawl cache under `data/vc_firms/cache/`
+- indexes aggregated firm profiles into a dedicated `vc_firms` Chroma collection
+
+This is an offline build step. It does not run on app startup.
+
+## 6. Runtime Behavior
 
 ### Sessions
 

@@ -1270,3 +1270,586 @@ def get_missionary_mercenary_context() -> str:
     lines.append(f"\n### VC View: {MISSIONARY_VS_MERCENARY['vc_preference']}")
 
     return "\n".join(lines)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VC FIRM INTELLIGENCE — Top 50 firms by portfolio size
+# Source: Investor.xlsx + Investor Firm.xlsx (knowledge_inbox), enriched from
+# public firm websites, press releases, and fund disclosures (Aug 2025)
+# ─────────────────────────────────────────────────────────────────────────────
+VC_FIRMS_INTEL = {
+    "Sequoia Capital": {
+        "website": "https://www.sequoiacap.com",
+        "focus_sectors": ["Consumer", "Enterprise", "AI/ML", "SaaS", "Fintech", "Healthcare", "Crypto/Web3", "Developer Tools", "Semiconductors"],
+        "stage": "Seed (Arc program) through Growth; evergreen model",
+        "geography": "Global — US, Europe, India, Southeast Asia (Sequoia China now HongShan, separate entity)",
+        "thesis": "Back the daring — partner with founders at every stage from idea to IPO and beyond. Operates as an open-ended evergreen fund (The Sequoia Fund, ~$45B+ AUM) with no forced distributions post-IPO.",
+        "check_size": "Seed $100K–$1M (Arc); Series A/B $10M–$100M; Growth $100M+",
+        "notable_portfolio": ["Apple", "Google", "Oracle", "LinkedIn", "YouTube", "Instagram", "WhatsApp", "Airbnb", "Stripe", "DoorDash", "Zoom", "Nubank", "Snowflake", "OpenAI"],
+        "differentiator": "Pioneer of evergreen fund structure (2021). Sequoia Arc (scout/seed program), Sequoia Scouts, and Sequoia Spark community. Scouts program gives reach into very early deals.",
+        "portfolio_count": 2515,
+    },
+    "500 Global": {
+        "website": "https://www.500.co",
+        "focus_sectors": ["Consumer Internet", "Fintech", "Healthcare", "SaaS", "E-commerce", "AI", "Deep Tech"],
+        "stage": "Pre-Seed and Seed (accelerator model)",
+        "geography": "Global — 80+ countries; particularly strong in Southeast Asia, MENA, Latin America",
+        "thesis": "The next billion-dollar companies will come from unexpected places — emerging markets, underrepresented founders, and overlooked geographies. Batch accelerator model with global and emerging market focus.",
+        "check_size": "$100K–$250K (accelerator batch); $1M–$5M (direct seed)",
+        "notable_portfolio": ["Canva", "Twilio", "Credit Karma", "Grab", "Talkdesk", "Bukalapak", "Careem", "SendGrid", "Udemy", "Intercom"],
+        "differentiator": "Most geographically diverse major accelerator — invested in 80+ countries. Regional funds (500 SEA, 500 MENA, 500 Latam). High diversity of founder backgrounds vs industry benchmark.",
+        "portfolio_count": 1478,
+    },
+    "Accel": {
+        "website": "https://www.accel.com",
+        "focus_sectors": ["Enterprise SaaS", "Security/Cybersecurity", "Developer Infrastructure", "Consumer", "Fintech", "AI/ML", "Cloud"],
+        "stage": "Seed through Series B (primarily early stage); select growth",
+        "geography": "Global — US (Silicon Valley + NYC), Europe (London), India, Israel",
+        "thesis": "'Prepared mind' investing — deep sector research before meeting companies, building conviction before the company emerges. Invests early and supports companies through full lifecycle. Strong in security and infrastructure.",
+        "check_size": "Seed/Early $1M–$15M; Series A/B $15M–$75M",
+        "notable_portfolio": ["Facebook", "Dropbox", "Slack", "Spotify", "Atlassian", "Crowdstrike", "Qualtrics", "UiPath", "Braintree", "Flipkart", "Freshworks", "Wiz", "1Password"],
+        "differentiator": "Deep cybersecurity expertise (Crowdstrike, Tenable, Cybereason). Truly global independent funds in US, Europe, India, Israel. Accel Atoms for pre-seed/seed.",
+        "portfolio_count": 1329,
+    },
+    "Tiger Global Management": {
+        "website": "https://www.tigerglobal.com",
+        "focus_sectors": ["Internet", "SaaS/Software", "Fintech", "Consumer Tech", "E-commerce", "EdTech", "HealthTech"],
+        "stage": "Series B through Pre-IPO and Public Markets (hedge fund + VC hybrid)",
+        "geography": "Global — US, China, India, Southeast Asia, Latin America, Europe",
+        "thesis": "Internet/software businesses are still in early innings globally. Applies quantitative, high-velocity approach to both private venture and public equity. Known for fast 24-hour term sheets and minimal board involvement.",
+        "check_size": "$20M–$500M+ (growth to pre-IPO)",
+        "notable_portfolio": ["Stripe", "Roblox", "Flipkart", "ByteDance", "Chime", "Revolut", "Nubank", "Brex", "Figma", "Checkout.com", "Rippling"],
+        "differentiator": "Hybrid hedge fund / private equity model. Fastest-moving major investor — 24-hour term sheets. No board seats required. Deployed ~$50B in 2021; significant markdowns in 2022 led to restructuring.",
+        "portfolio_count": 1150,
+    },
+    "New Enterprise Associates (NEA)": {
+        "website": "https://www.nea.com",
+        "focus_sectors": ["Technology", "Healthcare/Life Sciences", "Biopharma", "Medical Devices", "Enterprise Software", "Consumer Internet", "Fintech", "AI/ML"],
+        "stage": "Seed through Growth/Late Stage",
+        "geography": "US (primary), India, China (selective)",
+        "thesis": "Backs founders in technology and healthcare across 45+ years. Rare dual-track at scale: genuine equal depth in life sciences alongside technology. 225+ IPOs and 130+ acquisitions historically.",
+        "check_size": "Early $5M–$20M; Growth $20M–$150M+",
+        "notable_portfolio": ["Salesforce", "Robinhood", "Tempus", "Coursera", "Workday", "Cloudflare", "MasterClass", "Plaid", "Duolingo", "Databricks", "23andMe", "Revolut"],
+        "differentiator": "One of the oldest VC firms (1977). Unique for sustained dual-track in tech + healthcare at scale. Was one of the first top-tier VCs with an India investment practice.",
+        "portfolio_count": 1135,
+    },
+    "Intel Capital": {
+        "website": "https://www.intelcapital.com",
+        "focus_sectors": ["AI/ML", "Autonomous Systems", "Connectivity (5G, networking)", "Cloud/Data Center Infrastructure", "Silicon Photonics/Semiconductors", "Cybersecurity", "Edge Computing/IoT"],
+        "stage": "Series A through late-stage; strategic fit guides entry",
+        "geography": "Global — US, Europe, Israel, China, India, Southeast Asia",
+        "thesis": "Strategic CVC arm of Intel. Invests in companies advancing computing, connectivity, and data processing that support Intel's strategic roadmap. Portfolio gets access to Intel's technical expertise, manufacturing, and enterprise customers.",
+        "check_size": "$5M–$50M per deal",
+        "notable_portfolio": ["Cloudera", "Zoom (early)", "Slack (early)", "Mobileye (acquired)", "VMware (early)", "SiFive", "IonQ", "Nervana Systems (acquired)"],
+        "differentiator": "One of the largest and oldest CVC programs (since 1991, $20B+ deployed). Unmatched access to Intel IP portfolio, fab relationships, chip roadmap. Strong Israel tech pipeline via Intel R&D presence.",
+        "portfolio_count": 1095,
+    },
+    "Insight Partners": {
+        "website": "https://www.insightpartners.com",
+        "focus_sectors": ["Software/SaaS", "Security", "HealthTech", "AI/ML", "FinTech", "DevOps/Infrastructure", "E-commerce Tech"],
+        "stage": "Series A through Growth/Pre-IPO (sweet spot: Series B–D)",
+        "geography": "Global — US (New York primary), Europe, Israel, India",
+        "thesis": "Coined the term 'ScaleUp' — investing in proven software companies accelerating from product-market fit to category leadership. Insight Onsite: dedicated operating team of 100+ professionals embedded in portfolio companies.",
+        "check_size": "Series A $10M–$30M; Growth/ScaleUp $30M–$500M+",
+        "notable_portfolio": ["Twitter", "Shopify", "Qualtrics", "Wix", "HelloFresh", "Monday.com", "Calm", "SentinelOne", "Veeam", "Recorded Future", "Mimecast"],
+        "differentiator": "Largest software-focused growth equity firm by AUM (~$90B+). Insight Onsite is a 100+ operator team working inside portfolio companies. ScaleUp methodology — codified B2B software go-to-market playbook.",
+        "portfolio_count": 996,
+    },
+    "Andreessen Horowitz (a16z)": {
+        "website": "https://a16z.com",
+        "focus_sectors": ["AI/ML", "Bio/Life Sciences", "Consumer Tech", "Crypto/Web3", "Enterprise SaaS", "Fintech", "Games", "Infrastructure", "American Dynamism (Defense, Aerospace, Manufacturing)", "Healthcare"],
+        "stage": "Seed through Growth/Late Stage",
+        "geography": "Primarily US; specific fund for American Dynamism",
+        "thesis": "Software is eating the world — technology transforms every industry. Full-stack support platform (marketing, recruiting, finance, legal) beyond capital. Crypto as a new computing platform. 'American Dynamism' — companies advancing US national interests.",
+        "check_size": "Seed $500K–$3M; Series A $10M–$50M; Growth $50M–$500M+",
+        "notable_portfolio": ["Facebook (early)", "Twitter", "Airbnb", "Coinbase", "GitHub", "Slack", "Okta", "Robinhood", "Roblox", "Figma", "OpenAI", "Instacart", "Databricks", "Stripe"],
+        "differentiator": "Pioneered 'full-stack VC' model with dedicated operating teams. Media/content arm. Registered as RIA to invest in public markets. $4.5B+ crypto fund. American Dynamism fund — first major VC explicitly investing in defense tech.",
+        "portfolio_count": 995,
+    },
+    "Kleiner Perkins": {
+        "website": "https://www.kleinerperkins.com",
+        "focus_sectors": ["AI/ML", "Consumer", "Enterprise/SaaS", "Fintech", "Healthcare", "Deep Tech", "Climate/Energy", "Developer Infrastructure"],
+        "stage": "Seed through Series B (primarily early stage)",
+        "geography": "US (Silicon Valley primary)",
+        "thesis": "Partner with founders at earliest stages to build transformative companies. Reinvented toward smaller, more focused early-stage model after growth struggles in 2010s. Invests at the start of secular technology waves.",
+        "check_size": "Seed $1M–$5M; Series A $10M–$30M",
+        "notable_portfolio": ["Amazon", "Google", "Genentech", "Twitter", "Square", "Snap", "Slack", "DoorDash", "Figma", "Rippling", "Calendly", "Scale AI"],
+        "differentiator": "Founded 1972 — one of Silicon Valley's most historic firms. Famous for backing Amazon and Google at Series A. Reinvented itself in 2018–2019 to focus on early-stage only. KP Fellows program for student/recent graduate founders.",
+        "portfolio_count": 976,
+    },
+    "Bessemer Venture Partners": {
+        "website": "https://www.bvp.com",
+        "focus_sectors": ["Cloud/SaaS", "Cybersecurity", "Healthcare/HealthTech", "Consumer", "Fintech", "Developer Tools", "AI", "Deep Tech"],
+        "stage": "Seed through Growth",
+        "geography": "US, Israel, India, Europe (global)",
+        "thesis": "Pioneered 'cloud first' investing. Data-driven, publishes 'State of the Cloud' and 'Anti-Portfolio' as proof of intellectual honesty. Invests in enduring software businesses with strong unit economics. Invented modern SaaS metrics (ARR, NRR, Magic Number).",
+        "check_size": "Seed $1M–$5M; Series A/B $10M–$50M; Growth $50M–$200M",
+        "notable_portfolio": ["LinkedIn", "Yelp", "Skype", "Twitch", "Pinterest", "Shopify", "Twilio", "SendGrid", "Wix", "Toast", "Canva", "Fiverr", "Intercom"],
+        "differentiator": "World's oldest VC firm (founded 1911, VC since 1974). Famous 'Anti-Portfolio' (passed on Apple, Google, Facebook, Amazon). BVP Cloud Index and 'State of the Cloud' are industry-standard resources.",
+        "portfolio_count": 858,
+    },
+    "GV (Google Ventures)": {
+        "website": "https://www.gv.com",
+        "focus_sectors": ["Life Sciences/Healthcare", "AI/ML", "Consumer", "Enterprise", "Climate", "Cybersecurity", "Developer Tools"],
+        "stage": "Seed through Series C",
+        "geography": "US primary; selective Europe",
+        "thesis": "Combines Alphabet resources with independent VC. Differiated insight: access to Google/Alphabet technologies, data, talent, and commercial partnerships creates unfair advantages for portfolio companies.",
+        "check_size": "$250K–$50M (flexible)",
+        "notable_portfolio": ["Uber", "Slack", "GitLab", "Robinhood", "Nest", "Foundation Medicine", "Flatiron Health", "Oscar Health", "23andMe", "One Medical", "CrowdStrike"],
+        "differentiator": "Only major VC backed by a technology giant (Alphabet). Portfolio gets Google engineer access. Deep life sciences practice unusual for a CVC. Pioneered Design Sprint methodology (now global product standard).",
+        "portfolio_count": 779,
+    },
+    "Index Ventures": {
+        "website": "https://www.indexventures.com",
+        "focus_sectors": ["Consumer", "Enterprise", "Fintech", "Gaming", "Developer/Infrastructure", "Crypto", "Healthcare", "AI"],
+        "stage": "Seed through Series C (primarily early stage)",
+        "geography": "Europe and US (dual-headquartered Geneva/London + San Francisco)",
+        "thesis": "Backs the most ambitious founders globally. Particular strength finding European companies that achieve global scale. Truly trans-Atlantic — not a US firm with a European office.",
+        "check_size": "Seed $500K–$5M; Series A $5M–$30M; Series B/C $30M–$100M",
+        "notable_portfolio": ["Adyen", "Etsy", "Dropbox", "Robinhood", "Revolut", "Farfetch", "Discord", "Roblox", "Figma", "Glossier", "Deliveroo", "Datadog", "Slack"],
+        "differentiator": "Most prominent genuinely trans-Atlantic VC firm. Backed multiple European unicorn milestones. Publishes free Compensation Explorer — equity benchmarking tool used by thousands of startups.",
+        "portfolio_count": 754,
+    },
+    "General Catalyst": {
+        "website": "https://www.generalcatalyst.com",
+        "focus_sectors": ["AI/ML", "Healthcare", "Climate/Energy Transition", "Enterprise", "Consumer", "Fintech", "Defense/National Security", "Education"],
+        "stage": "Seed through Growth; also late-stage/structured equity",
+        "geography": "Global — US, Europe, India, Southeast Asia, Middle East",
+        "thesis": "'Responsible Innovation' — backing companies solving the world's hardest problems at scale. 'Health Assurance' initiative aims to transform US healthcare. Strong AI-native company thesis. Evolved from traditional VC into a global transformation company.",
+        "check_size": "Seed/Early $1M–$20M; Series A/B $20M–$100M; Growth $100M–$500M+",
+        "notable_portfolio": ["Stripe", "Airbnb", "Snap", "Warby Parker", "Canva", "HubSpot", "Livongo", "Ro", "Samsara", "Gusto", "Anduril", "Grammarly"],
+        "differentiator": "Dramatic transformation into 'global investment and transformation company.' Health Assurance thesis investing across full healthcare value chain. Dedicated practices in climate, defense, and healthcare transformation.",
+        "portfolio_count": 749,
+    },
+    "Founders Fund": {
+        "website": "https://www.foundersfund.com",
+        "focus_sectors": ["Deep Tech/Hard Science", "Space/Aerospace", "AI/ML", "Biotech/Longevity", "Energy/Defense Tech", "Consumer", "Fintech/Crypto"],
+        "stage": "Seed through Growth; no stage restrictions",
+        "geography": "US (San Francisco); global portfolio",
+        "thesis": "'We wanted flying cars, instead we got 140 characters.' Contrarian philosophy: avoids consensus trends, prefers difficult science-driven or monopoly-building ventures. Seeks 10x+ improvements, not incremental innovations. Explicitly avoids SaaS/enterprise as 'too consensus.'",
+        "check_size": "$1M–$200M+ (extremely flexible)",
+        "notable_portfolio": ["SpaceX", "Palantir", "Facebook (early)", "Airbnb", "Stripe", "Lyft", "Spotify", "Asana", "Anduril Industries", "Nubank"],
+        "differentiator": "Founded by Peter Thiel. Most ideologically distinct major VC. First institutional investor in SpaceX and Facebook. Strong defense tech (Palantir, Anduril) before it was popular. No scouts, no accelerator — very selective.",
+        "portfolio_count": 654,
+    },
+    "Greylock Partners": {
+        "website": "https://www.greylock.com",
+        "focus_sectors": ["Consumer", "Enterprise", "AI/ML", "Security", "Infrastructure", "Developer Tools", "Fintech"],
+        "stage": "Seed through Series B (primarily early stage)",
+        "geography": "US (Silicon Valley + NYC primary); selective global",
+        "thesis": "Invests in category-defining companies at earliest stages. All partners are former operators and entrepreneurs — founder-first philosophy. Great companies are built by exceptional people; prioritizes founder relationship over market timing.",
+        "check_size": "Seed $1M–$5M; Series A $5M–$25M; Series B $25M–$60M",
+        "notable_portfolio": ["LinkedIn", "Facebook (early)", "Airbnb", "Workday", "Palo Alto Networks", "Instagram", "Roblox", "Discord", "Figma", "Coinbase", "Dropbox", "Replit"],
+        "differentiator": "Founded 1965. All investment partners are former founders/operators (Reid Hoffman, etc.) — not career VCs. Greylock Edge operational support program. Extremely concentrated portfolios with high conviction.",
+        "portfolio_count": 636,
+    },
+    "GGV Capital": {
+        "website": "https://www.ggvc.com",
+        "focus_sectors": ["Consumer", "Enterprise SaaS", "Social/Creator Economy", "Fintech", "AI/ML", "Logistics/Supply Chain", "Gaming"],
+        "stage": "Series A through Growth",
+        "geography": "US and Asia; split in 2023 into Notable Capital (US/global) and Granite Asia (Asia)",
+        "thesis": "Built differentiation as the premier 'bridge' VC between US and China. After US-China tensions, split operations in 2023. Former GGV is now two separately branded firms.",
+        "check_size": "Series A $10M–$40M; Growth $40M–$200M",
+        "notable_portfolio": ["Alibaba", "Xiaomi", "Airbnb", "Slack", "Wish", "StockX", "Poshmark", "Peloton", "Lime", "HashiCorp", "XPeng"],
+        "differentiator": "Most successful trans-Pacific VC firm — simultaneously backed Alibaba, Airbnb, Slack, and Xiaomi at early stages. 2023 split reflects geopolitical reconfiguration of VC industry.",
+        "portfolio_count": 620,
+    },
+    "Khosla Ventures": {
+        "website": "https://www.khoslaventures.com",
+        "focus_sectors": ["AI/ML", "Climate/Clean Energy", "Health/Biotech", "Deep Tech", "Agriculture", "Consumer", "Enterprise", "Robotics", "Space", "Nuclear Energy"],
+        "stage": "Seed through Series B; also Khosla Impact",
+        "geography": "US primary; selective international",
+        "thesis": "'Embrace the power of technology to solve impossible problems.' Famous for 'radical' bets on science-based companies most VCs avoid — climate tech, alternative proteins, nuclear, longevity. Very high failure tolerance in exchange for civilization-scale impact.",
+        "check_size": "Seed/Early $500K–$5M; Series A/B $10M–$50M",
+        "notable_portfolio": ["OpenAI (seed)", "Square", "Affirm", "DoorDash", "Instacart", "Okta", "Joby Aviation", "Impossible Foods", "Commonwealth Fusion Systems"],
+        "differentiator": "Founded by Vinod Khosla (Sun Microsystems co-founder). Most aggressive deep-tech and climate-tech focus among top-tier VCs. Was an early seed investor in OpenAI. Khosla Impact fund for social missions.",
+        "portfolio_count": 617,
+    },
+    "TechStars": {
+        "website": "https://www.techstars.com",
+        "focus_sectors": ["Broad/All sectors", "Fintech", "Healthcare", "Energy", "Retail", "Media", "Defense"],
+        "stage": "Pre-Seed (accelerator model)",
+        "geography": "Global — programs in 30+ cities worldwide",
+        "thesis": "Accelerate the lifecycle of the entrepreneur — provide a 13-week intensive accelerator program with mentorship, $120K standard investment, and access to alumni network. Corporate-partnership model runs vertical-specific programs with Fortune 500 sponsors.",
+        "check_size": "$120K standard (common equity) per batch company",
+        "notable_portfolio": ["Uber (early)", "SendGrid", "Digital Ocean", "SalesLoft", "Sphero", "ClassPass", "PillPack (acquired by Amazon)", "Remitly"],
+        "differentiator": "One of the world's largest accelerator networks with 3,000+ portfolio companies. Deep corporate sponsor model (Barclays, Nike, Target-backed programs). Alumni network of 50,000+ entrepreneurs. Community-led deal flow in non-Silicon Valley cities.",
+        "portfolio_count": 615,
+    },
+    "Battery Ventures": {
+        "website": "https://www.battery.com",
+        "focus_sectors": ["Enterprise Software/SaaS", "Cloud Infrastructure", "Security", "Fintech", "Consumer Tech", "Industrial Tech", "AI"],
+        "stage": "Seed through Growth/Buyout (uniquely broad mandate)",
+        "geography": "US (Boston + San Francisco), Europe, Israel",
+        "thesis": "Backs entrepreneurs across all stages — from seed to growth and even buyouts of established software companies. Uniquely broad mandate: great opportunities arise at every stage of the company lifecycle.",
+        "check_size": "Seed $1M–$5M; Growth $20M–$100M; Buyout $100M–$1B+",
+        "notable_portfolio": ["Wayfair", "Procore", "Marketo", "Glassdoor", "Addepar", "Intercom", "Sprinklr", "BladeLogic", "Angi"],
+        "differentiator": "Very few VCs operate from seed through software buyouts within the same fund family. Boston-based. Battery Open Source fund for open-source companies. 30+ software buyouts completed — more than almost any growth equity firm.",
+        "portfolio_count": 611,
+    },
+    "Kima Ventures": {
+        "website": "https://www.kimaventures.com",
+        "focus_sectors": ["Software (broadly)", "SaaS", "Marketplaces", "Fintech", "Developer Tools", "Consumer Internet", "AI"],
+        "stage": "Pre-seed and Seed exclusively",
+        "geography": "Global — France-based but invests worldwide",
+        "thesis": "Volume-based pre-seed investor: writes ~150 small checks per year. At pre-seed, the best strategy is broad diversification with fast decisions — impossible to predict winners this early. 48-hour decision process.",
+        "check_size": "$150K–$300K (very small, standardized)",
+        "notable_portfolio": ["Algolia", "Sunrise (acquired by Microsoft)", "Zenly (acquired by Snap)", "ManoMano", "Batch"],
+        "differentiator": "One of the most active pre-seed investors globally by deal count (~150/year). Backed by Xavier Niel (founder of Iliad/Free). Famous for 48-hour yes/no decisions. Strong gateway into European early-stage ecosystem.",
+        "portfolio_count": 583,
+    },
+    "Global Founders Capital": {
+        "website": "https://www.globalfounderscapital.com",
+        "focus_sectors": ["Consumer Internet/Marketplaces", "Enterprise Software/SaaS", "Fintech", "E-commerce", "EdTech", "HealthTech"],
+        "stage": "Seed through Series A; stage-agnostic in practice",
+        "geography": "Global — Europe, Americas, Asia, Africa; truly borderless",
+        "thesis": "Great founders exist globally, not just in Silicon Valley. Brings operational playbooks from Rocket Internet's company-building experience alongside capital. Has invested in 100+ countries.",
+        "check_size": "$100K–$10M (wide range, stage-dependent)",
+        "notable_portfolio": ["Lazada", "Delivery Hero", "Zalando (via Rocket)", "HelloFresh (via Rocket)", "Lyft", "Slack", "Airbnb (secondary)", "Canva"],
+        "differentiator": "Rocket Internet DNA — operational expertise in building and scaling internet businesses. One of the few major funds with deep roots in Africa, SEA, and LATAM simultaneously. No geographic or sector restrictions.",
+        "portfolio_count": 572,
+    },
+    "First Round Capital": {
+        "website": "https://www.firstround.com",
+        "focus_sectors": ["Consumer", "Enterprise/SaaS", "Fintech", "Healthcare", "AI/ML", "Developer Tools", "Marketplace"],
+        "stage": "Pre-Seed and Seed only (strictly early stage)",
+        "geography": "US primary (San Francisco, NYC)",
+        "thesis": "The first check is the highest-leverage moment in any company's life. Exclusively pre-seed/seed. Built the First Round Network — a platform connecting founders and operators across portfolio.",
+        "check_size": "$500K–$3M (seed/pre-seed only)",
+        "notable_portfolio": ["Uber", "Square", "Warby Parker", "Roblox", "Notion", "Looker", "Flatiron Health", "Bombas", "ClassPass", "Coda"],
+        "differentiator": "Strictly seed-only. The First Round Review is one of the most widely-read startup management blogs. First Round Network — proprietary online community for portfolio founders. Famous for Uber seed check at $1.25M pre-product.",
+        "portfolio_count": 556,
+    },
+    "SB Investment Advisers (Vision Fund)": {
+        "website": "https://www.visionfund.com",
+        "focus_sectors": ["AI/ML", "Robotics", "IoT/Smart Cities", "HealthTech", "Fintech", "E-commerce", "Autonomous Vehicles", "Consumer Tech", "PropTech", "Logistics"],
+        "stage": "Series B through Pre-IPO (primarily late-stage growth)",
+        "geography": "Global — US, China, India, Southeast Asia, Europe, Latin America, Middle East",
+        "thesis": "AI will touch every industry and create trillions in value. Vision Fund 1 was the largest VC fund ever raised ($98.6B). Vision Fund 2 shifted to smaller, more disciplined checks post-WeWork debacle. 300-year vision for AI.",
+        "check_size": "Vision Fund 1 $100M–$10B; Vision Fund 2 $25M–$500M",
+        "notable_portfolio": ["Uber", "WeWork", "ByteDance", "Didi", "OYO", "Grab", "Klarna", "DoorDash", "Coupang", "Nuro", "Opendoor", "Paytm", "ARM Holdings", "Revolut"],
+        "differentiator": "By far the largest VC fund ever raised ($98.6B). Changed late-stage venture by writing $500M+ single-company checks. WeWork implosion and ~$50B in 2021–2022 write-downs led to dramatic scaling back. Closest thing to a sovereign wealth fund in structure.",
+        "portfolio_count": 515,
+    },
+    "DST Global": {
+        "website": "https://dst-global.com",
+        "focus_sectors": ["Consumer Internet", "E-commerce", "Social Media", "Fintech", "Marketplaces", "On-demand Services"],
+        "stage": "Late-stage / Growth (Series B+); primarily pre-IPO",
+        "geography": "Global — US, Europe, Asia, Latin America, India",
+        "thesis": "Backs category-defining consumer internet companies at scale. Takes minority stakes without board seats — founder-friendly, hands-off style. Largest internet platforms deliver outsized returns over long holding periods.",
+        "check_size": "$100M–$1B+ per round",
+        "notable_portfolio": ["Facebook", "Twitter", "Airbnb", "Spotify", "Snapchat", "Alibaba", "JD.com", "Flipkart", "Klarna", "Revolut", "DoorDash", "Robinhood", "Nubank"],
+        "differentiator": "Founded by Yuri Milner. Famous for writing very large checks at unconventional (high) valuations without requiring board seats — revolutionary when DST invested in Facebook at $10B valuation in 2009.",
+        "portfolio_count": 497,
+    },
+    "Redpoint Ventures": {
+        "website": "https://www.redpoint.com",
+        "focus_sectors": ["SaaS/Cloud", "Infrastructure", "AI/ML", "Developer Tools", "Security", "Consumer", "Fintech"],
+        "stage": "Seed through Series B",
+        "geography": "US primary; separate Redpoint China fund",
+        "thesis": "Backs founders building infrastructure and applications for the next generation of computing. Strong emphasis on data-driven developer-centric infrastructure. Believes in being early to secular technology transitions (cloud, AI). Publishes Redpoint Data Center — SaaS metrics benchmarking.",
+        "check_size": "Seed $500K–$3M; Series A $5M–$25M; Series B $25M–$75M",
+        "notable_portfolio": ["Netflix", "Stripe", "Snowflake", "Twilio", "Heroku", "Zendesk", "Hashicorp", "Zuora", "Looker", "Domo"],
+        "differentiator": "One of the earliest believers in cloud/SaaS — backed Netflix, Stripe, Snowflake, Twilio at early stages. Tom Tunguz is one of the most data-driven VC bloggers, regularly publishing SaaS benchmarks.",
+        "portfolio_count": 488,
+    },
+    "Greycroft Partners": {
+        "website": "https://www.greycroft.com",
+        "focus_sectors": ["Consumer Internet", "SaaS/Enterprise", "Mobile", "Media/Entertainment", "Fintech", "Healthcare Technology", "E-commerce"],
+        "stage": "Seed through Series B; selective growth follow-ons",
+        "geography": "US (New York City and Los Angeles)",
+        "thesis": "Invests in technology at the intersection of media, commerce, and software. Strong belief in NY and LA ecosystems as complements to Silicon Valley. Capital efficiency emphasis.",
+        "check_size": "$1M–$20M initial; up to $50M follow-on",
+        "notable_portfolio": ["Bumble", "Venmo", "Acorns", "Bird", "Pluto TV", "Maker Studios", "Scopely", "Bright Health", "Trunk Club"],
+        "differentiator": "One of the few funds with deep roots in both New York and Los Angeles. Strong access to media, advertising, and consumer deal flow. Partners include Alan Patricof (legendary media/tech investor).",
+        "portfolio_count": 484,
+    },
+    "Salesforce Ventures": {
+        "website": "https://www.salesforce.com/company/ventures",
+        "focus_sectors": ["Enterprise SaaS", "CRM/Customer Experience", "AI/ML", "Data/Analytics", "Marketing Tech", "HR Tech", "Integration/Workflow Automation", "Industry Clouds"],
+        "stage": "Series A through late-stage / pre-IPO",
+        "geography": "Global — strong in US, Europe, Asia-Pacific",
+        "thesis": "Strategic CVC arm of Salesforce. Invests in enterprise cloud companies extending the Salesforce ecosystem or building next-gen enterprise software. Portfolio gets access to Salesforce's 150,000+ customer base and AppExchange distribution.",
+        "check_size": "$5M–$100M+",
+        "notable_portfolio": ["DocuSign", "Veeva Systems", "Zoom", "nCino", "Twilio", "Dropbox", "Snowflake", "Databricks", "Monday.com", "Qualtrics", "GoCardless"],
+        "differentiator": "One of the most active and largest CVCs globally. Unparalleled distribution leverage through Salesforce's enterprise customer base. Salesforce AppExchange gives portfolio companies direct go-to-market channels. Dedicated Impact Fund.",
+        "portfolio_count": 466,
+    },
+    "Norwest Venture Partners": {
+        "website": "https://www.nvp.com",
+        "focus_sectors": ["Enterprise Software/SaaS", "Consumer", "Healthcare/Life Sciences", "Fintech", "AI/Data", "Infrastructure/DevOps"],
+        "stage": "Seed through growth / pre-IPO; flexible across all stages",
+        "geography": "US (Palo Alto primary); active in India and Israel",
+        "thesis": "Multi-stage investor with long-term partnership mindset. Backed by Wells Fargo — provides patient capital without traditional fund cycle pressure. Founder-centric, low-ego partnership model.",
+        "check_size": "$1M–$100M+ depending on stage",
+        "notable_portfolio": ["Uber (early)", "Spotify", "Pendo", "Calm", "Intercom", "Sprinklr", "Samsara", "Daily Harvest", "Grail", "Talkdesk"],
+        "differentiator": "Uniquely multi-stage and sector-agnostic within tech and healthcare. Backed by Wells Fargo — enables evergreen capital without traditional fund cycle pressure. Dedicated India practice — one of the most active US VCs in India.",
+        "portfolio_count": 460,
+    },
+    "Matrix Partners": {
+        "website": "https://www.matrixpartners.com",
+        "focus_sectors": ["Enterprise Software/SaaS", "Infrastructure", "Consumer Internet", "Fintech", "Developer Tools", "Cybersecurity"],
+        "stage": "Seed and Series A (primary focus); occasional Series B",
+        "geography": "US (Boston and San Francisco); affiliated funds in India and China",
+        "thesis": "Early-stage conviction investor. Deep sector research before meeting companies. Takes concentrated, high-conviction bets; works closely with founders from day one. 40+ year track record.",
+        "check_size": "$1M–$20M at initial investment",
+        "notable_portfolio": ["Apple (early)", "HubSpot", "Zendesk", "Oculus VR", "Canva", "Quora", "Drift", "CloudBees"],
+        "differentiator": "One of the oldest VC franchises (founded 1977). 'Patient capital' approach. Strong operator-investor DNA. Separate affiliated funds in India (Matrix Partners India) and China (Matrix China) operate independently.",
+        "portfolio_count": 452,
+    },
+    "Benchmark Capital": {
+        "website": "https://www.benchmark.com",
+        "focus_sectors": ["Consumer Internet", "Enterprise Software/SaaS", "Marketplaces", "Infrastructure", "AI", "Fintech"],
+        "stage": "Seed and Series A exclusively (pure early-stage; refuses growth investing)",
+        "geography": "US (San Francisco Bay Area primary); selective Europe",
+        "thesis": "High-conviction, early-stage generalist. Writes small funds, takes concentrated positions in a handful of companies per year. Equal partnership model — all five partners earn equal carry with no hierarchy. The best returns come from being the first institutional capital in category-defining companies.",
+        "check_size": "$5M–$25M initial",
+        "notable_portfolio": ["Uber", "Twitter", "Snapchat", "Instagram", "eBay", "WeWork", "Yelp", "Discord", "Riot Games", "Stitch Fix", "New Relic"],
+        "differentiator": "Legendary equal partnership model — no managing partner, no hierarchy. Intentionally small funds (~$425M–$500M) for discipline. Refuses to raise growth or opportunity funds — stays early-stage. Famous for Uber investment (~$12M → $7B+ return).",
+        "portfolio_count": 451,
+    },
+    "East Ventures": {
+        "website": "https://east.vc",
+        "focus_sectors": ["Consumer Internet/E-commerce", "Fintech/Financial Inclusion", "SaaS/Enterprise", "HealthTech", "EdTech", "Logistics/Supply Chain", "Social Media/Gaming"],
+        "stage": "Seed through Series B; Southeast Asia early-stage specialist",
+        "geography": "Southeast Asia (Indonesia primary — Jakarta; also Singapore, Japan, Vietnam, Philippines)",
+        "thesis": "Pioneer of tech venture investing in Southeast Asia, with Indonesia at the core. 680M people, rising middle class, rapidly mobilizing internet users — the next great frontier for technology company creation.",
+        "check_size": "$100K–$5M at seed; up to $30M at Series A/B",
+        "notable_portfolio": ["Tokopedia (acquired by GoTo)", "Traveloka", "Kudo (acquired by Grab)", "Ruangguru", "Sociolla", "KoinWorks", "Xendit", "Shipper"],
+        "differentiator": "First mover advantage in Southeast Asia — began investing in 2009 when region was largely ignored. Tokopedia is a landmark portfolio company. Bridges Japanese and Southeast Asian tech ecosystems. Deep Indonesia-specific expertise.",
+        "portfolio_count": 444,
+    },
+    "Institutional Venture Partners (IVP)": {
+        "website": "https://www.ivp.com",
+        "focus_sectors": ["Consumer Internet/Media", "SaaS/Enterprise", "Fintech", "Healthcare IT", "Infrastructure", "Cybersecurity"],
+        "stage": "Later-stage growth (Series C, D, beyond); pre-IPO specialist",
+        "geography": "US (primary); selective international",
+        "thesis": "Growth-stage specialist investing in proven, high-velocity companies preparing for IPO. Backs the 'franchise players' of tech — companies with durable competitive moats. 40+ year track record, 110+ IPOs and 30+ acquisitions >$1B.",
+        "check_size": "$30M–$200M per investment",
+        "notable_portfolio": ["Twitter", "Netflix", "Snap", "Dropbox", "Github", "Figma", "Robinhood", "Coinbase", "UiPath", "HashiCorp", "Supercell", "Slack", "Datadog"],
+        "differentiator": "One of the most successful late-stage/growth funds in history (founded 1980). Deep IPO expertise. Known for entering at Series C/D when risk profile is still venture-like but outcomes more predictable.",
+        "portfolio_count": 432,
+    },
+    "CRV": {
+        "website": "https://www.crv.com",
+        "focus_sectors": ["Enterprise Software/SaaS", "Developer Tools/Infrastructure", "Consumer", "Fintech", "AI/ML", "Biotech/Healthcare"],
+        "stage": "Seed and Series A (core focus)",
+        "geography": "US (San Francisco Bay Area and Boston)",
+        "thesis": "Early-stage firm backing extraordinary founders at the very beginning. Low ego, highly accessible partners, fast decisions, deep operational support. One of the continuously operating longest VC firms (founded 1970).",
+        "check_size": "$1M–$15M at seed/Series A",
+        "notable_portfolio": ["Twitter", "DoorDash", "Airtable", "Patreon", "Zendesk (early)", "HubSpot", "Vercel", "Loom"],
+        "differentiator": "One of the oldest continuously operating venture firms (est. 1970). Bi-coastal with genuine depth in both Bay Area and Boston. Known for founder-friendly culture — same-week term sheets. Strong in developer-focused and infrastructure companies.",
+        "portfolio_count": 420,
+    },
+    "Coatue Management": {
+        "website": "https://www.coatue.com",
+        "focus_sectors": ["Consumer Internet", "Enterprise SaaS", "Fintech", "AI/Data Infrastructure", "Gaming", "Healthcare Tech", "E-commerce/Marketplaces"],
+        "stage": "Multi-stage: late-stage private (Series C–pre-IPO) through public equities; also seed via Coatue Ventures",
+        "geography": "Global — US, China, India, Southeast Asia, Latin America",
+        "thesis": "Technology-focused crossover investor. Uses deep quantitative and fundamental research to identify technology winners across public and private markets. Proprietary data science/quant team embedded in investment process.",
+        "check_size": "$10M–$500M+ in private rounds; unlimited in public markets",
+        "notable_portfolio": ["ByteDance (TikTok)", "Snap", "Lyft", "Instacart", "Didi", "Meituan", "Grab", "Chime", "Epic Games", "Discord", "Brex", "Plaid"],
+        "differentiator": "One of the original 'Tiger Cubs' (founded by ex-Tiger Global analyst Philippe Laffont). Ability to invest across full company lifecycle in a single vehicle. Proprietary quant team in investment process. ~$50B+ total AUM.",
+        "portfolio_count": 413,
+    },
+    "Canaan Partners": {
+        "website": "https://www.canaan.com",
+        "focus_sectors": ["Healthcare/Life Sciences", "Biotech/Therapeutics", "Enterprise Technology/SaaS", "Fintech", "Consumer Technology", "AI/ML"],
+        "stage": "Early-stage: Seed through Series B; occasional growth",
+        "geography": "US (Menlo Park and New York); Israel",
+        "thesis": "Backs exceptional entrepreneurs at earliest stages in technology and healthcare. Unique dual focus: deep life sciences (therapeutics, diagnostics, devices) alongside enterprise and consumer technology. Believes in convergence of biology and technology.",
+        "check_size": "$5M–$25M initial investment",
+        "notable_portfolio": ["LendingClub", "Kabbage", "Instacart (early)", "Zulily", "DoubleClick", "Ebates", "Match.com"],
+        "differentiator": "One of the few top-tier VCs with genuine equal depth in both technology and life sciences under one roof. Strong Israel presence — one of the earliest US VCs with consistent Israel deal flow. 35+ year track record, 200+ portfolio companies.",
+        "portfolio_count": 412,
+    },
+    "Spark Capital": {
+        "website": "https://www.sparkcapital.com",
+        "focus_sectors": ["Consumer Internet", "Enterprise SaaS", "Fintech", "Crypto/Web3", "Gaming/Media", "AI", "Commerce/Marketplaces"],
+        "stage": "Seed through Series B (early-stage focus); will follow on through growth",
+        "geography": "US (Boston and San Francisco)",
+        "thesis": "Backs transformative founders building category-defining companies. Does not constrain to specific sectors — follows exceptional founders. Emphasis on companies that reshape behavior at scale, particularly at the intersection of consumer behavior and technology.",
+        "check_size": "$1M–$30M at initial check; significant reserves for follow-on",
+        "notable_portfolio": ["Twitter", "Tumblr", "Oculus VR", "Slack", "Coinbase", "Affirm", "Postmates", "Discord", "Wayfair", "Plaid"],
+        "differentiator": "Known for backing culturally resonant tech companies. Strong consumer behavior change thesis. Bi-coastal (Boston/SF). Small, high-conviction team — partners carry limited portfolio sizes for maximum attention.",
+        "portfolio_count": 410,
+    },
+    "Qiming Venture Partners": {
+        "website": "https://www.qimingvc.com/en",
+        "focus_sectors": ["Healthcare/Life Sciences", "Technology (AI, SaaS, Enterprise)", "Consumer Internet", "Clean Energy", "Biotech/Biopharma", "Medical Devices/Diagnostics"],
+        "stage": "Series A through Series C; some seed",
+        "geography": "China (primary — Shanghai, Beijing, Shenzhen); selective US cross-border",
+        "thesis": "Leading China-focused venture fund with dual mandate: technology companies and healthcare/life sciences. China's healthcare modernization and tech innovation are two of the largest wealth-creation opportunities of the next decade.",
+        "check_size": "$5M–$50M per investment",
+        "notable_portfolio": ["Xiaomi", "Meituan Dianping", "Bilibili", "ZTO Express", "Zai Lab", "BeiGene (early)", "WuXi AppTec (early)", "Nuro (US)"],
+        "differentiator": "Top-tier China VC with exceptional healthcare-tech balance. Founded by Gary Rieschel (formerly Softbank Venture Capital). Xiaomi investment is one of the most successful China VC bets ever. Strong US-China bridge.",
+        "portfolio_count": 409,
+    },
+    "Shunwei Capital Partners": {
+        "website": "https://www.shunwei.com",
+        "focus_sectors": ["Mobile Internet", "Consumer Applications", "AI/ML", "Short Video/Entertainment", "EdTech", "HealthTech", "Smart Hardware/IoT", "Southeast Asia Tech"],
+        "stage": "Series A through Series C",
+        "geography": "China (primary); Southeast Asia; India",
+        "thesis": "Mobile internet-focused VC co-founded by Xiaomi's Lei Jun. Mobile will reshape every aspect of Chinese consumer and enterprise life. Leverages deep connection to Xiaomi ecosystem to identify and accelerate portfolio companies.",
+        "check_size": "$5M–$30M per investment",
+        "notable_portfolio": ["Xiaomi (ecosystem)", "Cheetah Mobile", "Musical.ly (acquired by ByteDance → TikTok)", "ShareChat (India)", "YY Live"],
+        "differentiator": "Unique Xiaomi ecosystem advantage — portfolio gets access to Xiaomi's 300M+ device user base for distribution. Co-founded by Lei Jun (Xiaomi CEO). Early bet on Musical.ly (became TikTok).",
+        "portfolio_count": 401,
+    },
+    "Menlo Ventures": {
+        "website": "https://www.menlovc.com",
+        "focus_sectors": ["AI/Generative AI", "Enterprise SaaS", "Cybersecurity", "Consumer Technology", "Infrastructure/DevOps", "Fintech"],
+        "stage": "Early-stage (Seed, Series A) through growth (Series B/C)",
+        "geography": "US (Menlo Park, California)",
+        "thesis": "Invests in technology redefining how people work, communicate, and live. Pivoted heavily toward AI/generative AI — one of the earliest and most vocal advocates of the generative AI wave. AI will fundamentally restructure every software category.",
+        "check_size": "$5M–$30M initial; up to $100M in growth rounds",
+        "notable_portfolio": ["Uber (early)", "Anthropic (major backer)", "Poshmark", "Benchling", "Chime", "Carta", "Abnormal Security", "Pinecone"],
+        "differentiator": "Silicon Valley's oldest VC firm (founded 1976) that has successfully reinvented itself. Defining $100M bet on Anthropic — one of the most talked-about VC positions of the AI era. Strong cybersecurity and infrastructure thesis alongside AI.",
+        "portfolio_count": 400,
+    },
+}
+
+
+# Secondary intelligence: firm categorization for quick matching
+VC_STAGE_MAP = {
+    "pre_seed_seed": ["500 Global", "Kima Ventures", "First Round Capital", "SV Angel", "TechStars", "SOSV"],
+    "early_stage": ["Sequoia Capital", "Accel", "Kleiner Perkins", "Greylock Partners", "Benchmark Capital",
+                    "Matrix Partners", "CRV", "Spark Capital", "Canaan Partners", "East Ventures",
+                    "Khosla Ventures", "Founders Fund", "Redpoint Ventures", "Greycroft Partners"],
+    "multi_stage": ["Andreessen Horowitz (a16z)", "New Enterprise Associates (NEA)", "General Catalyst",
+                    "Lightspeed Venture Partners", "Bessemer Venture Partners", "Index Ventures",
+                    "Battery Ventures", "GV (Google Ventures)", "Norwest Venture Partners",
+                    "Menlo Ventures", "Coatue Management", "Intel Capital", "IDG Capital"],
+    "growth_late": ["Insight Partners", "Tiger Global Management", "DST Global",
+                    "Institutional Venture Partners (IVP)", "SB Investment Advisers (Vision Fund)",
+                    "GGV Capital"],
+}
+
+VC_GEOGRAPHY_MAP = {
+    "india_active": ["Sequoia Capital", "Accel", "New Enterprise Associates (NEA)", "Lightspeed Venture Partners",
+                     "Norwest Venture Partners", "Matrix Partners", "General Catalyst",
+                     "500 Global", "Tiger Global Management"],
+    "southeast_asia": ["East Ventures", "500 Global", "GGV Capital", "Sequoia Capital"],
+    "china_focused": ["IDG Capital", "GGV Capital", "Qiming Venture Partners", "Shunwei Capital Partners",
+                      "Tiger Global Management"],
+    "europe_strong": ["Index Ventures", "Kima Ventures", "Global Founders Capital",
+                      "Greycroft Partners", "Accel", "SB Investment Advisers (Vision Fund)"],
+    "us_only": ["Benchmark Capital", "Founders Fund", "Spark Capital", "CRV", "Menlo Ventures",
+                "Institutional Venture Partners (IVP)"],
+}
+
+VC_SECTOR_SPECIALISTS = {
+    "deep_tech_science": ["Founders Fund", "Khosla Ventures", "SOSV", "High-Tech Gründerfonds"],
+    "enterprise_saas": ["Insight Partners", "Bessemer Venture Partners", "Accel",
+                        "Salesforce Ventures", "Battery Ventures", "Redpoint Ventures"],
+    "healthcare_biotech": ["New Enterprise Associates (NEA)", "GV (Google Ventures)",
+                           "Canaan Partners", "Qiming Venture Partners", "General Catalyst"],
+    "consumer": ["Sequoia Capital", "Benchmark Capital", "Andreessen Horowitz (a16z)",
+                 "Founders Fund", "Index Ventures"],
+    "crypto_web3": ["Andreessen Horowitz (a16z)", "Spark Capital", "Coinbase Ventures"],
+    "defense_national_security": ["Andreessen Horowitz (a16z)", "General Catalyst", "Founders Fund"],
+    "climate_energy": ["Khosla Ventures", "General Catalyst", "Founders Fund", "Kleiner Perkins"],
+}
+
+
+def get_vc_firms_intel_context(firm_name: str = "", sector: str = "", stage: str = "") -> str:
+    """Return VC firm intelligence. If firm_name given, returns that firm's profile.
+    If sector/stage given, returns relevant firms. Otherwise returns overview."""
+    lines = []
+
+    # Specific firm lookup
+    if firm_name:
+        # Try exact match first, then partial match
+        matched = None
+        for name, data in VC_FIRMS_INTEL.items():
+            if firm_name.lower() in name.lower() or name.lower() in firm_name.lower():
+                matched = (name, data)
+                break
+        if matched:
+            name, data = matched
+            lines.append(f"## {name} — Firm Intelligence\n")
+            lines.append(f"- **Website**: {data['website']}")
+            lines.append(f"- **Focus Sectors**: {', '.join(data['focus_sectors'][:6])}")
+            lines.append(f"- **Stage**: {data['stage']}")
+            lines.append(f"- **Geography**: {data['geography']}")
+            lines.append(f"- **Thesis**: {data['thesis']}")
+            lines.append(f"- **Check Size**: {data['check_size']}")
+            lines.append(f"- **Notable Portfolio**: {', '.join(data['notable_portfolio'][:8])}")
+            lines.append(f"- **Differentiator**: {data['differentiator']}")
+            return "\n".join(lines)
+
+    # Stage-filtered overview
+    lines.append("## VC Landscape — Firm Intelligence Summary\n")
+
+    # Top 10 firms by portfolio size as quick reference
+    lines.append("### Top Firms by Portfolio Scale")
+    for name, data in list(VC_FIRMS_INTEL.items())[:10]:
+        lines.append(f"- **{name}** ({data['portfolio_count']} companies): {data['stage'][:60]}... | {data['geography'][:50]}")
+
+    lines.append("\n### Stage Specialization")
+    for stage_key, firms in VC_STAGE_MAP.items():
+        label = stage_key.replace("_", " ").title()
+        lines.append(f"- **{label}**: {', '.join(firms[:5])}")
+
+    lines.append("\n### India-Active Firms")
+    india_firms = VC_GEOGRAPHY_MAP.get("india_active", [])
+    for firm in india_firms:
+        data = VC_FIRMS_INTEL.get(firm, {})
+        if data:
+            lines.append(f"- **{firm}**: {data.get('thesis', '')[:80]}...")
+
+    lines.append("\n### Sector Specialists")
+    for sector_key, firms in VC_SECTOR_SPECIALISTS.items():
+        label = sector_key.replace("_", " ").title()
+        lines.append(f"- **{label}**: {', '.join(firms[:4])}")
+
+    return "\n".join(lines)
+
+
+def get_firm_fit_context(startup_description: str, sector: str = "", stage: str = "") -> str:
+    """Given a startup description/sector/stage, return the most relevant VC firms and their fit."""
+    lines = ["## VC Firm Fit Analysis\n"]
+
+    relevant_firms = []
+
+    # Stage-based filtering
+    stage_key_map = {
+        "idea": "pre_seed_seed",
+        "pre-revenue": "pre_seed_seed",
+        "early-revenue": "early_stage",
+        "growth": "growth_late",
+    }
+    stage_key = stage_key_map.get(stage, "early_stage")
+    stage_firms = set(VC_STAGE_MAP.get(stage_key, []) + VC_STAGE_MAP.get("multi_stage", []))
+
+    # Sector-based filtering
+    sector_firms = set()
+    sector_key_map = {
+        "saas": "enterprise_saas",
+        "d2c": "consumer",
+        "fintech": "enterprise_saas",
+        "marketplace": "consumer",
+    }
+    sector_key = sector_key_map.get(sector, "")
+    if sector_key:
+        sector_firms = set(VC_SECTOR_SPECIALISTS.get(sector_key, []))
+
+    # Combine and rank by overlap
+    combined = stage_firms & sector_firms if sector_firms else stage_firms
+    if not combined:
+        combined = stage_firms
+
+    for firm in list(combined)[:8]:
+        data = VC_FIRMS_INTEL.get(firm, {})
+        if data:
+            relevant_firms.append((firm, data))
+
+    lines.append(f"For a **{stage or 'early stage'}** startup in **{sector or 'your sector'}**:\n")
+    for firm, data in relevant_firms[:6]:
+        lines.append(f"### {firm}")
+        lines.append(f"- Thesis: {data.get('thesis', '')[:120]}...")
+        lines.append(f"- Check Size: {data.get('check_size', 'Unknown')}")
+        lines.append(f"- What they look for: {data.get('differentiator', '')[:100]}...")
+        lines.append("")
+
+    return "\n".join(lines)
