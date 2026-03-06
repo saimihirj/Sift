@@ -1,0 +1,370 @@
+# Execution Guide
+
+This document is the accurate runbook for the current Vishwakarma app.
+
+It covers:
+- local setup
+- local app mode
+- LAN sharing
+- development mode
+- Docker deployment
+- Render deployment
+- runtime behavior
+- troubleshooting
+
+If you want open-source-only with no paid services, use the local and LAN modes below and keep:
+
+```env
+VK_MODEL_PROVIDER=ollama
+```
+
+## 1. Prerequisites
+
+Required:
+- Python `3.11+`
+- Node.js `18+`
+- npm
+- [Ollama](https://ollama.com)
+
+Recommended local models:
+
+```bash
+ollama pull llama3.2:latest
+ollama pull qwen3:4b
+```
+
+Start Ollama if it is not already running:
+
+```bash
+ollama serve
+```
+
+## 2. One-Time Setup
+
+From the project root:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+npm install
+npm --prefix frontend install
+cp .env.example .env
+```
+
+## 3. Environment
+
+Default runtime values live in `.env.example`.
+
+Current keys:
+
+```env
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL_SPEED=llama3.2:latest
+OLLAMA_MODEL_BALANCED=qwen3:4b
+```
+
+Notes:
+- `speed` is the default chat profile
+- `balanced` is optional and falls back to `speed` if it errors
+- the rebuilt app uses Ollama over HTTP
+- legacy Gradio config in `.env.example` is for the old prototype only
+
+## 4. Run Modes
+
+### A. Local App Mode
+
+Best default for normal use.
+
+```bash
+python3 vk.py --build
+```
+
+Shortcut:
+
+```bash
+npm run mvp
+```
+
+What it does:
+- builds the frontend if needed
+- serves frontend and backend on one port
+- opens a browser window automatically
+- stops a short time after the browser heartbeat disappears
+
+Default URL:
+
+```text
+http://127.0.0.1:7860
+```
+
+Useful flags:
+
+```bash
+python3 vk.py --build --port 7870
+python3 vk.py --build --no-open
+python3 vk.py --build --idle-timeout 30
+```
+
+### B. LAN Test Mode
+
+Use this to let a co-founder test on the same Wi‑Fi network.
+
+```bash
+python3 vk.py --host 0.0.0.0 --port 7860 --build
+```
+
+Shortcut:
+
+```bash
+npm run mvp:lan
+```
+
+What to share:
+- the LAN URL printed in the terminal
+
+Notes:
+- this is local-network sharing only
+- there is no auth in this pass
+
+### C. Development Mode
+
+Use this when you are editing code.
+
+```bash
+npm run dev
+```
+
+This starts:
+- FastAPI at `http://127.0.0.1:8000`
+- Vite at `http://127.0.0.1:5173`
+
+You can also run them separately:
+
+```bash
+npm run dev:backend
+```
+
+```bash
+npm run dev:frontend
+```
+
+Important:
+- `npm run dev` is a normal dev workflow
+- it does not auto-stop when you close the browser
+
+### D. Docker
+
+For container-style deployment:
+
+```bash
+docker build -t vishwakarma .
+docker run -p 8000:8000 vishwakarma
+```
+
+App URL:
+
+```text
+http://127.0.0.1:8000
+```
+
+### E. Render
+
+The repo includes:
+
+```text
+render.yaml
+```
+
+Recommended deploy path:
+
+1. Create a new Render service from the repo
+2. Use the included `render.yaml`
+3. Set `GROQ_API_KEY`
+4. Set `VK_ADMIN_TOKEN`
+5. Deploy
+
+Important:
+- the current blueprint uses a persistent disk
+- app data is written under `/var/data/vishwakarma`
+- admin monitoring is available at `/admin`
+
+If you want zero paid dependencies, skip this section and stay on local / LAN mode.
+
+## 5. Runtime Behavior
+
+### Sessions
+
+Sessions are stored in:
+
+```text
+data/sessions.db
+```
+
+Each session stores:
+- founder profile
+- current state snapshot
+- full chat history
+- response metadata
+
+### Admin monitoring
+
+The app now exposes:
+
+```text
+/admin
+```
+
+Open it directly with:
+
+```bash
+npm run admin
+```
+
+And backend routes:
+
+```text
+/api/admin/overview
+/api/admin/events
+```
+
+If `VK_ADMIN_TOKEN` is set, the admin API requires the `x-admin-token` header.
+
+### Uploads
+
+Session-scoped uploads are stored in:
+
+```text
+data/session_uploads/
+```
+
+Files are:
+- parsed once
+- chunked per session
+- retrieved as small relevant snippets
+
+### Frontend Serving
+
+In single-port mode and Docker mode, FastAPI serves the built frontend from:
+
+```text
+frontend/dist
+```
+
+If that build is missing, the root route returns a message telling you to build the frontend.
+
+## 6. Product Flow
+
+Typical local flow:
+
+1. Start a session from onboarding
+2. Chat in the mentor workspace
+3. Upload notes, a deck, or a research file if needed
+4. Resume older sessions from the left rail
+5. Open the outline route when you want a structured pitch summary
+
+## 7. Troubleshooting
+
+### Ollama is not reachable
+
+```bash
+ollama serve
+```
+
+Check:
+- `OLLAMA_BASE_URL`
+- whether Ollama is already bound to another interface
+
+### The balanced profile fails
+
+Pull the configured model:
+
+```bash
+ollama pull qwen3:4b
+```
+
+If it is still unavailable, the app should fall back to `speed`.
+
+### The browser closes but the server keeps running
+
+That auto-stop behavior only applies to:
+
+```bash
+python3 vk.py
+```
+
+It does not apply to:
+
+```bash
+npm run dev
+uvicorn backend.main:app --reload
+```
+
+### Responses are too slow
+
+Check:
+- you are using `speed`
+- Ollama is running locally
+- the model matches `.env`
+- you are not on the heavier `balanced` profile by default
+
+Current default model choice is tuned for Apple Silicon local use:
+- `speed` -> `llama3.2:latest`
+- `balanced` -> `qwen3:4b`
+
+### Frontend does not load in single-port mode
+
+Build it explicitly:
+
+```bash
+npm --prefix frontend run build
+```
+
+Then restart:
+
+```bash
+python3 vk.py --build
+```
+
+## 8. Key Commands
+
+Setup:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+npm install
+npm --prefix frontend install
+```
+
+Run local app:
+
+```bash
+python3 vk.py --build
+```
+
+Run LAN share:
+
+```bash
+python3 vk.py --host 0.0.0.0 --port 7860 --build
+```
+
+Run dev:
+
+```bash
+npm run dev
+```
+
+Build frontend:
+
+```bash
+npm --prefix frontend run build
+```
+
+Run Docker:
+
+```bash
+docker build -t vishwakarma .
+docker run -p 8000:8000 vishwakarma
+```

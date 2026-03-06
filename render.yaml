@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: vishwakarma
+    runtime: docker
+    plan: starter
+    autoDeploy: true
+    healthCheckPath: /api/health
+    envVars:
+      - key: VK_MODEL_PROVIDER
+        value: groq
+      - key: VK_DATA_DIR
+        value: /var/data/vishwakarma
+      - key: OLLAMA_BASE_URL
+        value: http://127.0.0.1:11434
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL_SPEED
+        value: llama-3.1-8b-instant
+      - key: GROQ_MODEL_BALANCED
+        value: llama-3.3-70b-versatile
+      - key: VK_ADMIN_TOKEN
+        sync: false
+    disk:
+      name: vishwakarma-data
+      mountPath: /var/data
+      sizeGB: 2

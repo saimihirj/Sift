@@ -1,0 +1,18 @@
+{
+  "name": "pitch-deck-mentor",
+  "private": true,
+  "scripts": {
+    "mvp": "python3 vk.py --build",
+    "mvp:lan": "python3 vk.py --host 0.0.0.0 --build",
+    "admin": "python3 vk.py --build --admin",
+    "dev": "concurrently \"uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000\" \"npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173\"",
+    "dev:backend": "uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:frontend": "npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173",
+    "build": "npm --prefix frontend run build",
+    "run:vk": "python3 vk.py",
+    "run:vk:lan": "python3 vk.py --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
