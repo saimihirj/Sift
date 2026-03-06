@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import type { ProviderOption, ResponseProfile, SessionPayload, SessionSummary, ThemeMode } from "../../app/types";
+import { SignalLockup } from "../../app/SignalBrand";
 import { ThemePicker } from "../../app/ThemePicker";
 import { answerEvaluator, updateSessionRuntime } from "../../lib/api/client";
 import { loadSessionCredential, saveSessionCredential } from "../../lib/sessionCredentials";
@@ -195,13 +196,7 @@ export function EvaluatorScreen({
     <div className="app-shell">
       <aside className="left-rail">
         <div>
-          <div className="brand-lockup">
-            <span className="brand-dot" />
-            <div>
-              <strong>Signal</strong>
-              <p>Evaluator</p>
-            </div>
-          </div>
+          <SignalLockup compact className="workspace-lockup" />
 
           <div className="rail-card">
             <span className="rail-label">Assessment</span>
@@ -264,7 +259,7 @@ export function EvaluatorScreen({
       <main className="main-pane">
         <header className="pane-header">
           <div>
-            <span className="eyebrow">Signal</span>
+            <span className="eyebrow">Cut Through The Noise.</span>
             <h2>{currentQuestion ? currentQuestion.text : "Assessment status"}</h2>
           </div>
           <div className="status-stack">

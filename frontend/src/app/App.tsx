@@ -20,7 +20,8 @@ import { SetupWizard } from "../features/onboarding/SetupWizard";
 import { OutlineScreen } from "../features/outline/OutlineScreen";
 import { saveSessionCredential } from "../lib/sessionCredentials";
 
-const SESSION_STORAGE_KEY = "vishwakarma-session-id";
+const SESSION_STORAGE_KEY = "signal-session-id";
+const LEGACY_SESSION_STORAGE_KEY = "vishwakarma-session-id";
 const THEME_STORAGE_KEY = "vishwakarma-theme";
 const CLIENT_STORAGE_KEY = "vishwakarma-client-id";
 const DISPLAY_NAME_STORAGE_KEY = "vishwakarma-display-name";
@@ -48,6 +49,37 @@ function getClientId(): string {
     : `vk-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   localStorage.setItem(CLIENT_STORAGE_KEY, generated);
   return generated;
+}
+
+function getStoredSessionId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const activeSessionId = sessionStorage.getItem(SESSION_STORAGE_KEY);
+  if (activeSessionId) {
+    return activeSessionId;
+  }
+  localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
+  sessionStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
+  return null;
+}
+
+function setStoredSessionId(sessionId: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
+  sessionStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
+  sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+}
+
+function clearStoredSessionId(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
+  sessionStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
 }
 
 function AppBody() {
@@ -132,7 +164,7 @@ function AppBody() {
 
   useEffect(() => {
     let cancelled = false;
-    const storedSessionId = localStorage.getItem(SESSION_STORAGE_KEY);
+    const storedSessionId = getStoredSessionId();
 
     if (!storedSessionId) {
       setLoadingSession(false);
@@ -148,7 +180,7 @@ function AppBody() {
         }
       })
       .catch(() => {
-        localStorage.removeItem(SESSION_STORAGE_KEY);
+        clearStoredSessionId();
       })
       .finally(() => {
         if (!cancelled) {
@@ -198,7 +230,7 @@ function AppBody() {
       evaluationProgress: payload.evaluationProgress,
       evaluationReport: payload.evaluationReport,
     };
-    localStorage.setItem(SESSION_STORAGE_KEY, payload.sessionId);
+    setStoredSessionId(payload.sessionId);
     setSession(next);
     void listSessions(effectiveClientId)
       .then((response) => setRecentSessions(response.sessions))
@@ -261,7 +293,7 @@ function AppBody() {
   };
 
   const handleExitSession = () => {
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    clearStoredSessionId();
     setSession(null);
     setEntryScreen("landing");
     void refreshSessions();
@@ -269,7 +301,7 @@ function AppBody() {
   };
 
   const handleNewSession = () => {
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    clearStoredSessionId();
     setSession(null);
     setEntryScreen("landing");
     void refreshSessions();
@@ -278,7 +310,7 @@ function AppBody() {
 
   const handleOpenSession = async (sessionId: string) => {
     const response = await getSession(sessionId);
-    localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+    setStoredSessionId(sessionId);
     setSession(response);
     navigate("/");
   };

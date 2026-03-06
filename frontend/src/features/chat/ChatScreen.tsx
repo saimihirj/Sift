@@ -11,6 +11,7 @@ import type {
   ThemeMode,
   UploadSummary,
 } from "../../app/types";
+import { SignalLockup } from "../../app/SignalBrand";
 import { ThemePicker } from "../../app/ThemePicker";
 import { streamChat, updateSessionRuntime } from "../../lib/api/client";
 import { loadSessionCredential, saveSessionCredential } from "../../lib/sessionCredentials";
@@ -294,13 +295,7 @@ export function ChatScreen({
     <div className="app-shell">
       <aside className="left-rail">
         <div>
-          <div className="brand-lockup">
-            <span className="brand-dot" />
-            <div>
-              <strong>Signal</strong>
-              <p>Pitch mentor</p>
-            </div>
-          </div>
+          <SignalLockup compact className="workspace-lockup" />
 
           <div className="rail-card">
             <span className="rail-label">Response profile</span>
@@ -371,7 +366,7 @@ export function ChatScreen({
       <main className={mobilePane === "chat" ? "main-pane mobile-chat" : "main-pane mobile-coverage"}>
         <header className="pane-header">
           <div>
-            <span className="eyebrow">Signal</span>
+            <span className="eyebrow">Cut Through The Noise.</span>
             <h2>{session.state.company_name || "Mentor Console"}</h2>
           </div>
           <div className="status-stack">

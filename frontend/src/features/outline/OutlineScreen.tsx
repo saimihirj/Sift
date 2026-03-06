@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { SignalLockup } from "../../app/SignalBrand";
 import type { ThemeMode } from "../../app/types";
 import { ThemePicker } from "../../app/ThemePicker";
 import { getOutline, postAnalyticsEvent } from "../../lib/api/client";
@@ -54,12 +55,10 @@ export function OutlineScreen({ theme, onThemeChange, onExitSession, clientId, d
   return (
     <div className="outline-shell">
       <aside className="left-rail outline-rail">
-        <div className="brand-lockup">
-          <span className="brand-dot" />
-          <div>
-            <strong>Signal</strong>
-            <p>{status}</p>
-          </div>
+        <SignalLockup compact className="workspace-lockup" />
+        <div className="rail-card">
+          <span className="rail-label">Outline status</span>
+          <p className="muted-copy">{status}</p>
         </div>
         <div className="rail-footer">
           <button type="button" className="ghost-button" onClick={() => navigate("/")}>

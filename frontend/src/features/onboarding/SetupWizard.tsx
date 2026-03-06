@@ -1,5 +1,6 @@
 import { useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
+import { SignalLockup } from "../../app/SignalBrand";
 import type { FounderType, Mode, Provider, ProviderOption, Sector, SessionType, Stage } from "../../app/types";
 
 type Props = {
@@ -133,7 +134,7 @@ export function SetupWizard({ providerOptions, loading, onBack, onStart }: Props
     <section className="onboarding-shell">
       <div className="onboarding-card clean-wizard-card">
         <div className="onboarding-meta">
-          <span className="eyebrow">Setup</span>
+          <SignalLockup compact showTagline={false} />
           <div className="step-dots" aria-hidden="true">
             {[0, 1, 2].map((value) => (
               <span key={value} className={value === step ? "dot active" : "dot"} />
