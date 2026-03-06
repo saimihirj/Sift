@@ -608,17 +608,23 @@ def _question_context_hint(question: dict[str, Any], state: "ConversationState |
     category_key = CATEGORY_BELIEF_KEYS.get(question["category"], "")
     category_confidence = beliefs.get(category_key, 0.5)
 
+    founder_type = state.founder_type if state else "unknown"
+
     if conversation_state == "narrow":
         if state and state.founder_type == "student":
-            return "Keep it simple and specific."
+            if question["category"] == "Problem":
+                return "Answer shape: user -> pain -> current workaround."
+            return "Keep it simple: one user, one problem, one concrete point."
         return "Answer narrowly and stay concrete."
     if conversation_state == "validate":
         if question["category"] == "Traction":
-            return "Use one honest proof point, even if it is small."
+            return "Answer shape: who you spoke to -> what they said -> what changed."
         return "Anchor this in real behavior, not a belief."
     if conversation_state == "quantify":
-        if state and state.founder_type == "student":
-            return "A rough estimate is enough."
+        if founder_type in {"student", "professional"}:
+            if question["category"] == "Business Model":
+                return "Answer shape: what they pay -> what it costs -> why it works."
+            return "A rough estimate is enough. Use one simple number."
         return "Use one believable number if you can."
     if conversation_state == "de-risk":
         return "Address the biggest uncertainty directly."
@@ -627,20 +633,29 @@ def _question_context_hint(question: dict[str, Any], state: "ConversationState |
 
     if category_confidence < 0.42:
         if question["category"] == "Problem":
-            return "Name the user and the failure clearly."
+            return "Answer shape: user -> pain -> current workaround."
         if question["category"] == "Market":
-            return "Be precise about who says yes first."
+            return "Answer shape: first segment -> why them -> why now."
         if question["category"] == "Solution":
-            return "Focus on the outcome, not the feature list."
+            return "Answer shape: user outcome -> product -> why better."
         if question["category"] == "Traction":
-            return "Use proof, not intention."
+            return "Answer shape: proof -> learning -> next step."
         if question["category"] == "Business Model":
-            return "Keep the economics simple and believable."
+            return "Answer shape: value -> price -> delivery cost."
         if question["category"] == "Team":
             return "Say why this team can win here."
         if question["category"] == "Ask":
             return "Focus on the next proof point, not the big vision."
 
+    if founder_type in {"student", "professional"}:
+        if question["category"] == "Problem":
+            return "Think like a strong founder: who hurts, how often, and what breaks."
+        if question["category"] == "Market":
+            return "Think like a strong founder: start narrow before talking about scale."
+        if question["category"] == "Solution":
+            return "Think like a strong founder: outcome first, feature second."
+        if question["category"] == "Traction":
+            return "Think like a strong founder: proof beats opinion."
     return "Go one layer deeper."
 
 

@@ -22,6 +22,21 @@ CONFUSION_CUES = (
     "i'm lost",
 )
 
+PHRASING_CUES = (
+    "how do i say",
+    "how should i say",
+    "how do i ask",
+    "how should i ask",
+    "how do i frame",
+    "how should i frame",
+    "help me phrase",
+    "help me frame",
+    "word this",
+    "articulate",
+    "phrase this",
+    "frame this",
+)
+
 WRAP_UP_CUES = (
     "wrap up",
     "summarize",
@@ -57,6 +72,8 @@ Response rules:
 - if the founder is vague, narrow the problem
 - if the founder is clear, move to the next real weakness
 - if the founder seems confused, switch to plain language immediately
+- if the founder's wording is weak but the intent is clear, answer the intended question instead of getting stuck on phrasing
+- when phrasing is the blocker, give one short better version or answer shape that a strong founder would use
 
 Treat retrieved context as background only.
 When a document is attached, react to one strong signal from it, then ask one short next-step question.
@@ -349,6 +366,71 @@ SECTION_CHIPS = {
     ],
 }
 
+ARTICULATION_CHIPS = {
+    "Problem": [
+        "User -> pain -> current workaround",
+        "A strong problem statement would be...",
+        "Help me frame this pain clearly",
+        "One real example is...",
+    ],
+    "Solution": [
+        "We help [user] do [job] without [pain]",
+        "The result for the user is...",
+        "The wedge is...",
+        "Help me explain the value better",
+    ],
+    "Market": [
+        "We start with [segment] because...",
+        "The first buyer is...",
+        "Why now: ...",
+        "Help me narrow the customer",
+    ],
+    "Business Model": [
+        "They would pay for...",
+        "The business works because...",
+        "Main cost per user is...",
+        "Help me explain pricing simply",
+    ],
+    "Traction": [
+        "We learned this from...",
+        "The strongest proof is...",
+        "One number that matters is...",
+        "Help me show real proof",
+    ],
+    "Team": [
+        "We are right for this because...",
+        "Our unfair edge is...",
+        "The missing hire is...",
+        "Help me explain founder fit",
+    ],
+    "Ask": [
+        "The next milestone is...",
+        "We need support with...",
+        "This becomes real when...",
+        "Help me frame the next step",
+    ],
+}
+
+EXPERT_THINKING_LENSES = {
+    "Problem": "Strong founders think in this order: user, pain, current workaround, cost of the problem.",
+    "Solution": "Strong founders think in this order: outcome first, then product, then why it wins.",
+    "Market": "Strong founders start narrow: first segment, urgent reason, then expansion path.",
+    "Business Model": "Strong founders explain value, what gets paid for, and what it costs to deliver.",
+    "Traction": "Strong founders use proof over opinion: interviews, tests, pilots, usage, or numbers.",
+    "Team": "Strong founders explain why this team has earned the right to solve this problem.",
+    "Ask": "Strong founders define the next proof point before talking about a big raise or vision.",
+}
+
+SECTION_QUESTION_KEYWORDS = {
+    "Problem": ("problem", "pain", "user", "customer", "workaround", "friction"),
+    "Solution": ("solution", "product", "feature", "value", "workflow", "build"),
+    "Market": ("market", "segment", "buyer", "customer", "why now", "go to market"),
+    "Business Model": ("pricing", "revenue", "business model", "charge", "cost", "economics"),
+    "Traction": ("proof", "validation", "traction", "users", "test", "pilot", "interview"),
+    "Team": ("team", "founder", "co-founder", "why you"),
+    "Ask": ("ask", "raise", "funding", "milestone", "next step"),
+}
+
 OUTLINE_PROMPT = """Turn the transcript into a founder-ready markdown outline for Signal.
 
 Use these sections exactly:
@@ -375,18 +457,20 @@ def build_personalized_opening(founder_type: str, sector: str, stage: str) -> st
     prompt = STAGE_PROMPTS.get(stage, STAGE_PROMPTS["unknown"])
     sector_line = get_sector_prompt_snippet(sector)
     parts = ["Hi. What are you building?"]
+    if founder_type in {"student", "professional"}:
+        parts.append("If you're unsure how to say it, start with user -> pain -> current workaround.")
     if prompt:
         parts.append(prompt)
     if sector_line:
         parts.append(sector_line)
-    return " ".join(parts[:3])
+    return " ".join(parts[:4])
 
 
 def get_starter_chips(state: ConversationState) -> list[str]:
     if state.founder_type == "student":
-        return STUDENT_STARTER_CHIPS
+        return STUDENT_STARTER_CHIPS + ARTICULATION_CHIPS["Problem"][:2]
     if state.founder_type == "professional":
-        return PROFESSIONAL_STARTER_CHIPS
+        return PROFESSIONAL_STARTER_CHIPS + ARTICULATION_CHIPS["Problem"][:2]
     if state.founder_type == "serial":
         return SERIAL_STARTER_CHIPS
     return STARTER_CHIPS.get(state.stage, STARTER_CHIPS["unknown"])
@@ -399,6 +483,13 @@ def founder_needs_simple_language(state: ConversationState, last_user_message: s
     return any(cue in message for cue in CONFUSION_CUES)
 
 
+def founder_needs_articulation_help(state: ConversationState, last_user_message: str = "") -> bool:
+    if state.founder_type in {"student", "professional"}:
+        return True
+    message = (last_user_message or "").lower()
+    return any(cue in message for cue in PHRASING_CUES)
+
+
 def build_simple_language_instruction() -> str:
     examples = "; ".join(
         f"{term}: {meaning}"
@@ -409,6 +500,23 @@ def build_simple_language_instruction() -> str:
         "If a startup term is useful, say the full term first, define it immediately, and add one short everyday example. "
         "Prefer student-friendly examples like posters, college clubs, hostel life, classes, or WhatsApp groups when helpful. "
         f"Useful translations: {examples}"
+    )
+
+
+def build_articulation_instruction(state: ConversationState) -> str:
+    if state.coverage:
+        weakest_section = min(state.coverage.items(), key=lambda item: item[1])[0]
+    else:
+        weakest_section = "Problem"
+    weakest_lens = get_section_question_lens(state)
+    expert_lens = EXPERT_THINKING_LENSES.get(weakest_section, EXPERT_THINKING_LENSES["Problem"])
+    return (
+        "Assume the founder may understand the idea but may not phrase it cleanly yet. "
+        "If the intent is inferable, answer the intended startup question instead of blocking on messy wording. "
+        "When helpful, give one short founder-style frame such as 'user -> pain -> workaround' or "
+        "'proof -> learning -> next step'. "
+        "Borrow how experienced founders think: start narrow, stay concrete, and turn opinions into evidence. "
+        f"Current lens: {weakest_lens} Expert framing: {expert_lens}"
     )
 
 
@@ -442,6 +550,13 @@ def build_system_prompt(
     if founder_needs_simple_language(state, last_user_message):
         parts.append("The founder needs plain language. Use simpler words and ask a narrower question.")
         parts.append(build_simple_language_instruction())
+    if founder_needs_articulation_help(state, last_user_message):
+        parts.append(build_articulation_instruction(state))
+    if any(cue in (last_user_message or "").lower() for cue in PHRASING_CUES):
+        parts.append(
+            "The founder is explicitly asking for phrasing help. First give the cleaner founder-style framing or answer shape, "
+            "then continue with one short next-step question."
+        )
     if is_wrap_up_turn(last_user_message):
         parts.append(
             "The founder is wrapping up. Do not ask a question. Give 1 to 3 concrete next steps "
@@ -490,11 +605,18 @@ def get_chip_suggestions(state: ConversationState, mentor_message: str = "") -> 
         return get_starter_chips(state)
 
     message_lower = (mentor_message or "").lower()
+    for section, keywords in SECTION_QUESTION_KEYWORDS.items():
+        if any(keyword in message_lower for keyword in keywords):
+            if state.founder_type in {"student", "professional"}:
+                return ARTICULATION_CHIPS.get(section, SECTION_CHIPS["Problem"])
+            break
     for keywords, chips in QUESTION_CHIPS:
         if any(keyword in message_lower for keyword in keywords):
             return chips
 
     weakest = min(state.coverage.items(), key=lambda item: item[1])[0]
+    if state.founder_type in {"student", "professional"}:
+        return ARTICULATION_CHIPS.get(weakest, ARTICULATION_CHIPS["Problem"])
     if state.stage in ("idea", "pre-revenue") and weakest in {"Problem", "Solution", "Market", "Business Model"}:
         return SECTION_CHIPS.get(weakest, SECTION_CHIPS["Problem"])
     return SECTION_CHIPS.get(weakest, SECTION_CHIPS["Problem"])

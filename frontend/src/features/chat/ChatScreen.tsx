@@ -83,6 +83,27 @@ function coverageStatus(score: number) {
   return "Strong";
 }
 
+function promptHelper(founderType: string, nextGap: string) {
+  if (founderType === "student" || founderType === "professional") {
+    if (nextGap === "Problem") {
+      return "Easy start: user -> pain -> current workaround.";
+    }
+    if (nextGap === "Market") {
+      return "Easy start: first segment -> why them -> why now.";
+    }
+    if (nextGap === "Solution") {
+      return "Easy start: user outcome -> product -> why better.";
+    }
+    if (nextGap === "Business Model") {
+      return "Easy start: value -> price -> delivery cost.";
+    }
+    if (nextGap === "Traction") {
+      return "Easy start: proof -> learning -> next step.";
+    }
+  }
+  return "";
+}
+
 function defaultModelForProvider(providerOptions: ProviderOption[], provider: string, profile: ResponseProfile): string {
   const providerMeta = providerOptions.find((item) => item.key === provider);
   if (!providerMeta) {
@@ -146,6 +167,10 @@ export function ChatScreen({
     [session.coverage],
   );
   const nextGapMeta = useMemo(() => sectionMeta(session.nextGap), [session.nextGap]);
+  const starterHelper = useMemo(
+    () => promptHelper(session.state.founder_type, session.nextGap),
+    [session.state.founder_type, session.nextGap],
+  );
 
   const applyRuntime = async () => {
     if (!runtimeProvider) {
@@ -397,6 +422,7 @@ export function ChatScreen({
         {mobilePane === "chat" ? (
           <div className="chat-panel">
             <ChatMessageList history={session.history} streamingAssistant={streamingAssistant} assistantLabel="Ideate" />
+            {starterHelper ? <div className="prompt-helper">{starterHelper}</div> : null}
             <div className="chip-row">
               {session.chips.map((chip) => (
                 <button key={chip} type="button" className="chip-button" onClick={() => void submit(chip)} disabled={pending}>
