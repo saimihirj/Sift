@@ -95,6 +95,8 @@ def _seed_session_refinement_metadata(
         "lastQuestionStem": "",
         "lastMoveType": "",
         "lastReflectionUsed": "",
+        "stableWorkflow": False,
+        "runtimeHealth": {"readTimeouts": 0, "slowTurns": 0},
     }
     combined = "\n\n".join(
         bit

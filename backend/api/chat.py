@@ -31,6 +31,8 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 MAX_HISTORY_MESSAGES = 4
 MAX_HISTORY_MESSAGE_CHARS = 320
 MAX_HISTORY_TOTAL_CHARS = 1100
+STABLE_WORKFLOW_TOTAL_CHARS = 4800
+STABLE_WORKFLOW_PROMPT_CHARS = 3800
 
 
 def _sse(event: str, data: dict) -> str:
@@ -96,6 +98,27 @@ def _compact_history(turns: list[dict]) -> list[dict[str, str]]:
         if remaining <= 0:
             break
     return list(reversed(compacted))
+
+
+def _runtime_health(metadata: dict) -> dict:
+    health = metadata.get("runtimeHealth")
+    if not isinstance(health, dict):
+        health = {}
+    return {
+        "readTimeouts": int(health.get("readTimeouts", 0) or 0),
+        "slowTurns": int(health.get("slowTurns", 0) or 0),
+    }
+
+
+def _should_use_stable_workflow(provider: str, metadata: dict, *, total_chars: int = 0, prompt_chars: int = 0) -> bool:
+    if normalize_provider(provider) != "ollama":
+        return bool(metadata.get("stableWorkflow"))
+    if metadata.get("stableWorkflow"):
+        return True
+    health = _runtime_health(metadata)
+    if health["readTimeouts"] > 0 or health["slowTurns"] >= 2:
+        return True
+    return total_chars >= STABLE_WORKFLOW_TOTAL_CHARS or prompt_chars >= STABLE_WORKFLOW_PROMPT_CHARS
 
 
 @router.post("")
@@ -181,6 +204,12 @@ async def chat(
                 answer_record=session_metadata.get("answerRecord"),
                 session_context=session_context,
             )
+            history_chars = sum(len(turn["content"]) for turn in history_window)
+            stable_workflow = _should_use_stable_workflow(
+                chosen_provider,
+                session_metadata,
+                total_chars=history_chars + retrieval["promptChars"],
+            )
             conversation_metadata = derive_mentor_turn_metadata(
                 current_state,
                 user_message,
@@ -203,10 +232,35 @@ async def chat(
                 domain_focus=session_metadata.get("domainFocus", []),
                 assumptions_to_verify=session_metadata.get("assumptionsToVerify", []),
                 answer_record=session_metadata.get("answerRecord"),
+                stable_workflow=stable_workflow,
             )
             active_uploads = list_active_uploads(sessionId)
-            history_chars = sum(len(turn["content"]) for turn in history_window)
             system_prompt_chars = len(system_prompt)
+            total_send_chars = history_chars + system_prompt_chars
+            if not stable_workflow and _should_use_stable_workflow(
+                chosen_provider,
+                session_metadata,
+                total_chars=total_send_chars,
+                prompt_chars=system_prompt_chars,
+            ):
+                stable_workflow = True
+                system_prompt = build_system_prompt(
+                    current_state,
+                    retrieval_context=retrieval["text"],
+                    last_user_message=user_message,
+                    recent_assistant_turns=[turn["content"] for turn in history_window if turn["role"] == "assistant"],
+                    needs_info=retrieval["needsInfo"],
+                    retrieval_gap=retrieval["retrievalGap"],
+                    source_conflict=retrieval["sourceConflict"],
+                    domain_focus=session_metadata.get("domainFocus", []),
+                    assumptions_to_verify=session_metadata.get("assumptionsToVerify", []),
+                    answer_record=session_metadata.get("answerRecord"),
+                    stable_workflow=True,
+                )
+                system_prompt_chars = len(system_prompt)
+                total_send_chars = history_chars + system_prompt_chars
+            if stable_workflow and not session_metadata.get("stableWorkflow"):
+                session_metadata["stableWorkflow"] = True
 
             assistant_chunks: list[str] = []
             completion_payload = None
@@ -223,6 +277,7 @@ async def chat(
                     payload["retrievalChars"] = retrieval["promptChars"]
                     payload["historyChars"] = history_chars
                     payload["systemPromptChars"] = system_prompt_chars
+                    payload["stableWorkflow"] = stable_workflow
                     payload["researchSources"] = retrieval["researchSources"]
                     yield _sse("meta", payload)
                 elif event == "delta":
@@ -246,6 +301,7 @@ async def chat(
                 "retrievalChars": retrieval["promptChars"],
                 "historyChars": history_chars,
                 "systemPromptChars": system_prompt_chars,
+                "stableWorkflow": stable_workflow,
                 "researchSources": retrieval["researchSources"],
                 "needsInfo": retrieval["needsInfo"],
                 "retrievalGap": retrieval["retrievalGap"],
@@ -267,10 +323,18 @@ async def chat(
                 "researchSources": retrieval["researchSources"],
                 "historyChars": history_chars,
                 "systemPromptChars": system_prompt_chars,
+                "stableWorkflow": stable_workflow,
                 "state_snapshot": current_state.to_dict(),
                 **conversation_metadata,
             }
 
+            runtime_health = _runtime_health(session_metadata)
+            if completion_payload.get("fallbackUsed", False):
+                session_metadata["stableWorkflow"] = True
+                runtime_health["slowTurns"] += 1
+            if assistant_metadata["timings"].get("firstTokenSeconds", 0) >= 6 or assistant_metadata["timings"].get("totalSeconds", 0) >= 18:
+                runtime_health["slowTurns"] += 1
+            session_metadata["runtimeHealth"] = runtime_health
             session_metadata.update(
                 {
                     "conversationMove": conversation_metadata.get("conversationMove", ""),
@@ -280,6 +344,7 @@ async def chat(
                     "lastQuestionStem": conversation_metadata.get("lastQuestionStem", ""),
                     "lastMoveType": conversation_metadata.get("lastMoveType", ""),
                     "lastReflectionUsed": conversation_metadata.get("lastReflectionUsed", ""),
+                    "stableWorkflow": bool(session_metadata.get("stableWorkflow")),
                 }
             )
 
@@ -319,6 +384,7 @@ async def chat(
                     "historyChars": history_chars,
                     "systemPromptChars": system_prompt_chars,
                     "retrievalChars": retrieval["promptChars"],
+                    "stableWorkflow": bool(session_metadata.get("stableWorkflow")),
                 },
             )
 
@@ -339,13 +405,19 @@ async def chat(
                     "historyChars": history_chars,
                     "systemPromptChars": system_prompt_chars,
                     "retrievalChars": retrieval["promptChars"],
+                    "stableWorkflow": bool(session_metadata.get("stableWorkflow")),
                 },
             )
         except httpx.ReadTimeout:
+            session_metadata["stableWorkflow"] = True
+            runtime_health = _runtime_health(session_metadata)
+            runtime_health["readTimeouts"] += 1
+            session_metadata["runtimeHealth"] = runtime_health
+            memory.update_session_metadata(sessionId, session_metadata)
             yield _sse(
                 "error",
                 {
-                    "message": "The local model took too long to respond. I trimmed the prompt path, but this turn still timed out. Try Fast mode or send a shorter turn.",
+                    "message": "The local model took too long to respond. SignalX will use the simpler stable workflow on the next turn.",
                 },
             )
         except Exception as exc:

@@ -9,7 +9,7 @@ from typing import Any
 
 from state import ConversationState
 
-from backend.services.model_router import default_model_for_provider, generate_provider_text
+from backend.services.model_router import default_model_for_provider, generate_provider_text, normalize_provider
 from backend.services.refinement import (
     detect_evidence_balance,
     empty_answer_record,
@@ -1202,6 +1202,8 @@ def initial_evaluation_metadata(
         "lastQuestionStem": "",
         "lastMoveType": "",
         "lastReflectionUsed": "",
+        "stableWorkflow": False,
+        "runtimeHealth": {"readTimeouts": 0, "slowTurns": 0},
     }
 
 
@@ -2301,6 +2303,12 @@ async def phrase_evaluator_turn(
     source_conflict: str = "",
     move_type: str = "",
 ) -> dict[str, str]:
+    stable_workflow = normalize_provider(provider) == "ollama" and bool(metadata.get("stableWorkflow"))
+    if stable_workflow:
+        return {
+            "reciprocal": default_reciprocal,
+            "question": _fallback_phrased_question(question, state, move_type),
+        }
     system = (
         "You are SignalX's live evaluator interviewer. "
         "You sound like a sharp early-stage VC operator: concise, natural, specific, and human. "
@@ -2368,6 +2376,9 @@ async def phrase_evaluator_turn(
             "question": question_text,
         }
     except Exception:
+        metadata["stableWorkflow"] = True
+        runtime_health = metadata.setdefault("runtimeHealth", {"readTimeouts": 0, "slowTurns": 0})
+        runtime_health["readTimeouts"] = int(runtime_health.get("readTimeouts", 0) or 0) + 1
         return {
             "reciprocal": default_reciprocal,
             "question": _fallback_phrased_question(question, state, move_type),
@@ -2711,6 +2722,15 @@ async def naturalize_evaluation_report(
     api_key: str | None = None,
 ) -> dict[str, Any]:
     if not metadata.get("completed"):
+        return report
+    if normalize_provider(provider) == "ollama" and metadata.get("stableWorkflow"):
+        metadata["naturalReportCache"] = {
+            "fingerprint": _report_fingerprint(metadata, report),
+            "report": report,
+            "provider": provider,
+            "model": model or default_model_for_provider(provider),
+            "naturalized": False,
+        }
         return report
 
     fingerprint = _report_fingerprint(metadata, report)

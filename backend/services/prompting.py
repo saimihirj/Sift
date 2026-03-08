@@ -925,6 +925,7 @@ def build_system_prompt(
     domain_focus: list[str] | None = None,
     assumptions_to_verify: list[str] | None = None,
     answer_record: dict | None = None,
+    stable_workflow: bool = False,
 ) -> str:
     turn_plan = derive_mentor_turn_plan(state, last_user_message, recent_assistant_turns)
     answer_record_summary = summarize_answer_record(answer_record)
@@ -942,6 +943,16 @@ def build_system_prompt(
         build_recent_memory_instruction(recent_assistant_turns),
         "Runtime state: " + _compact_state_summary(state),
     ]
+    if stable_workflow:
+        parts = [
+            BASE_MENTOR_PROMPT,
+            "Stable workflow: use the simpler proven mentoring path. Keep the reply concrete, grounded, and low-variance.",
+            f"Founder profile: {FOUNDER_STYLE.get(state.founder_type, FOUNDER_STYLE['unknown'])}",
+            f"Stage lens: {STAGE_STYLE.get(state.stage, STAGE_STYLE['unknown'])}",
+            get_section_question_lens(state),
+            build_conversation_move(state, last_user_message, recent_assistant_turns),
+            "Runtime state: " + _compact_state_summary(state),
+        ]
     if domain_focus:
         parts.append("Current business-domain focus: " + ", ".join(domain_focus) + ".")
     if assumptions_to_verify:
@@ -981,10 +992,10 @@ def build_system_prompt(
             "'Feel free to think out loud here' or 'Half-baked answers are fine.'"
         )
     if retrieval_context:
-        parts.append(retrieval_context)
+        parts.append(_trim_text(retrieval_context, 900 if stable_workflow else 1400))
     parts.append("Keep the answer compact enough to stream quickly on a local model, but do not sound clipped or robotic.")
     prompt = "\n\n".join(part for part in parts if part and part.strip())
-    return _trim_text(prompt, 4200)
+    return _trim_text(prompt, 2800 if stable_workflow else 4200)
 
 
 def build_outline_prompt(

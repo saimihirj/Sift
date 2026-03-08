@@ -276,12 +276,19 @@ export function ChatScreen({
             const provider = (data.provider as string | undefined) ?? runtimeProvider;
             const model = (data.model as string | undefined) ?? effectiveModel;
             const fallbackUsed = Boolean(data.fallbackUsed);
+            const stableWorkflow = Boolean(data.stableWorkflow);
             setSession((previous) => ({
               ...previous,
               provider: provider as SessionPayload["provider"],
               model,
             }));
-            setStatusLine(fallbackUsed ? `${provider} fell back to ${model}` : `${profileLabel(profile)} · ${provider} · ${model}`);
+            if (fallbackUsed) {
+              setStatusLine(`${provider} fell back to ${model}`);
+            } else if (stableWorkflow) {
+              setStatusLine(`${profileLabel(profile)} · ${provider} · ${model} · stable flow`);
+            } else {
+              setStatusLine(`${profileLabel(profile)} · ${provider} · ${model}`);
+            }
           },
           onDelta: (delta) => {
             setStreamingAssistant((current) => current + delta);
@@ -291,6 +298,7 @@ export function ChatScreen({
             const timings = data.timings as Record<string, number> | undefined;
             const provider = ((data.provider as string | undefined) ?? runtimeProvider) as SessionPayload["provider"];
             const model = (data.model as string | undefined) ?? effectiveModel;
+            const stableWorkflow = Boolean(data.stableWorkflow);
             setSession((previous) => ({
               ...previous,
               history: [...previous.history, { role: "assistant", content: assistantMessage }],
@@ -312,7 +320,7 @@ export function ChatScreen({
             }
             if (timings?.firstTokenSeconds !== undefined) {
               setStatusLine(
-                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s`,
+                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s${stableWorkflow ? " · stable flow" : ""}`,
               );
             }
             setStreamingAssistant("");
