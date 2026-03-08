@@ -11,6 +11,8 @@ import memory
 from state import ConversationState
 
 from backend.schemas import (
+    ClearHistoryRequest,
+    ClearHistoryResponse,
     SessionListResponse,
     SessionResponse,
     SessionRuntimeResponse,
@@ -121,6 +123,17 @@ async def list_user_sessions(clientId: str = Query(default="")) -> SessionListRe
 @router.get("/providers")
 async def list_providers() -> dict:
     return {"providers": provider_catalog()}
+
+
+@router.post("/clear-history", response_model=ClearHistoryResponse)
+async def clear_user_history(payload: ClearHistoryRequest) -> ClearHistoryResponse:
+    cleared = memory.clear_history_for_user(payload.clientId)
+    return ClearHistoryResponse(
+        ok=True,
+        sessionsDeleted=cleared["sessions"],
+        turnsDeleted=cleared["turns"],
+        eventsDeleted=cleared["events"],
+    )
 
 
 @router.post("/start", response_model=StartSessionResponse)

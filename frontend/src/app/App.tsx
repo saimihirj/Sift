@@ -11,7 +11,7 @@ import type {
   StartSessionPayload,
   ThemeMode,
 } from "./types";
-import { getAuthSession, getSession, listProviders, listSessions, logoutAuth, postAnalyticsEvent, sendHeartbeat, startSession } from "../lib/api/client";
+import { clearSessionHistory, getAuthSession, getSession, listProviders, listSessions, logoutAuth, postAnalyticsEvent, sendHeartbeat, startSession } from "../lib/api/client";
 import { AdminScreen } from "../features/admin/AdminScreen";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { EvaluatorReportScreen } from "../features/evaluator/EvaluatorReportScreen";
@@ -126,6 +126,7 @@ function AppBody() {
   const [setupDraft, setSetupDraft] = useState<SetupDraft>(DEFAULT_SETUP_DRAFT);
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>(DEFAULT_PROVIDER_OPTIONS);
   const [recentSessions, setRecentSessions] = useState<SessionSummary[]>([]);
+  const [clearingHistory, setClearingHistory] = useState(false);
   const [anonymousClientId] = useState<string>(() => getClientId());
   const [displayName, setDisplayName] = useState<string>("");
   const [theme, setTheme] = useState<ThemeMode>(
@@ -294,6 +295,22 @@ function AppBody() {
     }
   };
 
+  const handleClearHistory = async () => {
+    if (!effectiveClientId || clearingHistory) {
+      return;
+    }
+    setClearingHistory(true);
+    try {
+      await clearSessionHistory(effectiveClientId);
+      clearStoredSessionId();
+      setSession(null);
+      setRecentSessions([]);
+      navigate("/", { replace: true });
+    } finally {
+      setClearingHistory(false);
+    }
+  };
+
   const handleStartSession = async (payload: {
     sessionType: "mentor" | "evaluator";
     founderType: string;
@@ -388,6 +405,8 @@ function AppBody() {
                 onExitSession={handleExitSession}
                 onOpenSession={handleOpenSession}
                 onSessionActivity={() => void refreshSessions()}
+                onClearHistory={handleClearHistory}
+                clearingHistory={clearingHistory}
                 recentSessions={recentSessions}
                 providerOptions={providerOptions}
                 theme={theme}
@@ -401,6 +420,8 @@ function AppBody() {
                 onExitSession={handleExitSession}
                 onOpenSession={handleOpenSession}
                 onSessionActivity={() => void refreshSessions()}
+                onClearHistory={handleClearHistory}
+                clearingHistory={clearingHistory}
                 recentSessions={recentSessions}
                 providerOptions={providerOptions}
                 theme={theme}

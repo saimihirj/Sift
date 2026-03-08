@@ -26,6 +26,8 @@ type Props = {
   onExitSession: () => void;
   onOpenSession: (sessionId: string) => void | Promise<void>;
   onSessionActivity: () => void;
+  onClearHistory: () => void;
+  clearingHistory: boolean;
   recentSessions: SessionSummary[];
   providerOptions: ProviderOption[];
   theme: ThemeMode;
@@ -122,6 +124,8 @@ export function ChatScreen({
   onExitSession,
   onOpenSession,
   onSessionActivity,
+  onClearHistory,
+  clearingHistory,
   recentSessions,
   providerOptions,
   theme,
@@ -442,10 +446,15 @@ export function ChatScreen({
         isOpen={sessionsOpen}
         sessions={recentSessions}
         currentSessionId={session.sessionId}
+        clearing={clearingHistory}
         onClose={() => setSessionsOpen(false)}
         onOpenSession={(sessionId) => {
           setSessionsOpen(false);
           void onOpenSession(sessionId);
+        }}
+        onClearHistory={() => {
+          setSessionsOpen(false);
+          void onClearHistory();
         }}
       />
 

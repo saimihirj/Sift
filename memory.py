@@ -418,6 +418,48 @@ def list_sessions_for_user(user_identifier: str, limit: int = 50) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def clear_history_for_user(user_identifier: str) -> dict[str, int]:
+    """Delete sessions, turns, and analytics linked to one user identifier."""
+    key = (user_identifier or "").strip().lower()
+    if not key:
+        return {"sessions": 0, "turns": 0, "events": 0}
+
+    with _conn() as con:
+        session_rows = con.execute(
+            "SELECT id FROM sessions WHERE user_identifier = ?",
+            (key,),
+        ).fetchall()
+        session_ids = [row["id"] for row in session_rows]
+
+        turns_deleted = 0
+        events_deleted = 0
+        if session_ids:
+            placeholders = ",".join("?" for _ in session_ids)
+            turns_deleted = con.execute(
+                f"DELETE FROM turns WHERE session_id IN ({placeholders})",
+                session_ids,
+            ).rowcount
+            events_deleted += con.execute(
+                f"DELETE FROM analytics_events WHERE session_id IN ({placeholders})",
+                session_ids,
+            ).rowcount
+
+        events_deleted += con.execute(
+            "DELETE FROM analytics_events WHERE client_id = ?",
+            (key,),
+        ).rowcount
+        sessions_deleted = con.execute(
+            "DELETE FROM sessions WHERE user_identifier = ?",
+            (key,),
+        ).rowcount
+
+    return {
+        "sessions": int(sessions_deleted or 0),
+        "turns": int(turns_deleted or 0),
+        "events": int(events_deleted or 0),
+    }
+
+
 def track_event(
     event_type: str,
     client_id: str = "",

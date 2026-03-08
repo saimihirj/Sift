@@ -182,6 +182,17 @@ class SessionRuntimeResponse(BaseModel):
     model: str = ""
 
 
+class ClearHistoryRequest(BaseModel):
+    clientId: str = ""
+
+
+class ClearHistoryResponse(BaseModel):
+    ok: bool = True
+    sessionsDeleted: int = 0
+    turnsDeleted: int = 0
+    eventsDeleted: int = 0
+
+
 class HeartbeatRequest(BaseModel):
     clientId: str
 

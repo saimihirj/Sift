@@ -126,6 +126,19 @@ export async function updateSessionRuntime(args: {
   return response.json();
 }
 
+export async function clearSessionHistory(clientId: string): Promise<{ ok: boolean; sessionsDeleted: number; turnsDeleted: number; eventsDeleted: number }> {
+  const response = await fetch(`${API_BASE}/api/session/clear-history`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientId }),
+  });
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to clear session history"));
+  }
+  return response.json();
+}
+
 export async function listProviders(): Promise<ProviderCatalogPayload> {
   const response = await fetch(`${API_BASE}/api/session/providers`, {
     credentials: "include",
