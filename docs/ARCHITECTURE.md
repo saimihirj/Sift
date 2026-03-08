@@ -1,19 +1,19 @@
-# Vishwakarma Architecture
+# Signal Architecture
 
-This document explains how Vishwakarma works today, how it should run in production for the MVP, and what to monitor.
+This document explains how Signal works today, how it should run in production for the MVP, and what to monitor.
 
 It is written for product and technical review, so it can be shared directly with a co-founder.
 
 ## Product Goal
 
-Vishwakarma is a pitch-deck mentor, not a generic chatbot.
+Signal is a founder copilot, not a generic chatbot.
 
 The product should:
 - help founders clarify the real problem
 - test assumptions with evidence
 - stay grounded in customer discovery and early validation
 - adapt tone by founder type and stage
-- turn conversations into a cleaner pitch outline
+- turn conversations into a refined pitch or a clearer evaluation verdict
 
 ## Recommended MVP Stack
 
@@ -37,7 +37,7 @@ flowchart LR
     A --> M["Ollama"]
     A --> S["SQLite sessions.db"]
     A --> UPL["Local uploads folder"]
-    A --> O["Outline generation"]
+    A --> O["Refined pitch generation"]
 
     subgraph Local Ports
       F
@@ -157,7 +157,7 @@ sequenceDiagram
     RET-->>API: top relevant snippets for later turns
 ```
 
-### Outline workflow
+### Refined pitch workflow
 
 ```mermaid
 sequenceDiagram
@@ -167,11 +167,11 @@ sequenceDiagram
     participant DB as Session Store
     participant MODEL as Groq / Ollama
 
-    User->>UI: open outline
+    User->>UI: open refined pitch
     UI->>API: POST /api/outline
     API->>DB: load full transcript
-    API->>MODEL: generate structured outline
-    API-->>UI: markdown outline
+    API->>MODEL: generate refined pitch draft
+    API-->>UI: markdown refined pitch
 ```
 
 ## 4. Core App Modules
@@ -179,16 +179,20 @@ sequenceDiagram
 ### Frontend
 
 - `frontend/src/app/App.tsx`
-- `frontend/src/features/onboarding/OnboardingCard.tsx`
+- `frontend/src/features/onboarding/LandingScreen.tsx`
+- `frontend/src/features/onboarding/SetupWizard.tsx`
 - `frontend/src/features/chat/ChatScreen.tsx`
+- `frontend/src/features/evaluator/EvaluatorScreen.tsx`
+- `frontend/src/features/evaluator/EvaluatorReportScreen.tsx`
 - `frontend/src/features/outline/OutlineScreen.tsx`
 
 Responsibilities:
 - onboarding
 - session resume
-- chat shell
+- ideate shell
+- evaluate shell
 - streaming response rendering
-- outline view
+- refined pitch view
 - heartbeat for local auto-stop
 
 ### Backend API

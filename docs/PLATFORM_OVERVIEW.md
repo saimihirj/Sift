@@ -1,6 +1,6 @@
-# Vishwakarma Platform Overview
+# Signal Platform Overview
 
-This is the single handoff document for the current Vishwakarma platform.
+This is the single handoff document for the current Signal platform.
 
 It explains:
 - what the product is
@@ -13,9 +13,11 @@ It explains:
 
 This document is written for founder, product, and technical review.
 
-## 1. What Vishwakarma Is
+## 1. What Signal Is
 
-Vishwakarma is a pitch-deck mentor.
+Signal is a founder copilot with two working modes:
+- `Ideate` for open-ended, two-way pitch refinement
+- `Evaluate` for sharper, evidence-driven assessment
 
 It is not meant to behave like a generic chatbot.
 
@@ -24,7 +26,7 @@ Its job is to help a founder or student innovator:
 - test assumptions
 - think in terms of customer evidence, not just opinions
 - explain the business in simple language when needed
-- turn a messy idea into a sharper pitch outline
+- turn a messy idea into a sharper pitch or evaluation report
 
 ## 2. Current MVP Scope
 
@@ -42,10 +44,11 @@ It already includes:
 - persistent sessions
 - streamed mentor responses
 - uploaded file parsing and retrieval
-- outline generation
+- refined pitch generation
 - starter chips
 - a clean one-screen chat UI
 - an internal admin route for usage monitoring
+- a clear-history reset for old local sessions
 
 It does not yet include:
 - cloud auth
@@ -179,7 +182,7 @@ sequenceDiagram
     API-->>UI: opening message + chips + state
 ```
 
-### Chat
+### Ideate / chat
 
 ```mermaid
 sequenceDiagram
@@ -214,7 +217,7 @@ sequenceDiagram
     RET-->>API: small relevant snippets on later turns
 ```
 
-### Outline
+### Refined pitch
 
 ```mermaid
 sequenceDiagram
@@ -224,11 +227,11 @@ sequenceDiagram
     participant DB
     participant MODEL
 
-    User->>UI: open outline
+    User->>UI: open refined pitch
     UI->>API: POST /api/outline
     API->>DB: load transcript
-    API->>MODEL: generate structured outline
-    API-->>UI: markdown outline
+    API->>MODEL: generate refined pitch draft
+    API-->>UI: markdown refined pitch
 ```
 
 ### Admin monitoring
@@ -257,21 +260,33 @@ sequenceDiagram
   - session bootstrapping
   - client identity persistence
 
-- `frontend/src/features/onboarding/OnboardingCard.tsx`
+- `frontend/src/features/onboarding/LandingScreen.tsx`
+  - entry screen
+  - identity capture
+  - auth launch points
+
+- `frontend/src/features/onboarding/SetupWizard.tsx`
+  - runtime selection
   - founder profile selection
-  - stage/sector/mode selection
-  - starter prompt preview
-  - optional display name capture
+  - mode selection
 
 - `frontend/src/features/chat/ChatScreen.tsx`
-  - mentor chat shell
+  - Ideate chat shell
   - chips
   - uploads
-  - deck progress view
+  - compact pitch map
   - session switching
 
 - `frontend/src/features/outline/OutlineScreen.tsx`
-  - generated pitch outline view
+  - refined pitch document view
+
+- `frontend/src/features/evaluator/EvaluatorScreen.tsx`
+  - Evaluate workspace
+  - adaptive questioning
+  - hidden scoring until report time
+
+- `frontend/src/features/evaluator/EvaluatorReportScreen.tsx`
+  - document-style evaluation report
 
 - `frontend/src/features/admin/AdminScreen.tsx`
   - visitor/session metrics
@@ -296,7 +311,7 @@ sequenceDiagram
   - upload-aware messaging
 
 - `backend/api/outline.py`
-  - outline generation
+  - refined pitch generation
 
 - `backend/api/client.py`
   - local browser heartbeat
@@ -310,13 +325,13 @@ sequenceDiagram
 ### Backend service modules
 
 - `backend/services/prompting.py`
-  - mentor behavior
+  - Ideate behavior
+  - Evaluate phrasing rules
   - founder adaptation
-  - starter chips
   - simple-language logic
 
 - `backend/services/retrieval.py`
-  - prompt context assembly
+  - KB-grounded prompt context assembly
 
 - `backend/services/external_sources.py`
   - compact investor-style questioning lenses

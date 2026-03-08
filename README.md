@@ -1,25 +1,27 @@
 # Signal
 
-Signal is a local-first pitch mentor and adaptive idea evaluator for founders, student innovators, and early teams.
+Signal is a local-first founder copilot for ideation and evaluation.
 
 It is built to behave more like a sharp human mentor than a generic chatbot:
 - it pushes on problem clarity, customer understanding, validation, and reasoning
 - it keeps the conversation simple when the founder is early or non-technical
-- it can switch between open mentoring and structured evaluation
+- it can switch between open-ended ideation and structured evaluation
 - it stores sessions locally so founders can come back and continue
+- it can turn an Ideate thread into a refined pitch document without ending the conversation
 
 The current product is a `React + FastAPI` web app with local-first runtime support.
 
 ## What The Tool Does
 
-### Mentor mode
+### Ideate mode
 - conversational founder coaching
-- short, VC-style questioning without turning into a lecture
-- session resume, file context, and outline generation
+- adaptive, KB-grounded questioning without turning into a lecture
+- session resume, file context, and refined pitch generation
+- stays two-way and open-ended instead of trying to force completion
 
-### Evaluator mode
-- adaptive questioning based on prior responses
-- handles both short and long answers more naturally
+### Evaluate mode
+- confidence-driven questioning based on prior responses and intake context
+- can stop early when it has enough evidence
 - keeps scoring hidden during the conversation
 - generates a final report with score, why, and fixes only at the end
 
@@ -120,13 +122,15 @@ python3 vk.py --build
 - fixed-height, single-screen UI
 - hideable session sidebar
 - runtime switcher for provider/model changes
+- clear-history action for old local sessions
 
 ### Backend
 - FastAPI
 - SQLite session persistence
 - session-scoped uploads and retrieval
 - deterministic evaluator scoring during live conversation
-- final evaluator report generation
+- refined pitch generation from Ideate transcripts
+- final evaluator report generation with model-written language over backend scoring
 
 ### Data and storage
 - sessions: `data/sessions.db`
@@ -166,7 +170,9 @@ For external providers, API keys are session-scoped in the browser and are not p
 - active product name: `Signal`
 - local-first MVP is fully runnable without paid services
 - admin is exposed only in admin launch mode
-- mentor and evaluator both support resumed sessions
+- Ideate and Evaluate both support resumed sessions
+- the app clears stale browser session state automatically when a new build is loaded
+- old session history can be cleared from the `Sessions` drawer
 
 ## Docs
 
