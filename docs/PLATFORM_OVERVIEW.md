@@ -73,7 +73,7 @@ It does not yet include:
 
 - `Ollama`
 - default speed model: `llama3.2:latest`
-- optional balanced model: `qwen3:4b`
+- optional balanced model: `qwen3:8b`
 
 ### Persistence
 
@@ -449,7 +449,7 @@ VK_MODEL_PROVIDER=ollama
 VK_DATA_DIR=data
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL_SPEED=llama3.2:latest
-OLLAMA_MODEL_BALANCED=qwen3:4b
+OLLAMA_MODEL_BALANCED=qwen3:8b
 VK_ADMIN_TOKEN=
 ```
 
@@ -473,17 +473,13 @@ npm --prefix frontend install
 cp .env.example .env
 ```
 
-Start Ollama:
-
-```bash
-ollama serve
-```
+The local launcher auto-starts Ollama when needed.
 
 If needed, pull the local models:
 
 ```bash
 ollama pull llama3.2:latest
-ollama pull qwen3:4b
+ollama pull qwen3:8b
 ```
 
 ## 15. Final Run Commands

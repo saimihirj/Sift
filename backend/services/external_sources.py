@@ -169,6 +169,105 @@ VC_RESEARCH_SNIPPETS = [
         "sections": ("Business Model", "Traction"),
         "priority": 7,
     },
+    {
+        "id": "xraise-antler-spike",
+        "source": "XRaise",
+        "title": "Antler founder spike",
+        "url": "https://xraise.ai/blog/your-antler-accelerator-interview-how-to-stand-out-and-succeed/",
+        "guidance": (
+            "For Antler-style interviews, lead with founder-first differentiation: your spike, the evidence behind it, "
+            "and why you are unusually credible to build in this space. The spike can be domain depth, execution history, "
+            "unique market insight, or resilience under pressure."
+        ),
+        "tags": (
+            "antler",
+            "accelerator",
+            "interview",
+            "founder spike",
+            "spike",
+            "why me",
+            "differentiation",
+            "founder psychology",
+        ),
+        "mustMatch": ("antler", "accelerator", "interview", "founder spike", "spike", "why antler"),
+        "stages": ("idea", "pre-revenue", "early-revenue", "unknown"),
+        "sections": ("Team", "Ask"),
+        "priority": 8,
+    },
+    {
+        "id": "xraise-antler-motivation",
+        "source": "XRaise",
+        "title": "Antler motivation and fit",
+        "url": "https://xraise.ai/blog/your-antler-accelerator-interview-how-to-stand-out-and-succeed/",
+        "guidance": (
+            "Prepare four simple motivation answers: why founder, why this space, why now, and why Antler. "
+            "Antler-style prep should avoid generic ambition and show real program fit, cohort fit, and self-awareness."
+        ),
+        "tags": (
+            "antler",
+            "why founder",
+            "why this space",
+            "why now",
+            "why antler",
+            "motivation",
+            "program fit",
+            "cohort fit",
+        ),
+        "mustMatch": ("antler", "why antler", "accelerator", "program fit", "founder motivation"),
+        "stages": ("idea", "pre-revenue", "early-revenue", "unknown"),
+        "sections": ("Problem", "Market", "Ask"),
+        "priority": 9,
+    },
+    {
+        "id": "xraise-antler-coachability",
+        "source": "XRaise",
+        "title": "Antler coachability and red flags",
+        "url": "https://xraise.ai/blog/your-antler-accelerator-interview-how-to-stand-out-and-succeed/",
+        "guidance": (
+            "Antler-style interview prep should pressure-test founder coachability: think out loud, admit gaps, "
+            "take pushback without becoming defensive, and avoid vague or buzzword-heavy answers. Red flags include fuzzy "
+            "problem understanding, weak market insight, and generic reasons for applying."
+        ),
+        "tags": (
+            "antler",
+            "coachability",
+            "feedback",
+            "defensive",
+            "red flags",
+            "problem insight",
+            "market insight",
+            "founder psychology",
+        ),
+        "mustMatch": ("antler", "coachability", "accelerator", "interview", "feedback"),
+        "stages": ("idea", "pre-revenue", "early-revenue", "unknown"),
+        "sections": ("Problem", "Market", "Team"),
+        "priority": 10,
+    },
+    {
+        "id": "xraise-antler-team-dynamic",
+        "source": "XRaise",
+        "title": "Antler co-founder and execution dynamic",
+        "url": "https://xraise.ai/blog/your-antler-accelerator-interview-how-to-stand-out-and-succeed/",
+        "guidance": (
+            "If the founder has a co-founder, Antler-style prep should check role clarity, conflict handling, and whether "
+            "both founders tell the same story. For solo founders, the missing piece is whether they can clearly name the "
+            "co-founder profile or capability gap they still need."
+        ),
+        "tags": (
+            "antler",
+            "cofounder",
+            "co-founder",
+            "team dynamic",
+            "solo founder",
+            "roles",
+            "conflict",
+            "execution",
+        ),
+        "mustMatch": ("antler", "cofounder", "co-founder", "solo founder", "accelerator"),
+        "stages": ("idea", "pre-revenue", "early-revenue", "unknown"),
+        "sections": ("Team", "Ask"),
+        "priority": 11,
+    },
 ]
 
 
@@ -193,6 +292,9 @@ def _score_snippet(snippet: dict, query: str, state: ConversationState, weakest_
         )
         if part
     )
+    must_match = tuple(snippet.get("mustMatch", ()))
+    if must_match and not any(term in haystack for term in must_match):
+        return -999
     score = 0
     for tag in snippet["tags"]:
         if tag in haystack:
@@ -225,6 +327,8 @@ def retrieve_external_research_context(
 
     selected: list[dict] = []
     for snippet in ranked:
+        if _score_snippet(snippet, query, state, weakest_section) < 0:
+            continue
         selected.append(snippet)
         if len(selected) >= top_k:
             break

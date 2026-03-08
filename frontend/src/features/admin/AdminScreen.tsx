@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { SignalLockup } from "../../app/SignalBrand";
 import type { AdminEvent, AdminOverview, SessionSummary, ThemeMode } from "../../app/types";
 import { ThemePicker } from "../../app/ThemePicker";
 import { getAdminEvents, getAdminOverview } from "../../lib/api/client";
@@ -84,7 +83,10 @@ export function AdminScreen({ theme, onThemeChange }: Props) {
   return (
     <div className="outline-shell admin-shell">
       <aside className="left-rail outline-rail">
-        <SignalLockup compact className="workspace-lockup" />
+        <div className="workspace-title-stack">
+          <span className="eyebrow">Workspace</span>
+          <strong>Admin</strong>
+        </div>
 
         <div className="rail-card">
           <span className="rail-label">Admin mode</span>

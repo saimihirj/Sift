@@ -39,7 +39,7 @@ Initial private MVP snapshot of `Signal`.
 
 - Provider: `ollama`
 - Speed profile: `llama3.2:latest`
-- Balanced profile: `qwen3:4b`
+- Balanced profile: `qwen3:8b`
 
 ### Known constraints
 

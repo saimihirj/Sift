@@ -8,8 +8,17 @@ import memory
 from state import ConversationState
 
 from backend.schemas import EvaluatorAnswerResponse, EvaluatorReportResponse
-from backend.services.evaluator import build_evaluation_report, evaluate_answer, public_progress
+from backend.services.evaluator import (
+    build_evaluation_report,
+    continue_evaluation_deeper,
+    evaluate_answer,
+    has_cached_presentable_report,
+    naturalize_evaluation_report,
+    present_evaluation_report,
+    public_progress,
+)
 from backend.services.model_router import default_model_for_provider, normalize_provider
+from backend.services.retrieval import build_retrieval_context
 from backend.services.state_engine import update_state_from_turn
 from backend.services.uploads import ingest_upload, list_active_uploads, retrieve_upload_context
 
@@ -81,6 +90,11 @@ async def answer_question(
         max_chars=900,
     )
     upload_context = "\n\n".join(item["text"] for item in upload_context_items)
+    retrieval = build_retrieval_context(
+        sessionId,
+        state,
+        f"{metadata.get('currentQuestionId', '')} {answer_text}".strip(),
+    )
 
     result = await evaluate_answer(
         state=state,
@@ -90,29 +104,33 @@ async def answer_question(
         model=chosen_model,
         api_key=apiKey or None,
         upload_context=upload_context,
+        retrieval_context=retrieval["text"],
+        needs_info=retrieval["needsInfo"],
+        retrieval_gap=retrieval["retrievalGap"],
+        source_conflict=retrieval["sourceConflict"],
     )
 
     updated_metadata = result["metadata"]
     answered = result.get("answered", {})
     report = result["report"]
-    progress = public_progress(updated_metadata, state)
 
     assistant_content = answered.get("reciprocal", "Assessment updated.")
-    question_label = answered.get("questionLabel", "")
-    if result.get("question"):
-        context_hint = str(result["question"].get("contextHint", "") or "").strip()
-        if not question_label:
-            question_label = f"Question {progress['answeredQuestions'] + 1}"
-            if progress["answeredQuestions"] == 0:
-                question_label = "First question"
-            elif progress["questionBudget"] - progress["answeredQuestions"] <= 1:
-                question_label = "Final question"
-        hint_block = f"{context_hint}\n\n" if context_hint else ""
-        assistant_content = f"{assistant_content}\n\n{hint_block}{question_label}: {result['question']['text']}"
-    elif updated_metadata.get("completed"):
-        assistant_content = f"{assistant_content}\n\nThat is enough. Let me evaluate the idea and build the report."
+    if updated_metadata.get("completed"):
+        assistant_content = f"{assistant_content}\n\nI have enough. I’m building the report now."
+    elif result.get("question"):
+        assistant_content = f"{assistant_content}\n\n{result['question']['text']}"
 
     updated_state = update_state_from_turn(state, answer_text, assistant_message=assistant_content)
+    if updated_metadata.get("completed"):
+        report = await naturalize_evaluation_report(
+            report=report,
+            metadata=updated_metadata,
+            state=updated_state,
+            provider=chosen_provider,
+            model=chosen_model,
+            api_key=apiKey or None,
+        )
+    progress = public_progress(updated_metadata, updated_state)
     memory.update_session(sessionId, updated_state)
     memory.update_session_metadata(sessionId, updated_metadata)
     memory.store_turn(
@@ -123,6 +141,9 @@ async def answer_question(
             "sessionType": "evaluator",
             "questionId": answered.get("questionId", updated_metadata.get("currentQuestionId", "")),
             "upload": upload_entry,
+            "needsInfo": retrieval["needsInfo"],
+            "retrievalGap": retrieval["retrievalGap"],
+            "sourceConflict": retrieval["sourceConflict"],
         },
     )
     memory.store_turn(
@@ -135,6 +156,9 @@ async def answer_question(
             "state_snapshot": updated_state.to_dict(),
             "questionId": result.get("question", {}).get("id", ""),
             "evaluation": answered,
+            "needsInfo": retrieval["needsInfo"],
+            "retrievalGap": retrieval["retrievalGap"],
+            "sourceConflict": retrieval["sourceConflict"],
         },
     )
 
@@ -144,15 +168,19 @@ async def answer_question(
         session_id=sessionId,
         display_name=session_row.get("display_name", ""),
         pathname="/",
-        metadata={
-            "provider": chosen_provider,
-            "model": chosen_model,
-            "questionId": answered.get("questionId", ""),
-            "questionScore": answered.get("overallScore", 0),
-            "currentScore": report["overallScore"] if updated_metadata.get("completed") else 0,
-            "answeredQuestions": progress["answeredQuestions"],
-        },
-    )
+            metadata={
+                "provider": chosen_provider,
+                "model": chosen_model,
+                "questionId": answered.get("questionId", ""),
+                "questionScore": answered.get("overallScore", 0),
+                "currentScore": report["overallScore"] if updated_metadata.get("completed") else 0,
+                "answeredQuestions": progress["answeredQuestions"],
+                "stopReason": updated_metadata.get("stopReason", ""),
+                "needsInfo": retrieval["needsInfo"],
+                "retrievalGap": retrieval["retrievalGap"],
+                "sourceConflict": retrieval["sourceConflict"],
+            },
+        )
     if upload_entry is not None:
         memory.track_event(
             event_type="file_uploaded",
@@ -178,8 +206,10 @@ async def answer_question(
             metadata={
                 "provider": chosen_provider,
                 "model": chosen_model,
-                "questionBudget": updated_metadata.get("questionBudget", 15),
+                "questionBudget": updated_metadata.get("maxQuestionsHidden", updated_metadata.get("questionBudget", 12)),
                 "overallScore": report["overallScore"],
+                "confidence": report.get("confidence", 0),
+                "stopReason": report.get("stopReason", ""),
             },
         )
 
@@ -188,9 +218,93 @@ async def answer_question(
         evaluationProgress=progress,
         evaluationReport=report,
         reciprocal=answered.get("reciprocal", "Assessment updated."),
-        question=result.get("question"),
-        questionLabel=question_label,
+        question=None if updated_metadata.get("completed") else result.get("question"),
+        questionLabel="",
         activeUploads=list_active_uploads(sessionId),
+        warning=updated_metadata.get("website", {}).get("warning", ""),
+    )
+
+
+@router.post("/{session_id}/deeper", response_model=EvaluatorAnswerResponse)
+async def continue_deeper(session_id: str) -> EvaluatorAnswerResponse:
+    session_row = memory.get_session(session_id)
+    if session_row is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session_row.get("session_type") != "evaluator":
+        raise HTTPException(status_code=400, detail="This session is not an evaluator session")
+
+    metadata = memory.get_session_metadata(session_row)
+    turns = memory.get_session_turns(session_id)
+    state = _restore_state(session_row, turns)
+    recent_user_context = " ".join(
+        turn.get("content", "")
+        for turn in turns[-4:]
+        if turn.get("role") == "user"
+    )
+    retrieval = build_retrieval_context(
+        session_id,
+        state,
+        f"{metadata.get('currentQuestionId', '')} {recent_user_context}".strip(),
+    )
+    result = await continue_evaluation_deeper(
+        state,
+        metadata,
+        provider=session_row.get("provider", "ollama"),
+        model=session_row.get("model", ""),
+        api_key=None,
+        retrieval_context=retrieval["text"],
+        needs_info=retrieval["needsInfo"],
+        retrieval_gap=retrieval["retrievalGap"],
+        source_conflict=retrieval["sourceConflict"],
+    )
+    updated_metadata = result["metadata"]
+    report = result["report"]
+    progress = public_progress(updated_metadata, state)
+    question = result.get("question")
+    answered = result.get("answered", {})
+
+    assistant_content = answered.get("reciprocal", "Let's keep going.")
+    if question:
+        assistant_content = f"{assistant_content}\n\n{question['text']}"
+
+    updated_state = update_state_from_turn(state, "", assistant_message=assistant_content)
+    memory.update_session(session_id, updated_state)
+    memory.update_session_metadata(session_id, updated_metadata)
+    memory.store_turn(
+        session_id,
+        "assistant",
+        assistant_content,
+        metadata={
+            "sessionType": "evaluator",
+            "responseProfile": "speed",
+            "state_snapshot": updated_state.to_dict(),
+            "questionId": question.get("id", "") if question else "",
+            "evaluation": answered,
+            "needsInfo": retrieval["needsInfo"],
+            "retrievalGap": retrieval["retrievalGap"],
+            "sourceConflict": retrieval["sourceConflict"],
+        },
+    )
+    memory.track_event(
+        event_type="evaluator_deeper_started",
+        client_id=session_row.get("user_identifier", ""),
+        session_id=session_id,
+        display_name=session_row.get("display_name", ""),
+        pathname=f"/evaluate/{session_id}/report",
+        metadata={
+            "provider": session_row.get("provider", "ollama"),
+            "model": session_row.get("model", ""),
+            "remaining": updated_metadata.get("deeperQuestionsRemaining", 0),
+        },
+    )
+    return EvaluatorAnswerResponse(
+        sessionId=session_id,
+        evaluationProgress=progress,
+        evaluationReport=report,
+        reciprocal=answered.get("reciprocal", "Let's keep going."),
+        question=question,
+        questionLabel="",
+        activeUploads=list_active_uploads(session_id),
         warning=updated_metadata.get("website", {}).get("warning", ""),
     )
 
@@ -204,8 +318,20 @@ async def get_report(session_id: str) -> EvaluatorReportResponse:
         raise HTTPException(status_code=400, detail="This session is not an evaluator session")
 
     metadata = memory.get_session_metadata(session_row)
-    report = build_evaluation_report(metadata)
-    progress = public_progress(metadata)
+    turns = memory.get_session_turns(session_id)
+    state = _restore_state(session_row, turns)
+    report = present_evaluation_report(metadata)
+    if metadata.get("completed") and not has_cached_presentable_report(metadata, report):
+        report = await naturalize_evaluation_report(
+            report=report,
+            metadata=metadata,
+            state=state,
+            provider=session_row.get("provider", "ollama"),
+            model=session_row.get("model", ""),
+            api_key=None,
+        )
+        memory.update_session_metadata(session_id, metadata)
+    progress = public_progress(metadata, state)
     memory.track_event(
         event_type="evaluator_report_viewed",
         client_id=session_row.get("user_identifier", ""),

@@ -24,7 +24,7 @@ export function Composer({
       <div className="attachment-row">
         <div className="attachment-meta">
           <span className="rail-label">Context</span>
-          <small>PDF, PPTX, DOCX, TXT</small>
+          <small>Notes or deck</small>
         </div>
         <div className="attachment-actions">
           <button type="button" className="ghost-button compact" onClick={() => inputRef.current?.click()}>
@@ -48,7 +48,7 @@ export function Composer({
       <div className="composer-row">
         <textarea
           value={value}
-          placeholder="Describe the problem, answer the last question, or add context..."
+          placeholder="Type your answer or add context..."
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
             if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && !pending) {

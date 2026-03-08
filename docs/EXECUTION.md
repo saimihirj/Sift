@@ -30,14 +30,10 @@ Recommended local models:
 
 ```bash
 ollama pull llama3.2:latest
-ollama pull qwen3:4b
+ollama pull qwen3:8b
 ```
 
-Start Ollama if it is not already running:
-
-```bash
-ollama serve
-```
+The local launcher auto-starts Ollama if it is needed and not already running.
 
 ## 2. One-Time Setup
 
@@ -61,7 +57,7 @@ Current keys:
 ```env
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL_SPEED=llama3.2:latest
-OLLAMA_MODEL_BALANCED=qwen3:4b
+OLLAMA_MODEL_BALANCED=qwen3:8b
 ```
 
 Notes:
@@ -298,9 +294,7 @@ Typical local flow:
 
 ### Ollama is not reachable
 
-```bash
-ollama serve
-```
+Signal normally starts Ollama for you. If it still cannot reach Ollama, check:
 
 Check:
 - `OLLAMA_BASE_URL`
@@ -311,7 +305,7 @@ Check:
 Pull the configured model:
 
 ```bash
-ollama pull qwen3:4b
+ollama pull qwen3:8b
 ```
 
 If it is still unavailable, the app should fall back to `speed`.
@@ -341,7 +335,7 @@ Check:
 
 Current default model choice is tuned for Apple Silicon local use:
 - `speed` -> `llama3.2:latest`
-- `balanced` -> `qwen3:4b`
+- `balanced` -> `qwen3:8b`
 
 ### Frontend does not load in single-port mode
 

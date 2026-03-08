@@ -13,8 +13,10 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import subprocess
 import uuid
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 
@@ -22,6 +24,21 @@ DATA_DIR = Path(os.environ.get("VK_DATA_DIR", "data"))
 DB_PATH = DATA_DIR / "sessions.db"
 EXPORTS_DIR = DATA_DIR / "exports"
 _DB_READY = False
+USEFUL_ADMIN_EVENT_TYPES = {
+    "auth_login",
+    "auth_logout",
+    "session_started",
+    "session_runtime_updated",
+    "evaluator_started",
+    "evaluator_answered",
+    "evaluator_completed",
+    "evaluator_deeper_started",
+    "evaluator_report_viewed",
+    "chat_completed",
+    "file_uploaded",
+    "outline_opened",
+    "website_fetch_failed",
+}
 
 
 _SCHEMA = """
@@ -87,6 +104,22 @@ def _conn() -> sqlite3.Connection:
     if not _DB_READY:
         init_db()
     return _raw_conn()
+
+
+@lru_cache(maxsize=1)
+def _current_app_build() -> str:
+    explicit = os.environ.get("VK_APP_BUILD", "").strip()
+    if explicit:
+        return explicit
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=str(Path(__file__).resolve().parent),
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip() or "dev"
+    except Exception:
+        return "dev"
 
 
 def _load_json(raw: str | None, default):
@@ -396,6 +429,8 @@ def track_event(
     """Append an analytics event for admin monitoring."""
     if not event_type:
         return
+    payload = dict(metadata or {})
+    payload.setdefault("appBuild", _current_app_build())
     with _conn() as con:
         con.execute(
             """INSERT INTO analytics_events
@@ -407,24 +442,22 @@ def track_event(
                 (display_name or "").strip(),
                 event_type,
                 pathname,
-                json.dumps(metadata or {}),
+                json.dumps(payload),
                 datetime.now(timezone.utc).isoformat(),
             ),
         )
 
-
-def list_recent_events(limit: int = 100) -> list[dict]:
+def list_recent_events(limit: int = 100, *, current_build_only: bool = False, useful_only: bool = False) -> list[dict]:
     """Return the most recent analytics events."""
     with _conn() as con:
         rows = con.execute(
             """SELECT client_id, session_id, display_name, event_type, pathname, metadata_json, created_at
                FROM analytics_events
-               ORDER BY id DESC
-               LIMIT ?""",
-            (limit,),
+               ORDER BY id DESC""",
         ).fetchall()
 
     events = []
+    current_build = _current_app_build()
     for row in rows:
         item = dict(row)
         raw_metadata = item.pop("metadata_json", "{}") or "{}"
@@ -432,13 +465,19 @@ def list_recent_events(limit: int = 100) -> list[dict]:
             item["metadata"] = json.loads(raw_metadata)
         except json.JSONDecodeError:
             item["metadata"] = {}
+        if useful_only and item["event_type"] not in USEFUL_ADMIN_EVENT_TYPES:
+            continue
+        if current_build_only and item.get("metadata", {}).get("appBuild") != current_build:
+            continue
         events.append(item)
+        if len(events) >= limit:
+            break
     return events
 
 
-def _average_event_metric(event_type: str, metric_key: str) -> float:
+def _average_event_metric(event_type: str, metric_key: str, *, current_build_only: bool = False, useful_only: bool = False) -> float:
     values: list[float] = []
-    for event in list_recent_events(limit=500):
+    for event in list_recent_events(limit=2000, current_build_only=current_build_only, useful_only=useful_only):
         if event["event_type"] != event_type:
             continue
         value = event.get("metadata", {}).get(metric_key)
@@ -449,9 +488,9 @@ def _average_event_metric(event_type: str, metric_key: str) -> float:
     return round(sum(values) / len(values), 2)
 
 
-def _most_common_event_value(event_type: str, metric_key: str) -> str:
+def _most_common_event_value(event_type: str, metric_key: str, *, current_build_only: bool = False, useful_only: bool = False) -> str:
     counts: dict[str, int] = {}
-    for event in list_recent_events(limit=1000):
+    for event in list_recent_events(limit=2000, current_build_only=current_build_only, useful_only=useful_only):
         if event["event_type"] != event_type:
             continue
         value = event.get("metadata", {}).get(metric_key)
@@ -464,27 +503,29 @@ def _most_common_event_value(event_type: str, metric_key: str) -> str:
 
 def get_admin_overview() -> dict:
     """Aggregate product and runtime analytics for the admin dashboard."""
+    filtered_events = list_recent_events(limit=5000, current_build_only=True, useful_only=True)
+    filtered_event_breakdown: dict[str, int] = {}
+    unique_visitors = set()
+    events_last_24_hours = 0
+    cutoff = datetime.now(timezone.utc).timestamp() - 86400
+    for event in filtered_events:
+        event_type = event["event_type"]
+        filtered_event_breakdown[event_type] = filtered_event_breakdown.get(event_type, 0) + 1
+        client_id = (event.get("client_id") or "").strip()
+        if client_id:
+            unique_visitors.add(client_id)
+        try:
+            created_at = datetime.fromisoformat((event.get("created_at") or "").replace("Z", "+00:00"))
+            if created_at.timestamp() >= cutoff:
+                events_last_24_hours += 1
+        except ValueError:
+            continue
+
     with _conn() as con:
         total_sessions = con.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
         total_turns = con.execute("SELECT COUNT(*) FROM turns").fetchone()[0]
-        total_events = con.execute("SELECT COUNT(*) FROM analytics_events").fetchone()[0]
-        unique_visitors = con.execute(
-            "SELECT COUNT(DISTINCT client_id) FROM analytics_events WHERE client_id != ''"
-        ).fetchone()[0]
         sessions_last_7_days = con.execute(
             "SELECT COUNT(*) FROM sessions WHERE last_active >= datetime('now', '-7 days')"
-        ).fetchone()[0]
-        events_last_24_hours = con.execute(
-            "SELECT COUNT(*) FROM analytics_events WHERE created_at >= datetime('now', '-1 day')"
-        ).fetchone()[0]
-        outline_opens = con.execute(
-            "SELECT COUNT(*) FROM analytics_events WHERE event_type = 'outline_opened'"
-        ).fetchone()[0]
-        uploads = con.execute(
-            "SELECT COUNT(*) FROM analytics_events WHERE event_type = 'file_uploaded'"
-        ).fetchone()[0]
-        chat_completions = con.execute(
-            "SELECT COUNT(*) FROM analytics_events WHERE event_type = 'chat_completed'"
         ).fetchone()[0]
         evaluator_sessions = con.execute(
             "SELECT COUNT(*) FROM sessions WHERE session_type = 'evaluator'"
@@ -494,35 +535,52 @@ def get_admin_overview() -> dict:
                 "SELECT provider, COUNT(*) FROM sessions WHERE session_type = 'evaluator' GROUP BY provider"
             ).fetchall()
         )
-        by_event = dict(
-            con.execute("SELECT event_type, COUNT(*) FROM analytics_events GROUP BY event_type").fetchall()
-        )
 
-    evaluator_completions = by_event.get("evaluator_completed", 0)
-    average_success_score = _average_event_metric("evaluator_completed", "overallScore")
+    evaluator_completions = filtered_event_breakdown.get("evaluator_completed", 0)
+    average_success_score = _average_event_metric(
+        "evaluator_completed",
+        "overallScore",
+        current_build_only=True,
+        useful_only=True,
+    )
     completion_rate = round((evaluator_completions / evaluator_sessions) * 100.0, 1) if evaluator_sessions else 0.0
 
     return {
         "totalSessions": total_sessions,
         "totalTurns": total_turns,
-        "totalEvents": total_events,
-        "uniqueVisitors": unique_visitors,
+        "totalEvents": len(filtered_events),
+        "uniqueVisitors": len(unique_visitors),
         "sessionsLast7Days": sessions_last_7_days,
         "eventsLast24Hours": events_last_24_hours,
-        "outlineOpens": outline_opens,
-        "uploads": uploads,
-        "chatCompletions": chat_completions,
-        "averageFirstTokenSeconds": _average_event_metric("chat_completed", "firstTokenSeconds"),
-        "averageTotalSeconds": _average_event_metric("chat_completed", "totalSeconds"),
+        "outlineOpens": filtered_event_breakdown.get("outline_opened", 0),
+        "uploads": filtered_event_breakdown.get("file_uploaded", 0),
+        "chatCompletions": filtered_event_breakdown.get("chat_completed", 0),
+        "averageFirstTokenSeconds": _average_event_metric(
+            "chat_completed",
+            "firstTokenSeconds",
+            current_build_only=True,
+            useful_only=True,
+        ),
+        "averageTotalSeconds": _average_event_metric(
+            "chat_completed",
+            "totalSeconds",
+            current_build_only=True,
+            useful_only=True,
+        ),
         "evaluatorSessions": evaluator_sessions,
         "evaluatorCompletions": evaluator_completions,
         "evaluatorCompletionRate": completion_rate,
         "averageSuccessScore": average_success_score,
         "averageEvaluatorScore": average_success_score,
-        "websiteFetchFailures": by_event.get("website_fetch_failed", 0),
-        "dropOffQuestion": _most_common_event_value("evaluator_answered", "questionId"),
+        "websiteFetchFailures": filtered_event_breakdown.get("website_fetch_failed", 0),
+        "dropOffQuestion": _most_common_event_value(
+            "evaluator_answered",
+            "questionId",
+            current_build_only=True,
+            useful_only=True,
+        ),
         "providerBreakdown": provider_breakdown,
-        "eventBreakdown": by_event,
+        "eventBreakdown": filtered_event_breakdown,
     }
 
 

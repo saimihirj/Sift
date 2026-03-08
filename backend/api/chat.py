@@ -13,7 +13,12 @@ import memory
 from state import ConversationState
 
 from backend.services.model_router import default_model_for_provider, normalize_provider, stream_chat_completion
-from backend.services.prompting import DEFAULT_RESPONSE_PROFILE, build_system_prompt, get_chip_suggestions
+from backend.services.prompting import (
+    DEFAULT_RESPONSE_PROFILE,
+    build_system_prompt,
+    derive_mentor_turn_metadata,
+    get_chip_suggestions,
+)
 from backend.services.retrieval import build_retrieval_context
 from backend.services.state_engine import coverage_items, next_gap, update_state_from_turn
 from backend.services.uploads import ingest_upload, list_active_uploads
@@ -99,10 +104,22 @@ async def chat(
                 query = f"{history_window[-1]['content']} {user_message}".strip()
             current_state = restored_state
             retrieval = build_retrieval_context(sessionId, current_state, query)
+            conversation_metadata = derive_mentor_turn_metadata(
+                current_state,
+                user_message,
+                [turn["content"] for turn in history_window if turn["role"] == "assistant"],
+                needs_info=retrieval["needsInfo"],
+                retrieval_gap=retrieval["retrievalGap"],
+                source_conflict=retrieval["sourceConflict"],
+            )
             system_prompt = build_system_prompt(
                 current_state,
                 retrieval_context=retrieval["text"],
                 last_user_message=user_message,
+                recent_assistant_turns=[turn["content"] for turn in history_window if turn["role"] == "assistant"],
+                needs_info=retrieval["needsInfo"],
+                retrieval_gap=retrieval["retrievalGap"],
+                source_conflict=retrieval["sourceConflict"],
             )
             active_uploads = list_active_uploads(sessionId)
 
@@ -141,6 +158,9 @@ async def chat(
                 "upload": upload_entry,
                 "retrievalChars": retrieval["promptChars"],
                 "researchSources": retrieval["researchSources"],
+                "needsInfo": retrieval["needsInfo"],
+                "retrievalGap": retrieval["retrievalGap"],
+                "sourceConflict": retrieval["sourceConflict"],
             }
             assistant_metadata = {
                 "responseProfile": completion_payload["responseProfile"],
@@ -154,6 +174,7 @@ async def chat(
                 "activeUploads": active_uploads,
                 "researchSources": retrieval["researchSources"],
                 "state_snapshot": current_state.to_dict(),
+                **conversation_metadata,
             }
 
             memory.store_turn(sessionId, "user", display_message, metadata=user_metadata)

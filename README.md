@@ -46,13 +46,9 @@ cp .env.example .env
 
 ### 2. Choose your runtime
 
-If you want fully local open-source inference, start Ollama first:
+In normal local MVP mode, the launcher now starts local Ollama automatically if it is needed and not already running.
 
-```bash
-ollama serve
-```
-
-If you want to use an external provider, you can skip `ollama serve` and choose `Use API key` in the UI instead.
+If you want to use an external provider, you can still skip Ollama entirely and choose `Use API key` in the UI instead.
 
 ### 3. Run the app
 
@@ -144,7 +140,7 @@ python3 vk.py --build
 Default local open-source path:
 - provider: `ollama`
 - speed model: `llama3.2:latest`
-- balanced model: `qwen3:4b`
+- balanced model: `qwen3:8b`
 
 Supported external providers in the current runtime layer:
 - `cerebras`

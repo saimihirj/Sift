@@ -1,5 +1,4 @@
 import type { AuthProviderOption, AuthUser, ThemeMode } from "../../app/types";
-import { SignalLockup } from "../../app/SignalBrand";
 import { ThemePicker } from "../../app/ThemePicker";
 import { authLoginUrl } from "../../lib/api/client";
 
@@ -36,23 +35,22 @@ export function LandingScreen({
   const authNote = authError
     || (authUser
       ? `Signed in with ${authUser.provider}.`
-      : "Use your name or sign in. OAuth buttons activate only when credentials are configured.");
+      : "Use your name or sign in to continue.");
 
   return (
     <section className="landing-shell minimal-entry-shell">
       <div className="landing-panel minimal-entry-panel">
         <div className="landing-topbar">
-          <SignalLockup compact showTagline={false} />
+          <div className="plain-header-block">
+            <span className="eyebrow">Start</span>
+            <strong>Signal</strong>
+          </div>
           <ThemePicker theme={theme} onChange={onThemeChange} />
-        </div>
-
-        <div className="signal-brand-card">
-          <SignalLockup className="signal-brand-hero" />
         </div>
 
         <div className="landing-hero">
           <h1>Hi.</h1>
-          <p>Sign in or enter your name. Then choose your runtime, context, and flow.</p>
+          <p>Enter your name, pick a model, and start.</p>
         </div>
 
         {authUser ? (

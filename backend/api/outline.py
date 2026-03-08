@@ -57,7 +57,7 @@ async def create_outline(payload: OutlineRequest) -> OutlineResponse:
     state = _restore_state(turns, session_row)
     prompt = build_outline_prompt(state, history)
     result = await generate_text(
-        system="You turn mentor transcripts into clean pitch outlines.",
+        system="You turn ideation transcripts into clean founder-ready refined pitch documents.",
         messages=[{"role": "user", "content": prompt}],
         response_profile=_preferred_profile(turns),
         max_tokens=900,

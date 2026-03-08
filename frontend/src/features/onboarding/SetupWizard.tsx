@@ -1,6 +1,5 @@
 import { useMemo, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import { SignalLockup } from "../../app/SignalBrand";
 import type { Provider, ProviderOption, SetupDraft } from "../../app/types";
 
 type Props = {
@@ -20,7 +19,6 @@ type Props = {
     provider: Provider;
     model: string;
     apiKey: string;
-    questionBudget: 10 | 15 | 20;
     websiteUrl: string;
     setupContext: string;
   }) => Promise<void>;
@@ -61,22 +59,16 @@ const workflowOptions: Array<{ value: SetupDraft["sessionType"]; label: string; 
   { value: "evaluator", label: "Evaluate", note: "Adaptive interview, final score and report at the end." },
 ];
 
-const budgetOptions: Array<{ value: 10 | 15 | 20; label: string; note: string }> = [
-  { value: 10, label: "10 questions", note: "Fast screen" },
-  { value: 15, label: "15 questions", note: "Best default" },
-  { value: 20, label: "20 questions", note: "Deeper pass" },
-];
-
 function stepTitle(step: number) {
-  if (step === 0) return "Choose your runtime";
-  if (step === 1) return "Tell me the context";
-  return "Pick the session style";
+  if (step === 0) return "Pick a model";
+  if (step === 1) return "Share the basics";
+  return "Choose a flow";
 }
 
 function stepSubtitle(step: number) {
-  if (step === 0) return "Use local open-source models or bring your own provider key for this session.";
-  if (step === 1) return "This keeps the next conversation adaptive without wasting time on basics.";
-  return "Ideate stays open-ended. Evaluate stays conversational and gives the score only at the end.";
+  if (step === 0) return "Stay local or use your own API key for this session.";
+  if (step === 1) return "A little context helps the next reply start deeper.";
+  return "Ideate is open-ended. Evaluate stops when it has enough.";
 }
 
 function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
@@ -122,7 +114,10 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
     <section className="onboarding-shell">
       <div className="onboarding-card clean-wizard-card">
         <div className="onboarding-meta">
-          <SignalLockup compact showTagline={false} />
+          <div className="plain-header-block">
+            <span className="eyebrow">Setup</span>
+            <strong>Session</strong>
+          </div>
           <div className="step-dots" aria-hidden="true">
             {[0, 1, 2].map((value) => (
               <span key={value} className={value === step ? "dot active" : "dot"} />
@@ -291,11 +286,11 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
                   />
                 </label>
                 <label className="identity-field field-span">
-                  <span className="rail-label">What should the first reply know?</span>
+                  <span className="rail-label">Anything important?</span>
                   <textarea
                     value={draft.setupContext}
                     onChange={(event) => onDraftChange((current) => ({ ...current, setupContext: event.target.value }))}
-                    placeholder="Short summary, draft idea, current users, deck notes, or anything else that helps the conversation start deeper."
+                    placeholder="Idea summary, current users, deck notes, or anything else useful."
                     rows={5}
                   />
                 </label>
@@ -339,19 +334,10 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
 
             {draft.sessionType === "evaluator" ? (
               <div className="drawer-card">
-                <span className="rail-label">Assessment depth</span>
-                <div className="workflow-row" onKeyDown={handleArrowSelection}>
-                  {budgetOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={draft.questionBudget === option.value ? "choice-card active" : "choice-card"}
-                      onClick={() => onDraftChange((current) => ({ ...current, questionBudget: option.value }))}
-                    >
-                      <span>{option.label}</span>
-                      <small>{option.note}</small>
-                    </button>
-                  ))}
+                <span className="rail-label">Evaluate mode</span>
+                <div className="focus-card">
+                  <strong>Confidence-driven</strong>
+                  <p>Paste the pitch, deck notes, or URL. It will stop as soon as the report is ready.</p>
                 </div>
               </div>
             ) : null}
@@ -397,7 +383,6 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
                   provider: resolvedProvider as Provider,
                   model: resolvedModel,
                   apiKey: draft.runtimeKind === "external" ? draft.apiKey.trim() : "",
-                  questionBudget: draft.questionBudget,
                   websiteUrl: draft.websiteUrl,
                   setupContext: draft.setupContext,
                 })

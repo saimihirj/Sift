@@ -45,6 +45,16 @@ class DimensionScore(BaseModel):
     score: float
 
 
+class LensAssessment(BaseModel):
+    key: str
+    label: str
+    status: str
+    score: float
+    why: str = ""
+    evidence: list[str] = Field(default_factory=list)
+    improvement: str = ""
+
+
 class QuestionScore(BaseModel):
     questionId: str
     question: str
@@ -57,6 +67,8 @@ class QuestionScore(BaseModel):
 class EvaluationProgress(BaseModel):
     questionBudget: int = 15
     answeredQuestions: int = 0
+    questionsAsked: int = 0
+    maxQuestions: int = 12
     completed: bool = False
     partial: bool = False
     currentQuestion: EvaluationQuestion | None = None
@@ -64,6 +76,8 @@ class EvaluationProgress(BaseModel):
     dimensionScores: list[DimensionScore] = Field(default_factory=list)
     website: dict[str, Any] = Field(default_factory=dict)
     lastFeedback: str = ""
+    stopReason: str = ""
+    canGoDeeper: bool = False
 
 
 class EvaluationReport(BaseModel):
@@ -76,6 +90,13 @@ class EvaluationReport(BaseModel):
     suggestions: list[str] = Field(default_factory=list)
     questions: list[QuestionScore] = Field(default_factory=list)
     summary: str = ""
+    verdict: str = ""
+    confidence: float = 0.0
+    stopReason: str = ""
+    coreLenses: list[LensAssessment] = Field(default_factory=list)
+    supportingLenses: list[LensAssessment] = Field(default_factory=list)
+    missingEvidence: list[str] = Field(default_factory=list)
+    nextExperiments: list[str] = Field(default_factory=list)
 
 
 class StartSessionRequest(BaseModel):
@@ -84,9 +105,10 @@ class StartSessionRequest(BaseModel):
     stage: Stage = "unknown"
     mode: Mode = "think_it_through"
     sessionType: SessionType = "mentor"
-    questionBudget: Literal[10, 15, 20] = 15
+    questionBudget: int | None = None
     provider: Provider = "ollama"
     model: str = ""
+    apiKey: str = ""
     websiteUrl: str = ""
     setupContext: str = ""
     clientId: str | None = None

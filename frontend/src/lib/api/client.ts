@@ -25,6 +25,25 @@ const API_BASE = (() => {
   return "";
 })();
 
+async function readApiError(response: Response, fallback: string): Promise<string> {
+  try {
+    const payload = await response.json();
+    if (payload && typeof payload.detail === "string" && payload.detail.trim()) {
+      return payload.detail.trim();
+    }
+  } catch {
+    try {
+      const text = (await response.text()).trim();
+      if (text) {
+        return text;
+      }
+    } catch {
+      return fallback;
+    }
+  }
+  return fallback;
+}
+
 type StreamHandlers = {
   onMeta?: (data: Record<string, unknown>) => void;
   onDelta?: (delta: string) => void;
@@ -185,8 +204,7 @@ export async function answerEvaluator(args: {
     body: form,
   });
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || "Failed to submit evaluator answer");
+    throw new Error(await readApiError(response, "Failed to submit evaluator answer"));
   }
   return response.json();
 }
@@ -197,6 +215,17 @@ export async function getEvaluatorReport(sessionId: string): Promise<EvaluatorRe
   });
   if (!response.ok) {
     throw new Error("Failed to load evaluator report");
+  }
+  return response.json();
+}
+
+export async function continueEvaluator(sessionId: string): Promise<EvaluatorAnswerPayload> {
+  const response = await fetch(`${API_BASE}/api/evaluator/${sessionId}/deeper`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Failed to continue evaluator"));
   }
   return response.json();
 }

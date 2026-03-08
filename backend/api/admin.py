@@ -58,6 +58,6 @@ async def get_admin_events(
 ) -> AdminEventsResponse:
     _require_admin_token(x_admin_token)
     return AdminEventsResponse(
-        events=memory.list_recent_events(limit=limit),
+        events=memory.list_recent_events(limit=limit, current_build_only=True, useful_only=True),
         sessions=[_session_summary(item) for item in memory.list_sessions(limit=20)],
     )

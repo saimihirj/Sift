@@ -10,7 +10,7 @@ from typing import Any
 from state import ConversationState
 
 from backend.services.model_router import default_model_for_provider, generate_provider_text
-from knowledge import get_stage_metrics_context, get_vc_pass_reasons_context, get_yc_frameworks_context
+from knowledge import VC_STAGE_MAP, get_stage_metrics_context, get_vc_pass_reasons_context, get_yc_frameworks_context
 
 
 DIMENSION_LABELS = {
@@ -46,8 +46,208 @@ CONTRADICTION_RULES = [
     ("pre-revenue", "mrr", "You described the company as pre-revenue but also mentioned recurring revenue."),
 ]
 
+CLARIFICATION_REQUEST_CUES = (
+    "clarify",
+    "what do you mean",
+    "what does that mean",
+    "can you explain",
+    "explain the question",
+    "repeat the question",
+    "rephrase the question",
+    "say that simply",
+    "simplify the question",
+    "i don't understand the question",
+    "i dont understand the question",
+    "not sure what you mean",
+)
+
+DEFAULT_MAX_QUESTIONS = 12
+DEEPER_QUESTION_BATCH = 3
+REPORT_NARRATIVE_VERSION = 2
+
+LENS_CONFIG: dict[str, dict[str, Any]] = {
+    "founder_product_fit": {
+        "label": "Founder-product fit",
+        "group": "core",
+        "weight": 1.35,
+        "priority": 10,
+        "why": "This judges whether the founder has a credible right to solve this problem.",
+        "fix": "Show why this team understands the problem unusually well and can win here.",
+    },
+    "one_sentence_pitch": {
+        "label": "One-sentence pitch",
+        "group": "core",
+        "weight": 1.35,
+        "priority": 10,
+        "why": "This checks whether the idea can be stated clearly in one tight sentence.",
+        "fix": "State the user, the pain, and the outcome in one sharp line.",
+    },
+    "growth_readiness": {
+        "label": "Growth / proof readiness",
+        "group": "core",
+        "weight": 1.35,
+        "priority": 10,
+        "why": "This asks whether the company has enough proof to justify the next phase.",
+        "fix": "Show the next real proof point that makes the idea more investable.",
+    },
+    "user_problem": {
+        "label": "User pain",
+        "group": "supporting",
+        "weight": 1.0,
+        "priority": 9,
+        "why": "This checks whether the user and the pain are concrete enough.",
+        "fix": "Name the exact user, what breaks, and the current workaround.",
+    },
+    "icp_wedge": {
+        "label": "ICP / wedge",
+        "group": "supporting",
+        "weight": 0.95,
+        "priority": 8,
+        "why": "This checks whether the first customer wedge is focused and believable.",
+        "fix": "Start narrower. Name the first segment and why they will care first.",
+    },
+    "proof_validation": {
+        "label": "Proof / validation",
+        "group": "supporting",
+        "weight": 1.05,
+        "priority": 9,
+        "why": "This checks whether the idea is grounded in observed behavior rather than opinion.",
+        "fix": "Add proof from interviews, pilots, usage, or one measured result.",
+    },
+    "business_model": {
+        "label": "Business model",
+        "group": "supporting",
+        "weight": 0.9,
+        "priority": 7,
+        "why": "This checks whether there is a believable path to getting paid and serving customers.",
+        "fix": "Explain what gets paid for, what it costs to deliver, and why the unit works.",
+    },
+    "why_now": {
+        "label": "Why now",
+        "group": "supporting",
+        "weight": 0.75,
+        "priority": 6,
+        "why": "This checks whether there is a real timing reason for the company to exist now.",
+        "fix": "Name the shift in behavior, technology, or regulation that creates the opening.",
+    },
+    "execution_risk": {
+        "label": "Execution risk",
+        "group": "supporting",
+        "weight": 0.75,
+        "priority": 6,
+        "why": "This checks whether the biggest blocker and next proof milestone are understood.",
+        "fix": "Be direct about the biggest risk and the next milestone that would reduce it.",
+    },
+}
+
+CORE_LENSES = ["founder_product_fit", "one_sentence_pitch", "growth_readiness"]
+SUPPORTING_LENSES = ["user_problem", "icp_wedge", "proof_validation", "business_model", "why_now", "execution_risk"]
+
+INVESTOR_LENS_BONUS: dict[str, dict[str, int]] = {
+    "pre_seed_seed": {
+        "founder_product_fit": 4,
+        "one_sentence_pitch": 4,
+        "user_problem": 3,
+        "proof_validation": 2,
+        "icp_wedge": 2,
+        "why_now": 2,
+        "business_model": -2,
+    },
+    "early_stage": {
+        "founder_product_fit": 2,
+        "one_sentence_pitch": 2,
+        "growth_readiness": 2,
+        "proof_validation": 3,
+        "icp_wedge": 2,
+        "business_model": 1,
+        "why_now": 1,
+    },
+    "multi_stage": {
+        "growth_readiness": 3,
+        "proof_validation": 2,
+        "business_model": 2,
+        "execution_risk": 2,
+        "why_now": 1,
+    },
+    "growth_late": {
+        "growth_readiness": 5,
+        "business_model": 4,
+        "proof_validation": 3,
+        "execution_risk": 3,
+        "one_sentence_pitch": 1,
+        "user_problem": -1,
+    },
+}
+
+INVESTOR_QUESTION_BONUS: dict[str, dict[str, int]] = {
+    "pre_seed_seed": {
+        "one_sentence_pitch": 16,
+        "problem_specific": 14,
+        "current_workaround": 12,
+        "segment_focus": 10,
+        "testing_method": 10,
+        "team_right_to_win": 10,
+        "why_now": 8,
+        "next_milestone": 8,
+        "quantified_outcome": -4,
+        "cost_to_serve": -8,
+        "usage_frequency": -6,
+    },
+    "early_stage": {
+        "one_sentence_pitch": 10,
+        "validation_signal": 14,
+        "segment_focus": 10,
+        "willingness_to_pay": 10,
+        "acquisition_path": 8,
+        "testing_method": 8,
+        "team_right_to_win": 8,
+        "next_milestone": 6,
+        "cost_to_serve": 4,
+    },
+    "multi_stage": {
+        "quantified_outcome": 12,
+        "validation_signal": 10,
+        "acquisition_path": 10,
+        "cost_to_serve": 8,
+        "willingness_to_pay": 6,
+        "differentiation": 8,
+        "key_risk": 6,
+        "next_milestone": 6,
+    },
+    "growth_late": {
+        "quantified_outcome": 16,
+        "usage_frequency": 14,
+        "acquisition_path": 12,
+        "cost_to_serve": 12,
+        "key_risk": 10,
+        "differentiation": 8,
+        "next_milestone": 8,
+        "problem_specific": -4,
+        "current_workaround": -4,
+    },
+}
+
 
 QUESTION_BANK: list[dict[str, Any]] = [
+    {
+        "id": "one_sentence_pitch",
+        "text": "Give me the one-sentence pitch. What are you building, for whom, and what changes for them?",
+        "variants": {
+            "stage:idea": "Give me the one-line version of the idea. Who is it for, what pain does it remove, and why would they care?",
+            "stage:pre-revenue": "In one sentence, explain the company clearly enough that a smart outsider would understand the user, pain, and value.",
+            "stage:early-revenue": "State the company in one sentence: user, pain, and measurable value.",
+            "stage:growth": "Give me the crisp investor version: customer, pain, product, and outcome in one line.",
+            "founderType:student": "Say it simply in one sentence: who is this for, what problem does it solve, and what gets better?",
+            "founderType:serial": "Compress the company into one sentence. Make it investor-clean.",
+        },
+        "category": "Pitch",
+        "weightTier": "critical",
+        "stages": ["all"],
+        "founderTypes": ["all"],
+        "sectors": ["all"],
+        "tags": ["pitch", "clarity"],
+        "expectsQuantification": False,
+    },
     {
         "id": "problem_specific",
         "text": "What exact painful problem are you solving, and for whom?",
@@ -312,6 +512,69 @@ QUESTION_BANK: list[dict[str, Any]] = [
         "expectsQuantification": False,
     },
     {
+        "id": "antler_founder_spike",
+        "text": "What is your founder spike, and what concrete evidence proves it?",
+        "variants": {
+            "founderType:student": "What is the strongest thing about you as a founder here, and what has happened in your life or work that proves it?",
+            "founderType:serial": "State the founder spike precisely. What have you done before that makes you unusually credible here?",
+        },
+        "category": "Team",
+        "weightTier": "critical",
+        "stages": ["all"],
+        "founderTypes": ["all"],
+        "sectors": ["all"],
+        "tags": ["antler", "founder spike", "team", "differentiation"],
+        "triggerTerms": ["antler"],
+        "expectsQuantification": False,
+    },
+    {
+        "id": "antler_coachability",
+        "text": "Tell me about a time feedback changed your view, plan, or product decision.",
+        "variants": {
+            "founderType:student": "Have you ever changed your mind because feedback or evidence showed you were wrong? What happened?",
+            "founderType:serial": "Give me one example where evidence overruled your founder instinct. What changed in your decision-making?",
+        },
+        "category": "Team",
+        "weightTier": "important",
+        "stages": ["all"],
+        "founderTypes": ["all"],
+        "sectors": ["all"],
+        "tags": ["antler", "coachability", "feedback", "founder psychology"],
+        "triggerTerms": ["antler"],
+        "expectsQuantification": False,
+    },
+    {
+        "id": "antler_why_antler",
+        "text": "Why Antler specifically, and what would you use the program for in the next 6 months?",
+        "variants": {
+            "founderType:student": "Why Antler specifically, and what would you use the program for if they backed you?",
+            "founderType:serial": "Why is Antler the right platform for this company right now, beyond generic capital and network access?",
+        },
+        "category": "Ask",
+        "weightTier": "important",
+        "stages": ["all"],
+        "founderTypes": ["all"],
+        "sectors": ["all"],
+        "tags": ["antler", "why antler", "program fit", "milestone"],
+        "triggerTerms": ["antler"],
+        "expectsQuantification": False,
+    },
+    {
+        "id": "antler_team_dynamic",
+        "text": "If you are solo, what founder gap do you still need to fill? If you have co-founders, why is this pairing unusually strong?",
+        "variants": {
+            "founderType:student": "If you are building this alone, what kind of co-founder or skill partner do you still need? If you already have one, why do you work well together?",
+        },
+        "category": "Team",
+        "weightTier": "important",
+        "stages": ["all"],
+        "founderTypes": ["all"],
+        "sectors": ["all"],
+        "tags": ["antler", "cofounder", "solo founder", "team dynamic"],
+        "triggerTerms": ["antler"],
+        "expectsQuantification": False,
+    },
+    {
         "id": "next_milestone",
         "text": "What is the single most important next milestone for this idea?",
         "variants": {
@@ -441,7 +704,37 @@ QUESTION_BANK: list[dict[str, Any]] = [
 
 QUESTION_LOOKUP = {question["id"]: question for question in QUESTION_BANK}
 
+QUESTION_LENS_MAP: dict[str, list[str]] = {
+    "one_sentence_pitch": ["one_sentence_pitch"],
+    "problem_specific": ["user_problem", "one_sentence_pitch"],
+    "current_workaround": ["user_problem", "icp_wedge"],
+    "why_now": ["why_now"],
+    "segment_focus": ["icp_wedge"],
+    "value_outcome": ["one_sentence_pitch"],
+    "quantified_outcome": ["growth_readiness", "proof_validation"],
+    "validation_signal": ["proof_validation", "growth_readiness"],
+    "testing_method": ["proof_validation", "execution_risk"],
+    "willingness_to_pay": ["business_model", "growth_readiness"],
+    "cost_to_serve": ["business_model"],
+    "differentiation": ["icp_wedge", "one_sentence_pitch"],
+    "acquisition_path": ["growth_readiness", "icp_wedge"],
+    "usage_frequency": ["growth_readiness"],
+    "team_right_to_win": ["founder_product_fit"],
+    "antler_founder_spike": ["founder_product_fit"],
+    "antler_coachability": ["founder_product_fit", "execution_risk"],
+    "antler_why_antler": ["founder_product_fit", "execution_risk"],
+    "antler_team_dynamic": ["founder_product_fit"],
+    "next_milestone": ["execution_risk", "growth_readiness"],
+    "key_risk": ["execution_risk"],
+    "saas_workflow": ["one_sentence_pitch", "growth_readiness"],
+    "saas_technical_risk": ["execution_risk"],
+    "marketplace_liquidity": ["growth_readiness", "icp_wedge"],
+    "fintech_trust": ["execution_risk"],
+    "sustainability_signal": ["proof_validation"],
+}
+
 CATEGORY_BELIEF_KEYS = {
+    "Pitch": "clarity",
     "Problem": "problem",
     "Market": "market",
     "Solution": "solution",
@@ -614,12 +907,12 @@ def _question_context_hint(question: dict[str, Any], state: "ConversationState |
         if state and state.founder_type == "student":
             if question["category"] == "Problem":
                 return "Answer shape: user -> pain -> current workaround."
-            return "Keep it simple: one user, one problem, one concrete point."
-        return "Answer narrowly and stay concrete."
+            return "Keep it simple: one user, one problem, one concrete moment."
+        return "Stay concrete and use one real example."
     if conversation_state == "validate":
         if question["category"] == "Traction":
             return "Answer shape: who you spoke to -> what they said -> what changed."
-        return "Anchor this in real behavior, not a belief."
+        return "Anchor this in real behavior, not just a belief."
     if conversation_state == "quantify":
         if founder_type in {"student", "professional"}:
             if question["category"] == "Business Model":
@@ -633,7 +926,7 @@ def _question_context_hint(question: dict[str, Any], state: "ConversationState |
 
     if category_confidence < 0.42:
         if question["category"] == "Problem":
-            return "Answer shape: user -> pain -> current workaround."
+            return "Think in one sharp story: user -> pain -> current workaround."
         if question["category"] == "Market":
             return "Answer shape: first segment -> why them -> why now."
         if question["category"] == "Solution":
@@ -649,14 +942,36 @@ def _question_context_hint(question: dict[str, Any], state: "ConversationState |
 
     if founder_type in {"student", "professional"}:
         if question["category"] == "Problem":
-            return "Think like a strong founder: who hurts, how often, and what breaks."
+            return "Think like a strong founder: who hurts, what breaks, and when it became unacceptable."
         if question["category"] == "Market":
             return "Think like a strong founder: start narrow before talking about scale."
         if question["category"] == "Solution":
             return "Think like a strong founder: outcome first, feature second."
         if question["category"] == "Traction":
             return "Think like a strong founder: proof beats opinion."
-    return "Go one layer deeper."
+    return "Go one layer deeper with a concrete story or proof point."
+
+
+def _question_probe_intent(question: dict[str, Any], state: "ConversationState | None", metadata: dict[str, Any] | None) -> str:
+    category = question.get("category", "")
+    question_id = question.get("id", "")
+    if question_id == "one_sentence_pitch":
+        return "tighten the one-line pitch and make it easier to repeat"
+    if category == "Problem":
+        return "reflect the pain briefly, then ask for a concrete user story"
+    if category == "Market":
+        return "narrow to the first customer and why they care first"
+    if category == "Solution":
+        return "tie the product back to the user outcome in plain language"
+    if category == "Traction":
+        return "ask for the strongest real proof or observed behavior"
+    if category == "Business Model":
+        return "test willingness to pay and the tradeoff behind delivery"
+    if category == "Team":
+        return "show why this team has earned the right to solve this"
+    if category == "Ask":
+        return "surface the next milestone or main risk"
+    return "go one level deeper on the missing evidence"
 
 
 def get_question_text(question: dict[str, Any], state: "ConversationState | None" = None) -> str:
@@ -700,10 +1015,116 @@ def _contains_any(text: str, patterns: tuple[str, ...] | list[str]) -> bool:
     return any(pattern in lowered for pattern in patterns)
 
 
+def _context_source_text(metadata: dict[str, Any]) -> str:
+    return " ".join(
+        bit
+        for bit in [
+            metadata.get("setupContext", ""),
+            metadata.get("website", {}).get("text", ""),
+            " ".join(str(item.get("answer", "")) for item in metadata.get("answers", [])[-4:]),
+        ]
+        if bit
+    ).lower()
+
+
+def _firm_aliases(name: str) -> set[str]:
+    aliases = {name.strip().lower()}
+    compact = re.sub(r"\s*\([^)]*\)", "", name).strip().lower()
+    if compact:
+        aliases.add(compact)
+    match = re.search(r"\(([^)]+)\)", name)
+    if match:
+        aliases.add(match.group(1).strip().lower())
+    return {alias for alias in aliases if alias}
+
+
+def _accelerator_target(metadata: dict[str, Any]) -> str:
+    source_text = _context_source_text(metadata)
+    if "antler" in source_text:
+        return "antler"
+    return ""
+
+
+def _investor_target(metadata: dict[str, Any]) -> str:
+    source_text = _context_source_text(metadata)
+
+    if "antler" in source_text:
+        return "pre_seed_seed"
+
+    for stage_key in ("growth_late", "multi_stage", "early_stage", "pre_seed_seed"):
+        for firm in VC_STAGE_MAP.get(stage_key, []):
+            if any(alias in source_text for alias in _firm_aliases(firm)):
+                return stage_key
+
+    if any(term in source_text for term in ("accelerator", "pre-seed", "pre seed", "angel investor", "angel round", "batch", "demo day", "scout")):
+        return "pre_seed_seed"
+    if any(term in source_text for term in ("growth equity", "late stage", "late-stage", "pre-ipo", "series c", "series d", "series e")):
+        return "growth_late"
+    if any(term in source_text for term in ("multi-stage", "multistage", "institutional vc", "series b")):
+        return "multi_stage"
+    if any(term in source_text for term in ("seed vc", "early stage", "early-stage", "series a", "first institutional")):
+        return "early_stage"
+
+    stage = metadata.get("stage", "unknown")
+    if stage in {"idea", "pre-revenue"}:
+        return "pre_seed_seed"
+    if stage == "early-revenue":
+        return "early_stage"
+    if stage == "growth":
+        return "growth_late"
+    return "multi_stage"
+
+
+def _sentences(text: str) -> list[str]:
+    return [chunk.strip() for chunk in re.split(r"(?<=[.!?])\s+|\n+", text or "") if chunk.strip()]
+
+
+def _best_sentence(text: str, keywords: tuple[str, ...] | list[str]) -> str:
+    for sentence in _sentences(text):
+        lowered = sentence.lower()
+        if any(keyword in lowered for keyword in keywords):
+            return sentence[:220]
+    return (_sentences(text)[:1] or [""])[0][:220]
+
+
+def _empty_lens_entry(key: str) -> dict[str, Any]:
+    config = LENS_CONFIG[key]
+    return {
+        "key": key,
+        "label": config["label"],
+        "group": config["group"],
+        "score": 0.0,
+        "status": "unknown",
+        "why": "",
+        "evidence": [],
+        "improvement": config["fix"],
+    }
+
+
+def _status_from_score(score: float, evidence_count: int, blocked: bool = False) -> str:
+    if blocked:
+        return "blocked"
+    if evidence_count == 0 and score < 35:
+        return "unknown"
+    if score >= 72:
+        return "strong"
+    if score >= 42:
+        return "partial"
+    return "blocked" if evidence_count > 0 else "unknown"
+
+
+def _report_status(status: str) -> str:
+    if status == "strong":
+        return "strong"
+    if status == "partial":
+        return "partial"
+    return "weak"
+
+
 def normalize_budget(value: int | None) -> int:
-    if value in {10, 15, 20}:
-        return int(value)
-    return 15
+    if value in {10, 12, 15, 20}:
+        return min(int(value), DEFAULT_MAX_QUESTIONS)
+    return DEFAULT_MAX_QUESTIONS
 
 
 def normalize_session_type(value: str | None) -> str:
@@ -717,13 +1138,22 @@ def initial_evaluation_metadata(
     model: str,
     setup_context: str = "",
     website: dict | None = None,
+    founder_type: str = "unknown",
+    sector: str = "unknown",
+    stage: str = "unknown",
+    mode: str = "think_it_through",
 ) -> dict[str, Any]:
     return {
         "questionBudget": normalize_budget(question_budget),
+        "maxQuestionsHidden": normalize_budget(question_budget),
         "provider": provider,
         "model": model,
         "setupContext": (setup_context or "").strip(),
         "website": website or {},
+        "founderType": founder_type,
+        "sector": sector,
+        "stage": stage,
+        "mode": mode,
         "intakeComplete": False,
         "askedQuestionIds": [],
         "currentQuestionId": "",
@@ -735,8 +1165,282 @@ def initial_evaluation_metadata(
         "beliefState": DEFAULT_BELIEF_STATE.copy(),
         "conversationState": "explore",
         "lastObservation": "advance",
+        "initialEvidenceMap": {key: _empty_lens_entry(key) for key in LENS_CONFIG},
+        "lensStates": {key: _empty_lens_entry(key) for key in LENS_CONFIG},
+        "confidenceScore": 0.0,
+        "stopReason": "Gathering evidence.",
+        "deeperRounds": 0,
+        "deeperQuestionsRemaining": 0,
+        "conversationMove": "",
+        "needsInfo": [],
+        "retrievalGap": "",
+        "sourceConflict": "",
+        "lastQuestionStem": "",
+        "lastMoveType": "",
+        "lastReflectionUsed": "",
     }
 
+
+def _required_lenses(metadata: dict[str, Any]) -> list[str]:
+    investor_target = _investor_target(metadata)
+    if investor_target == "pre_seed_seed":
+        required = ["founder_product_fit", "one_sentence_pitch", "growth_readiness", "user_problem", "proof_validation", "icp_wedge", "why_now"]
+    elif investor_target == "early_stage":
+        required = ["founder_product_fit", "one_sentence_pitch", "growth_readiness", "user_problem", "proof_validation", "icp_wedge", "business_model", "why_now"]
+    elif investor_target == "growth_late":
+        required = ["founder_product_fit", "one_sentence_pitch", "growth_readiness", "proof_validation", "business_model", "execution_risk", "why_now"]
+    else:
+        required = ["founder_product_fit", "one_sentence_pitch", "growth_readiness", "user_problem", "proof_validation", "icp_wedge", "business_model", "why_now", "execution_risk"]
+    if _accelerator_target(metadata) == "antler" and "execution_risk" not in required:
+        required.append("execution_risk")
+    return list(dict.fromkeys(required))
+
+
+def _lens_priority(lens_key: str, metadata: dict[str, Any]) -> int:
+    base = int(LENS_CONFIG[lens_key]["priority"])
+    stage = metadata.get("stage", "unknown")
+    accelerator = _accelerator_target(metadata)
+    investor_target = _investor_target(metadata)
+
+    base += int(INVESTOR_LENS_BONUS.get(investor_target, {}).get(lens_key, 0))
+
+    if accelerator == "antler":
+        if lens_key == "founder_product_fit":
+            base += 5
+        elif lens_key == "execution_risk":
+            base += 4
+        elif lens_key == "one_sentence_pitch":
+            base += 3
+        elif lens_key == "growth_readiness" and stage in {"idea", "pre-revenue", "unknown"}:
+            base += 1
+        elif lens_key == "business_model":
+            base -= 3
+        elif lens_key == "why_now":
+            base -= 1
+
+    if lens_key == "growth_readiness" and stage in {"idea", "pre-revenue"}:
+        base += 2
+    if lens_key == "business_model" and stage == "idea":
+        base -= 2
+    return base
+
+
+def _merge_lens_signal(entry: dict[str, Any], score: float, evidence: str, why: str = "", blocked: bool = False) -> None:
+    entry["score"] = round(max(float(entry.get("score", 0.0)), float(score)), 1)
+    if evidence and evidence not in entry["evidence"]:
+        entry["evidence"].append(evidence)
+    if why and not entry.get("why"):
+        entry["why"] = why
+    entry["status"] = _status_from_score(entry["score"], len(entry["evidence"]), blocked=blocked)
+
+
+def _score_text_lenses(text: str, metadata: dict[str, Any]) -> dict[str, Any]:
+    result = {key: _empty_lens_entry(key) for key in LENS_CONFIG}
+    lowered = (text or "").lower()
+    if not lowered.strip():
+        return result
+
+    first_sentence = (_sentences(text)[:1] or [""])[0]
+    has_user = _contains_any(lowered, ("user", "customer", "buyer", "seller", "employee", "student", "team", "finance"))
+    has_problem = _contains_any(lowered, ("problem", "pain", "slow", "manual", "duplicate", "error", "expensive", "friction", "broken"))
+    has_workaround = _contains_any(lowered, ("today", "currently", "manual", "spreadsheet", "excel", "workaround", "status quo", "without"))
+    has_value = _contains_any(lowered, ("save", "reduce", "improve", "increase", "faster", "easier", "automate", "prevent"))
+    has_segment = _contains_any(lowered, ("first customer", "segment", "buyer", "team", "company size", "icp", "beachhead"))
+    has_distribution = _contains_any(lowered, ("channel", "outbound", "sales", "pilot", "waitlist", "community", "referral", "distribution", "launch"))
+    has_payment = _contains_any(lowered, ("pay", "pricing", "revenue", "subscription", "fee", "margin", "cost", "budget"))
+    has_why_now = _contains_any(lowered, ("now", "recent", "shift", "regulation", "ai", "adoption", "behavior", "change"))
+    has_team = _contains_any(
+        lowered,
+        ("we built", "built internal", "our team", "founder", "founders", "worked at", "experience", "background", "domain", "years", "founded", "operator"),
+    )
+    has_risk = _contains_any(lowered, ("risk", "blocker", "milestone", "next", "need to prove", "uncertain", "hardest"))
+    has_numbers = bool(NUMBER_PATTERN.search(text))
+    has_evidence = _contains_any(lowered, EVIDENCE_MARKERS)
+    concise_pitch = 8 <= len(_tokens(first_sentence)) <= 32 and has_user and (has_problem or has_value)
+
+    if concise_pitch:
+        _merge_lens_signal(
+            result["one_sentence_pitch"],
+            78,
+            first_sentence[:220],
+            "The intake already states the company in a reasonably crisp sentence.",
+        )
+    elif first_sentence and (has_user or has_value):
+        _merge_lens_signal(
+            result["one_sentence_pitch"],
+            48,
+            first_sentence[:220],
+            "The intake hints at the pitch, but it is still not sharp enough.",
+        )
+
+    if has_user and has_problem:
+        score = 74 if has_workaround else 58
+        _merge_lens_signal(
+            result["user_problem"],
+            score,
+            _best_sentence(text, ("problem", "pain", "manual", "slow", "duplicate", "error")),
+            "The intake explains the user pain with enough specificity to judge the problem.",
+        )
+
+    if has_segment or _contains_any(lowered, ("who", "for finance teams", "for founders", "for students", "for clinics", "for retailers")):
+        _merge_lens_signal(
+            result["icp_wedge"],
+            62 if has_segment else 46,
+            _best_sentence(text, ("segment", "customer", "buyer", "first", "for ")),
+            "The intake points to an initial customer wedge.",
+        )
+
+    if has_evidence or has_numbers:
+        _merge_lens_signal(
+            result["proof_validation"],
+            72 if (has_evidence and has_numbers) else 52,
+            _best_sentence(text, EVIDENCE_MARKERS),
+            "The intake already includes some proof rather than only opinion.",
+        )
+        _merge_lens_signal(
+            result["growth_readiness"],
+            66 if (has_evidence and (has_distribution or has_numbers)) else 48,
+            _best_sentence(text, ("pilot", "test", "customer", "revenue", "users", "waitlist", "channel")),
+            "The intake contains signs of proof or distribution readiness.",
+        )
+    elif has_distribution:
+        _merge_lens_signal(
+            result["growth_readiness"],
+            45,
+            _best_sentence(text, ("channel", "outbound", "sales", "pilot", "community", "launch")),
+            "The intake hints at a go-to-market path, but proof is still thin.",
+        )
+
+    if has_payment:
+        _merge_lens_signal(
+            result["business_model"],
+            58 if has_numbers else 44,
+            _best_sentence(text, ("pay", "pricing", "subscription", "revenue", "cost", "margin")),
+            "The intake contains some pricing or delivery-cost logic.",
+        )
+
+    if has_why_now:
+        _merge_lens_signal(
+            result["why_now"],
+            54,
+            _best_sentence(text, ("now", "recent", "shift", "regulation", "ai", "adoption", "change")),
+            "The intake explains why this company could matter now.",
+        )
+
+    if has_team:
+        _merge_lens_signal(
+            result["founder_product_fit"],
+            60 if has_problem else 45,
+            _best_sentence(text, ("experience", "background", "worked", "domain", "team", "founded", "founder", "built")),
+            "The intake gives some reason this founder or team can credibly solve the problem.",
+        )
+
+    if has_risk:
+        _merge_lens_signal(
+            result["execution_risk"],
+            52,
+            _best_sentence(text, ("risk", "blocker", "milestone", "next", "prove")),
+            "The intake already identifies an execution risk or next milestone.",
+        )
+
+    return result
+
+
+def _refresh_intake_state(metadata: dict[str, Any]) -> dict[str, Any]:
+    source_text = "\n\n".join(
+        bit
+        for bit in [
+            metadata.get("setupContext", "").strip(),
+            metadata.get("website", {}).get("text", "").strip(),
+        ]
+        if bit
+    )
+    intake_map = _score_text_lenses(source_text, metadata)
+    metadata["initialEvidenceMap"] = intake_map
+    return intake_map
+
+
+def _build_lens_states(metadata: dict[str, Any]) -> dict[str, Any]:
+    snapshots = {
+        key: {
+            **_empty_lens_entry(key),
+            **{
+                "score": float((metadata.get("initialEvidenceMap", {}).get(key) or {}).get("score", 0.0)),
+                "why": str((metadata.get("initialEvidenceMap", {}).get(key) or {}).get("why", "")),
+                "evidence": list((metadata.get("initialEvidenceMap", {}).get(key) or {}).get("evidence", [])),
+            },
+        }
+        for key in LENS_CONFIG
+    }
+    for key, entry in snapshots.items():
+        entry["status"] = _status_from_score(entry["score"], len(entry["evidence"]))
+
+    contradictions = 0
+    for answer in metadata.get("answers", []):
+        qid = answer.get("questionId", "")
+        answer_text = str(answer.get("answer", "")).strip()
+        answer_score = float(answer.get("overallScore", 0.0))
+        question_lenses = QUESTION_LENS_MAP.get(qid, [])
+        blocked = bool(answer.get("contradictions"))
+        contradictions += len(answer.get("contradictions", []))
+        for lens_key in question_lenses:
+            snapshot = snapshots[lens_key]
+            score = answer_score
+            if lens_key in {"growth_readiness", "proof_validation"}:
+                score = max(score, float(answer.get("scores", {}).get("evidence", 0.0)) / 5.0 * 100.0)
+            if lens_key == "one_sentence_pitch":
+                score = max(score, float(answer.get("scores", {}).get("clarity", 0.0)) / 5.0 * 100.0)
+            if lens_key == "business_model":
+                score = max(score, float(answer.get("scores", {}).get("quantification", 0.0)) / 5.0 * 100.0)
+            _merge_lens_signal(
+                snapshot,
+                score,
+                answer_text[:220],
+                str(answer.get("why", "")).strip(),
+                blocked=blocked,
+            )
+        if blocked:
+            for lens_key in question_lenses:
+                snapshots[lens_key]["status"] = "blocked"
+
+    for key, entry in snapshots.items():
+        if not entry["why"]:
+            entry["why"] = LENS_CONFIG[key]["why"]
+        entry["improvement"] = LENS_CONFIG[key]["fix"]
+
+    metadata["lensStates"] = snapshots
+    completeness = sum(1 for key in _required_lenses(metadata) if snapshots[key]["status"] in {"partial", "strong"}) / max(len(_required_lenses(metadata)), 1)
+    strong_core = sum(1 for key in CORE_LENSES if snapshots[key]["status"] == "strong")
+    contradiction_penalty = min(contradictions * 8, 24)
+    metadata["confidenceScore"] = max(0.0, min(round((completeness * 55) + (strong_core * 12) + (len(metadata.get("answers", [])) * 4) - contradiction_penalty, 1), 100.0))
+    return snapshots
+
+
+def _report_readiness(metadata: dict[str, Any]) -> tuple[bool, str]:
+    lens_states = _build_lens_states(metadata)
+    required = _required_lenses(metadata)
+    if len(metadata.get("answers", [])) >= normalize_budget(metadata.get("maxQuestionsHidden")):
+        return True, f"Stopped at the {normalize_budget(metadata.get('maxQuestionsHidden'))}-question safety cap."
+
+    if metadata.get("deeperQuestionsRemaining", 0) > 0:
+        return False, "Pressure-testing deeper."
+
+    unknown_required = [key for key in required if lens_states[key]["status"] == "unknown"]
+    core_strong = [key for key in CORE_LENSES if lens_states[key]["status"] == "strong"]
+    core_partial = [key for key in CORE_LENSES if lens_states[key]["status"] in {"partial", "strong"}]
+    supportive_ready = sum(1 for key in required if lens_states[key]["status"] in {"partial", "strong"})
+    has_starting_context = bool(metadata.get("setupContext", "").strip() or metadata.get("website", {}).get("text", "").strip())
+
+    if not unknown_required and len(core_strong) >= 2 and len(core_partial) == len(CORE_LENSES):
+        answered = len(metadata.get("answers", []))
+        if answered == 0 and has_starting_context:
+            return True, "Enough evidence from the intake alone."
+        return True, f"Enough evidence from intake and {answered} follow-up question{'s' if answered != 1 else ''}."
+
+    if supportive_ready >= max(len(required) - 1, 1) and len(core_partial) == len(CORE_LENSES) and metadata["confidenceScore"] >= 72:
+        return True, "Enough evidence to issue a useful report without more repetition."
+
+    return False, "More evidence is still needed on the weakest lens."
 
 def public_question(
     question: dict[str, Any],
@@ -744,11 +1448,16 @@ def public_question(
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     base_text = get_question_text(question, state)
+    surface_text = base_text
+    context_hint = _question_context_hint(question, state, metadata)
+    if metadata and question.get("id") == metadata.get("currentQuestionId"):
+        surface_text = str(metadata.get("currentQuestionSurfaceText", "") or base_text)
+        context_hint = str(metadata.get("currentQuestionContextHint", "") or context_hint)
     return {
         "id": question["id"],
-        "text": base_text,
+        "text": surface_text,
         "baseText": base_text,
-        "contextHint": _question_context_hint(question, state, metadata),
+        "contextHint": context_hint,
         "contextMode": metadata.get("conversationState", "explore") if metadata else "explore",
         "category": question["category"],
         "weightTier": question["weightTier"],
@@ -768,6 +1477,7 @@ def _applicable(question: dict[str, Any], state: ConversationState, metadata: di
             [
                 metadata.get("setupContext", ""),
                 metadata.get("website", {}).get("text", ""),
+                " ".join(str(item.get("answer", "")) for item in metadata.get("answers", [])[-4:]),
             ]
         ).lower()
         if not any(term in source_text for term in trigger_terms):
@@ -779,24 +1489,50 @@ def select_next_question(state: ConversationState, metadata: dict[str, Any]) -> 
     asked_ids = set(metadata.get("askedQuestionIds", []))
     answers = metadata.get("answers", [])
     beliefs = _belief_state(metadata)
+    max_questions = normalize_budget(metadata.get("maxQuestionsHidden"))
+    lens_states = _build_lens_states(metadata)
+    ready, _ = _report_readiness(metadata)
+    accelerator = _accelerator_target(metadata)
+    investor_target = _investor_target(metadata)
 
-    if len(answers) >= normalize_budget(metadata.get("questionBudget")):
+    if len(answers) >= max_questions:
+        return None
+    if ready and metadata.get("deeperQuestionsRemaining", 0) <= 0:
         return None
 
-    if not asked_ids and "problem_specific" in QUESTION_LOOKUP:
-        question = QUESTION_LOOKUP["problem_specific"]
+    if not asked_ids and not metadata.get("setupContext", "").strip() and "one_sentence_pitch" in QUESTION_LOOKUP:
+        question = QUESTION_LOOKUP["one_sentence_pitch"]
         if _applicable(question, state, metadata):
             return question
+    if accelerator == "antler" and not answers and lens_states["founder_product_fit"]["status"] != "strong":
+        question = QUESTION_LOOKUP.get("antler_founder_spike")
+        if question and _applicable(question, state, metadata):
+            return question
+    if investor_target == "growth_late" and not answers:
+        for question_id in ("quantified_outcome", "usage_frequency", "acquisition_path"):
+            question = QUESTION_LOOKUP.get(question_id)
+            if question and _applicable(question, state, metadata):
+                return question
+    if investor_target == "early_stage" and not answers and lens_states["proof_validation"]["status"] != "strong":
+        question = QUESTION_LOOKUP.get("validation_signal")
+        if question and _applicable(question, state, metadata):
+            return question
+    if investor_target == "multi_stage" and not answers:
+        for question_id in ("validation_signal", "acquisition_path"):
+            question = QUESTION_LOOKUP.get(question_id)
+            if question and _applicable(question, state, metadata):
+                return question
 
     weak_tags: list[str] = []
+    last_answer = answers[-1] if answers else {}
+    last_lenses = QUESTION_LENS_MAP.get(last_answer.get("questionId", ""), [])
     if answers:
-        last = answers[-1]
-        if last.get("scores", {}).get("quantification", 0) < 2.5:
+        if last_answer.get("scores", {}).get("quantification", 0) < 2.5:
             weak_tags.append("quantification")
-        if last.get("scores", {}).get("evidence", 0) < 2.5:
+        if last_answer.get("scores", {}).get("evidence", 0) < 2.5:
             weak_tags.append("validation")
-        if last.get("scores", {}).get("comprehension", 0) < 2.5:
-            weak_tags.append(last.get("category", "").lower())
+        if last_answer.get("scores", {}).get("comprehension", 0) < 2.5:
+            weak_tags.append(last_answer.get("category", "").lower())
 
     candidates = []
     for question in QUESTION_BANK:
@@ -806,8 +1542,39 @@ def select_next_question(state: ConversationState, metadata: dict[str, Any]) -> 
             continue
 
         score = WEIGHT_MULTIPLIERS[question["weightTier"]] * 10
-        if question["category"] in {"Problem", "Traction"} and len(answers) < 5:
+        question_lenses = QUESTION_LENS_MAP.get(question["id"], [])
+        question_tags = set(question.get("tags", []))
+        if not question_lenses:
+            continue
+
+        for lens_key in question_lenses:
+            lens_state = lens_states[lens_key]
+            score += _lens_priority(lens_key, metadata) * 3
+            if lens_key in _required_lenses(metadata):
+                score += 12
+            if lens_state["status"] == "unknown":
+                score += 24
+            elif lens_state["status"] == "blocked":
+                score += 18
+            elif lens_state["status"] == "partial":
+                score += 10
+            elif lens_state["status"] == "strong":
+                score -= 20
+            if lens_key in last_lenses and float(last_answer.get("overallScore", 0.0)) >= 68:
+                score -= 12
+            if lens_key in last_lenses and float(last_answer.get("overallScore", 0.0)) < 55:
+                score += 8
+
+        if question["category"] in {"Problem", "Traction"} and len(answers) < 4:
             score += 6
+        if len(answers) == 0 and question["id"] == "one_sentence_pitch" and lens_states["one_sentence_pitch"]["status"] != "strong":
+            score += 18
+        if len(answers) == 0 and question["id"] == "problem_specific" and lens_states["user_problem"]["status"] != "strong":
+            score += 14
+        if len(answers) < 2 and question.get("expectsQuantification"):
+            score -= 14
+        if len(answers) < 2 and question["id"] in {"willingness_to_pay", "cost_to_serve"}:
+            score -= 10
         if state.mode == "think_it_through" and question["category"] in {"Problem", "Solution", "Market"}:
             score += 4
         if state.mode == "quick_stress_test" and question["weightTier"] == "critical":
@@ -829,8 +1596,35 @@ def select_next_question(state: ConversationState, metadata: dict[str, Any]) -> 
             score += int((1.0 - beliefs.get("clarity", 0.5)) * 4)
         if state.mode == "think_it_through" and question["id"] == "key_risk" and len(answers) < 4:
             score -= 4
-        if question["id"] == "next_milestone" and len(answers) < max(metadata.get("questionBudget", 15) - 2, 1):
+        if question["id"] == "next_milestone" and len(answers) < 2:
             score -= 3
+        if metadata.get("deeperQuestionsRemaining", 0) > 0 and any(
+            lens_states[lens_key]["status"] in {"partial", "blocked"} for lens_key in question_lenses
+        ):
+            score += 6
+
+        score += int(INVESTOR_QUESTION_BONUS.get(investor_target, {}).get(question["id"], 0))
+
+        if accelerator == "antler":
+            if "antler" in question_tags:
+                score += 16
+            if question["id"] == "antler_founder_spike" and lens_states["founder_product_fit"]["status"] != "strong":
+                score += 18
+            if len(answers) == 0 and question["id"] == "antler_founder_spike":
+                score += 10
+            if question["id"] == "antler_coachability" and lens_states["execution_risk"]["status"] in {"unknown", "partial", "blocked"}:
+                score += 12
+            if len(answers) == 0 and question["id"] == "antler_coachability":
+                score -= 6
+            if question["id"] == "antler_why_antler":
+                score += 10 if len(answers) >= 1 else 4
+            if question["id"] == "antler_team_dynamic" and state.founder_type in {"student", "unknown"}:
+                score += 8
+            if len(answers) < 2 and question["id"] in {"willingness_to_pay", "cost_to_serve", "market_size"}:
+                score -= 12
+            if question["category"] == "Ask" and "antler" not in question_tags:
+                score -= 5
+
         candidates.append((score, question))
 
     if not candidates:
@@ -925,6 +1719,17 @@ def _is_brief_answer(answer: str) -> bool:
     return len(tokens) <= 4 or len((answer or "").strip()) < 22
 
 
+def _is_clarification_request(answer: str) -> bool:
+    lowered = (answer or "").strip().lower()
+    if not lowered:
+        return False
+    if any(cue in lowered for cue in CLARIFICATION_REQUEST_CUES):
+        return True
+    if lowered.endswith("?") and any(term in lowered for term in ("question", "mean", "asking", "clarify", "explain")):
+        return True
+    return False
+
+
 def _clarifying_follow_up(question: dict[str, Any], state: ConversationState) -> str:
     if question["category"] == "Problem":
         return "Give me one specific sentence: who has this problem, and what exactly goes wrong for them?"
@@ -937,6 +1742,40 @@ def _clarifying_follow_up(question: dict[str, Any], state: ConversationState) ->
     if state.founder_type == "student":
         return "Give me one simple, concrete sentence with an example."
     return "Give me one more concrete sentence so I can understand this properly."
+
+
+def _clarified_question_text(question: dict[str, Any], state: ConversationState) -> str:
+    founder_type = state.founder_type
+    if question.get("expectsQuantification"):
+        if founder_type in {"student", "professional"}:
+            return "In simple terms: give me one rough number or estimate that shows the impact. Time saved, money saved, errors reduced, or users helped all count."
+        return "Restate this with one believable number, estimate, or measured outcome."
+
+    if question["category"] == "Problem":
+        if founder_type in {"student", "professional"}:
+            return "In simple terms: who has this problem, what exactly goes wrong for them, and how do they handle it today?"
+        return "Restate the user, the exact pain, and the current workaround."
+    if question["category"] == "Market":
+        if founder_type in {"student", "professional"}:
+            return "In simple terms: who is the first kind of customer most likely to say yes, and why them first?"
+        return "Restate the first segment, why they care most, and why now."
+    if question["category"] == "Solution":
+        if founder_type in {"student", "professional"}:
+            return "In simple terms: what result does the user get, and why is this better than what they use now?"
+        return "Restate the user outcome first, then why the product wins."
+    if question["category"] == "Traction":
+        if founder_type in {"student", "professional"}:
+            return "In simple terms: what proof do you have so far from interviews, tests, pilots, or early usage?"
+        return "Restate the strongest proof point and what it shows."
+    if question["category"] == "Business Model":
+        if founder_type in {"student", "professional"}:
+            return "In simple terms: what would someone pay for, and what would it roughly cost you to deliver it?"
+        return "Restate what gets paid for and what it costs to serve."
+    if question["category"] == "Team":
+        return "In simple terms: why is your team the right one for this problem?"
+    if question["category"] == "Ask":
+        return "In simple terms: what is the one next milestone that matters most?"
+    return "Let me restate it simply: answer the core point in one concrete sentence."
 
 
 def _why_for_scores(scores: dict[str, float]) -> str:
@@ -979,6 +1818,105 @@ def _json_blob(text: str) -> dict[str, Any]:
     if start == -1 or end == -1 or end <= start:
         raise ValueError("No JSON object found")
     return json.loads(cleaned[start : end + 1])
+
+
+def _parse_phrased_turn(text: str) -> dict[str, str]:
+    cleaned = (text or "").strip()
+    try:
+        parsed = _json_blob(cleaned)
+        reciprocal = str(parsed.get("reciprocal", "")).strip()
+        question = str(parsed.get("question", "")).strip()
+        if reciprocal or question:
+            return {"reciprocal": reciprocal, "question": question}
+    except Exception:
+        pass
+
+    reciprocal = ""
+    question = ""
+    for line in cleaned.splitlines():
+        stripped = line.strip()
+        lower = stripped.lower()
+        if lower.startswith("reciprocal:"):
+            reciprocal = stripped.split(":", 1)[1].strip()
+        elif lower.startswith("question:"):
+            question = stripped.split(":", 1)[1].strip()
+    if reciprocal or question:
+        return {"reciprocal": reciprocal, "question": question}
+
+    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", cleaned) if part.strip()]
+    if len(paragraphs) >= 2:
+        candidate_question = paragraphs[-1]
+        if "?" in candidate_question:
+            reciprocal = " ".join(paragraphs[:-1]).strip()
+            question = candidate_question.strip()
+            return {"reciprocal": reciprocal, "question": question}
+
+    lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+    if len(lines) >= 2 and "?" in lines[-1]:
+        reciprocal = " ".join(lines[:-1]).strip()
+        question = lines[-1].strip()
+        return {"reciprocal": reciprocal, "question": question}
+
+    if "?" in cleaned:
+        before, _, after = cleaned.rpartition("\n")
+        if before.strip() and after.strip():
+            return {"reciprocal": before.strip(), "question": after.strip()}
+    return {"reciprocal": reciprocal, "question": question}
+
+
+def _stem_prefix(text: str, words: int = 6) -> str:
+    cleaned = " ".join((text or "").strip().split())
+    if not cleaned:
+        return ""
+    return " ".join(cleaned.split()[:words])
+
+
+def _remember_phrase_metadata(
+    metadata: dict[str, Any],
+    *,
+    move_type: str,
+    reciprocal: str,
+    question: str,
+    probe_intent: str,
+    needs_info: list[str] | None = None,
+    retrieval_gap: str = "",
+    source_conflict: str = "",
+) -> None:
+    metadata["conversationMove"] = probe_intent
+    metadata["needsInfo"] = list(needs_info or [])
+    metadata["retrievalGap"] = retrieval_gap
+    metadata["sourceConflict"] = source_conflict
+    metadata["lastQuestionStem"] = _stem_prefix(question)
+    metadata["lastMoveType"] = move_type
+    metadata["lastReflectionUsed"] = _stem_prefix(reciprocal)
+
+
+def _fallback_phrased_question(question: dict[str, Any], state: ConversationState, move_type: str) -> str:
+    category = question.get("category", "")
+    founder_type = state.founder_type
+    if move_type == "ask_for_story":
+        if category == "Problem":
+            return "Can you walk me through the last time this problem showed up for one real user?"
+        return "Can you walk me through one recent example so this feels more concrete?"
+    if move_type == "ask_for_emotion":
+        return "When did this stop feeling manageable and become something people really wanted fixed?"
+    if move_type == "ask_for_tradeoff":
+        return "What are they giving up today to work around this?"
+    if move_type == "clarify_same_point":
+        if founder_type in {"student", "professional"}:
+            return "Can you say that again in one simple, concrete line?"
+        return "Can you make that one step more concrete?"
+    if move_type == "translate_jargon":
+        return "How would you explain that in plain language to someone outside the startup world?"
+    if "proof" in move_type:
+        return "What real signal have you seen that makes you believe this is true?"
+    if "number" in move_type or "price" in move_type:
+        return "What is one believable number or estimate that makes this easier to judge?"
+    if category == "Market":
+        return "Who says yes first, and why them before everyone else?"
+    if category == "Solution":
+        return "What changes for the user after they use this?"
+    return get_question_text(question, state)
 
 
 async def score_answer_with_model(
@@ -1075,25 +2013,283 @@ def _combine_scores(deterministic: dict[str, float], modeled: dict[str, Any]) ->
     }
 
 
-def _coach_line_for_scores(scores: dict[str, float], state: ConversationState) -> str:
-    if scores["comprehension"] < 2.5:
-        line = "Answer the exact question more directly before adding extra context."
-    elif scores["evidence"] < 2.5:
-        line = "Add one concrete proof point, observation, or real example."
-    elif scores["quantification"] < 2.5:
-        line = "Add one simple number, estimate, or before-and-after comparison."
-    elif scores["clarity"] < 2.5:
-        line = "Tighten the answer so the user, problem, and outcome are easier to follow."
-    elif scores["logic"] < 2.5:
-        line = "Make the reasoning cleaner so the claim feels more believable."
-    else:
-        line = "Push one level deeper on the strongest proof point in that answer."
+def _lowest_dimension(scores: dict[str, float]) -> str:
+    ordered = ["comprehension", "evidence", "quantification", "clarity", "logic"]
+    return min(ordered, key=lambda key: scores.get(key, 5.0))
 
-    if state.founder_type == "student" and "number" in line.lower():
-        line = "Add one simple number, like time saved, money saved, or users helped."
-    if state.mode == "think_it_through":
-        return f"Good start. {line}"
+
+def _dedupe_coach_line(candidates: list[str], answers: list[dict[str, Any]]) -> str:
+    cleaned = [candidate.strip() for candidate in candidates if candidate and candidate.strip()]
+    if not cleaned:
+        return "Go one step deeper with something more concrete."
+    previous = str(answers[-1].get("reciprocal", "")).strip() if answers else ""
+    for candidate in cleaned:
+        if candidate != previous:
+            return candidate
+    return cleaned[0]
+
+
+def _student_variant(line: str) -> str:
+    replacements = {
+        "quantify": "put a simple number on it",
+        "measured outcome": "simple result",
+        "proof point": "real example",
+        "observation": "thing you saw happen",
+    }
+    result = line
+    lowered = result.lower()
+    for source, target in replacements.items():
+        if source in lowered:
+            result = re.sub(source, target, result, flags=re.IGNORECASE)
+            lowered = result.lower()
+    if "number" in lowered or "estimate" in lowered or "before-and-after" in lowered:
+        return "Add one simple number, like time saved, money saved, or users helped."
+    return result
+
+
+def _coach_line_for_scores(
+    scores: dict[str, float],
+    state: ConversationState,
+    question: dict[str, Any],
+    answers: list[dict[str, Any]],
+) -> str:
+    weakest = _lowest_dimension(scores)
+    question_id = question.get("id", "")
+    category = question.get("category", "")
+    expects_quant = bool(question.get("expectsQuantification"))
+    tags = set(question.get("tags", []))
+
+    if weakest == "comprehension" and scores["comprehension"] < 2.5:
+        candidates = [
+            "Answer the exact question first, then add the rest.",
+            "Stay on the question before adding extra context.",
+            "Lead with the direct answer, then explain it.",
+        ]
+    elif weakest == "evidence" and scores["evidence"] < 2.5:
+        if question_id in {"validation_signal", "testing_method"} or "validation" in tags:
+            candidates = [
+                "Use one real interview, test, pilot, or observed user behavior.",
+                "Anchor this in one concrete signal you have actually seen.",
+                "Give one specific example from a real conversation, test, or prototype.",
+            ]
+        elif category == "Problem":
+            candidates = [
+                "Use one real user case so the problem feels concrete.",
+                "Name one person or team that faces this pain today.",
+                "Ground this in one real example of the problem happening.",
+            ]
+        elif category == "Team":
+            candidates = [
+                "Point to one concrete experience that makes you credible here.",
+                "Use one specific example that proves your team can solve this.",
+                "Show one real reason your team is unusually suited to this problem.",
+            ]
+        else:
+            candidates = [
+                "Add one real example instead of a broad claim.",
+                "Use one concrete proof point from something you have seen or tested.",
+                "Ground this in one specific observation, not just the general idea.",
+            ]
+    elif weakest == "quantification" and scores["quantification"] < 2.5:
+        if question_id in {"willingness_to_pay", "cost_to_serve"} or category == "Business Model":
+            candidates = [
+                "Give one rough number for price or delivery cost.",
+                "Use a simple estimate for what someone pays or what it costs you to serve them.",
+                "Put one believable business number on this so it feels real.",
+            ]
+        elif expects_quant or category == "Traction":
+            candidates = [
+                "Add one number, estimate, or before-and-after result.",
+                "Use one simple metric that shows the change more clearly.",
+                "Put one believable number on the impact.",
+            ]
+        else:
+            candidates = [
+                "Add one rough number so the claim feels more grounded.",
+                "Use one estimate to make the impact easier to judge.",
+                "Put a simple number on the value here.",
+            ]
+    elif weakest == "clarity" and scores["clarity"] < 2.5:
+        if question_id in {"one_sentence_pitch", "value_outcome", "differentiation"}:
+            candidates = [
+                "Say it in one clean line: user, pain, and outcome.",
+                "Tighten this into one sharper sentence.",
+                "Make the user, pain, and value easier to follow.",
+            ]
+        else:
+            candidates = [
+                "Tighten the wording so the point lands faster.",
+                "Keep it simpler and more specific.",
+                "Strip this down to the clearest version of the answer.",
+            ]
+    elif weakest == "logic" and scores["logic"] < 2.5:
+        candidates = [
+            "Make the cause-and-effect clearer so the reasoning holds up.",
+            "Show why the conclusion follows from the evidence.",
+            "Connect the steps in the argument more clearly.",
+        ]
+    else:
+        if question_id in {"segment_focus", "acquisition_path"}:
+            candidates = [
+                "Go one level deeper on who says yes first and why.",
+                "Push further on the first segment instead of the broad market.",
+                "Sharpen the first-customer logic one more step.",
+            ]
+        elif question_id in {"team_right_to_win", "antler_founder_spike"}:
+            candidates = [
+                "Go one level deeper on why you are unusually credible here.",
+                "Push further on the founder advantage behind this idea.",
+                "Make your founder edge more explicit.",
+            ]
+        elif question_id in {"next_milestone", "key_risk"}:
+            candidates = [
+                "Be even more direct about the next milestone that matters most.",
+                "Push one step deeper on the main risk or milestone.",
+                "Sharpen the next move so it is easier to evaluate.",
+            ]
+        else:
+            candidates = [
+                "Go one level deeper on the strongest part of that answer.",
+                "Push the best point in that answer one step further.",
+                "Take the strongest point there and make it more concrete.",
+            ]
+
+    line = _dedupe_coach_line(candidates, answers)
+    if state.founder_type == "student":
+        line = _student_variant(line)
+    if state.mode == "think_it_through" and not line.lower().startswith(("answer ", "stay ", "lead ", "use ", "add ", "give ", "say ", "make ", "go ", "be ", "push ", "point ", "ground ", "put ", "show ", "strip ", "keep ")):
+        return f"That helps. {line}"
     return line
+
+
+def _probe_intent_for_question(scores: dict[str, float], question: dict[str, Any], state: ConversationState) -> str:
+    weakest = _lowest_dimension(scores)
+    category = question.get("category", "")
+    question_id = question.get("id", "")
+
+    if weakest == "comprehension" and scores["comprehension"] < 2.5:
+        return "clarify the exact answer before moving on"
+    if weakest == "evidence" and scores["evidence"] < 2.5:
+        if category == "Problem":
+            return "reflect the pain briefly, then ask for one real incident that shows it happening"
+        if category == "Team":
+            return "ask for one concrete experience that makes this team credible"
+        return "ask for one real proof point instead of a broad claim"
+    if weakest == "quantification" and scores["quantification"] < 2.5:
+        if category == "Business Model":
+            return "ask for one rough price or delivery-cost estimate"
+        return "ask what user outcome or impact can be measured with one believable number"
+    if weakest == "clarity" and scores["clarity"] < 2.5:
+        if question_id == "one_sentence_pitch":
+            return "tighten the pitch into one sharp line that is easy to repeat"
+        return "make the answer simpler and more direct"
+    if weakest == "logic" and scores["logic"] < 2.5:
+        return "make the reasoning cleaner and more cause-and-effect"
+    if category == "Problem":
+        return "stay with the pain and ask what made it feel unacceptable in real life"
+    if category == "Market":
+        return "narrow to the first customer and the tradeoff they accept today"
+    if category == "Solution":
+        return "connect the product to the user outcome in a concrete before-and-after story"
+    if state.mode == "quick_stress_test":
+        return "pressure-test the strongest unresolved claim"
+    return "go one level deeper on the strongest useful signal"
+
+
+def _recent_answer_summary(metadata: dict[str, Any], limit: int = 3) -> str:
+    answers = metadata.get("answers", [])[-limit:]
+    if not answers:
+        return "No prior evaluated answers yet."
+    lines = []
+    for item in answers:
+        question = str(item.get("question", "")).strip()
+        answer = str(item.get("answer", "")).strip()
+        lines.append(f"- Q: {question[:120]} | A: {answer[:180]}")
+    return "\n".join(lines)
+
+
+async def phrase_evaluator_turn(
+    *,
+    provider: str,
+    model: str,
+    api_key: str | None,
+    state: ConversationState,
+    metadata: dict[str, Any],
+    question: dict[str, Any],
+    probe_intent: str,
+    default_reciprocal: str,
+    context_hint: str,
+    latest_answer: str = "",
+    opening_style: str = "",
+    retrieval_context: str = "",
+    needs_info: list[str] | None = None,
+    retrieval_gap: str = "",
+    source_conflict: str = "",
+    move_type: str = "",
+) -> dict[str, str]:
+    system = (
+        "You are Signal's live evaluator interviewer. "
+        "You sound like a sharp early-stage VC operator: concise, natural, specific, and human. "
+        "Use the knowledge base and conversation history as the primary source of truth. "
+        "If the knowledge base is thin, say so briefly instead of pretending. "
+        "You may use one short reflective sentence before the next question when it helps the founder feel heard. "
+        "Keep the tone firmer than Ideate, but not robotic or interrogative. "
+        "Write one short reciprocal line and one short next question. "
+        "Do not say 'good start', 'next question', 'question 2', or similar scripted labels. "
+        "Do not over-praise. Do not lecture. "
+        "Use plain language for students and newer founders. "
+        "Keep the next question single-focus and faithful to the probe intent. "
+        "Prefer a concrete story, proof point, tradeoff, or lived moment over abstract analysis when possible. "
+        "Return exactly two lines in this format:\n"
+        "RECIPROCAL: <one short line>\n"
+        "QUESTION: <one short question>"
+    )
+    prompt = {
+        "founderType": state.founder_type,
+        "sector": state.sector,
+        "stage": state.stage,
+        "mode": state.mode,
+        "openingStyle": opening_style,
+        "moveType": move_type,
+        "probeIntent": probe_intent,
+        "canonicalQuestion": get_question_text(question, state),
+        "contextHint": context_hint,
+        "latestFounderAnswer": latest_answer,
+        "knowledgeBaseFocus": needs_info or [],
+        "retrievalGap": retrieval_gap,
+        "sourceConflict": source_conflict,
+        "retrievalContext": retrieval_context[:900],
+        "recentEvaluatedTurns": _recent_answer_summary(metadata),
+        "avoidEchoing": [str(item.get("reciprocal", "")).strip() for item in metadata.get("answers", [])[-3:] if str(item.get("reciprocal", "")).strip()],
+        "responseShape": {
+            "reciprocal": "string",
+            "question": "string",
+        },
+    }
+    try:
+        result = await generate_provider_text(
+            provider=provider,
+            model=model or default_model_for_provider(provider),
+            api_key=api_key,
+            system=system,
+            messages=[{"role": "user", "content": json.dumps(prompt, ensure_ascii=True)}],
+            max_tokens=140,
+            temperature=0.45,
+            top_p=0.92,
+            timeout_seconds=16.0,
+        )
+        parsed = _parse_phrased_turn(result["message"])
+        reciprocal = str(parsed.get("reciprocal", "")).strip() or default_reciprocal
+        question_text = str(parsed.get("question", "")).strip() or get_question_text(question, state)
+        return {
+            "reciprocal": reciprocal,
+            "question": question_text,
+        }
+    except Exception:
+        return {
+            "reciprocal": default_reciprocal,
+            "question": _fallback_phrased_question(question, state, move_type),
+        }
 
 
 def _question_overall_score(scores: dict[str, float], question: dict[str, Any]) -> float:
@@ -1135,10 +2331,391 @@ def _dimension_averages(answers: list[dict[str, Any]]) -> dict[str, float]:
     }
 
 
+def _evidence_snippet(entry: dict[str, Any], limit: int = 140) -> str:
+    evidence = [str(item).strip() for item in entry.get("evidence", []) if str(item).strip()]
+    if not evidence:
+        return ""
+    snippet = evidence[0].replace("\n", " ").strip().strip('"')
+    if len(snippet) > limit:
+        snippet = snippet[: limit - 1].rstrip() + "..."
+    return snippet
+
+
+def _snippet_clause(entry: dict[str, Any]) -> str:
+    snippet = _evidence_snippet(entry)
+    return f", especially around \"{snippet}\"" if snippet else ""
+
+
+def _report_lens_why(entry: dict[str, Any], metadata: dict[str, Any]) -> str:
+    key = entry["key"]
+    status = _report_status(entry["status"])
+    stage = str(metadata.get("stage", "unknown"))
+    has_evidence = bool(entry.get("evidence"))
+    clause = _snippet_clause(entry)
+
+    if key == "founder_product_fit":
+        if status == "strong":
+            return f"There is a credible founder edge here{clause}. It feels earned, not just claimed."
+        if status == "partial":
+            return f"There is some founder credibility here{clause}, but it does not yet feel like a decisive edge."
+        return "I still do not have enough to believe this team has an unusual right to win on this problem."
+
+    if key == "one_sentence_pitch":
+        if status == "strong":
+            return f"The company can be explained cleanly enough that the user, pain, and outcome are easy to follow{clause}."
+        if status == "partial":
+            return f"The pitch is directionally clear{clause}, but it still needs to be tighter and easier to repeat."
+        return "The core story is still too fuzzy. I cannot repeat the company back in one sharp line yet."
+
+    if key == "growth_readiness":
+        if stage in {"idea", "pre-revenue"}:
+            if status == "strong":
+                return f"There is enough early proof here to justify deeper pressure-testing{clause}."
+            if status == "partial":
+                return f"There are early signals of demand or learning{clause}, but not enough yet to make the next step feel earned."
+            return "I still do not see enough proof of demand, distribution readiness, or learning velocity."
+        if status == "strong":
+            return f"The traction story has enough substance to support the next phase{clause}."
+        if status == "partial":
+            return f"There are some useful traction signals{clause}, but the growth story is not strong enough yet."
+        return "The growth case is still too soft. I do not have enough proof that this is scaling in a durable way."
+
+    if key == "user_problem":
+        if status == "strong":
+            return f"The pain is concrete and believable{clause}. I can see who feels it and why it matters."
+        if status == "partial":
+            return f"The problem is visible{clause}, but it still needs stronger proof that the pain is frequent and urgent."
+        return "The problem statement is still too loose. I cannot yet see the user pain sharply enough."
+
+    if key == "icp_wedge":
+        if status == "strong":
+            return f"There is a believable first wedge here{clause}. The initial customer story feels focused."
+        if status == "partial":
+            return f"I can see the outline of a first segment{clause}, but the entry wedge is not narrow enough yet."
+        return "The customer wedge is still too broad. I do not yet know who says yes first and why."
+
+    if key == "proof_validation":
+        if status == "strong":
+            return f"There is real validation here{clause}. This reads more like observed behavior than opinion."
+        if status == "partial":
+            return f"There are some useful proof points{clause}, but the validation story still feels early and uneven."
+        return "Validation is still thin. I need stronger proof from real users, tests, or behavior."
+
+    if key == "business_model":
+        if status == "strong":
+            return f"The payment and delivery logic is starting to hold up{clause}. I can see how value could turn into a business."
+        if status == "partial":
+            return f"There is some business-model logic here{clause}, but it is not robust enough yet."
+        return "I still cannot see a believable path to getting paid and serving customers cleanly."
+
+    if key == "why_now":
+        if status == "strong":
+            return f"The timing argument feels real{clause}. There is a believable reason this matters now."
+        if status == "partial":
+            return f"There is some timing logic here{clause}, but the urgency of \"why now\" is not fully convincing yet."
+        return "The timing argument is still weak. I do not yet see the shift that makes this especially urgent now."
+
+    if key == "execution_risk":
+        if status == "strong":
+            return f"The main risk and next milestone are fairly clear{clause}. That makes execution easier to underwrite."
+        if status == "partial":
+            return f"There is some awareness of the main blocker{clause}, but the de-risking plan still feels loose."
+        return "Execution risk is still under-defined. I do not yet know the main blocker or the next milestone that reduces it."
+
+    if has_evidence and status == "strong":
+        return f"This section holds up reasonably well{clause}."
+    if has_evidence and status == "partial":
+        return f"This section is moving in the right direction{clause}, but it still needs stronger support."
+    return str(entry.get("why") or LENS_CONFIG[key]["why"])
+
+
+def _lens_section(entry: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "key": entry["key"],
+        "label": entry["label"],
+        "status": _report_status(entry["status"]),
+        "score": round(float(entry["score"]), 1),
+        "why": _report_lens_why(entry, metadata),
+        "evidence": entry["evidence"][:3],
+        "improvement": entry["improvement"],
+    }
+
+
+def _report_verdict(overall_score: float, confidence: float, core_sections: list[dict[str, Any]]) -> str:
+    weak_core = [item for item in core_sections if item["status"] == "weak"]
+    if overall_score >= 80 and confidence >= 70 and not weak_core:
+        return "Clear early signal. The core story is investable enough to keep pressure-testing specifics."
+    if overall_score >= 65 and len(weak_core) <= 1:
+        return "Promising, but one or two core parts still need sharper proof before the story lands cleanly."
+    if overall_score >= 50:
+        return "Directionally interesting, but still too soft in the core story to rely on as stated."
+    return "Not ready yet. The story still needs clearer basics before moving into more advanced investor detail."
+
+
+def _report_experiments(snapshots: dict[str, Any], metadata: dict[str, Any]) -> list[str]:
+    experiments: list[str] = []
+    investor_target = _investor_target(metadata)
+    weakest = sorted(
+        snapshots.values(),
+        key=lambda item: (
+            0 if item["key"] in CORE_LENSES else 1,
+            float(item["score"]),
+        ),
+    )[:3]
+    for item in weakest:
+        suggestion = str(item.get("improvement", "")).strip()
+        if suggestion and suggestion not in experiments:
+            experiments.append(suggestion)
+    investor_fixes: list[str] = []
+    if investor_target == "pre_seed_seed":
+        investor_fixes = [
+            "Rewrite the story so a pre-seed investor can repeat it in one line: user, pain, and outcome.",
+            "Prepare 3 proof points from interviews, prototypes, or founder experience that show this problem is real.",
+            "Name the first wedge clearly: who says yes first, and why them before everyone else.",
+        ]
+    elif investor_target == "early_stage":
+        investor_fixes = [
+            "Show the strongest early validation signal and what it says about customer pull.",
+            "Tighten the first-customer story: segment, willingness to pay, and why this segment converts first.",
+            "State the next milestone that would make the next institutional check easier to justify.",
+        ]
+    elif investor_target == "multi_stage":
+        investor_fixes = [
+            "Clarify the repeatable go-to-market path, not just the product story.",
+            "Make the value and business model logic tighter enough for a multi-stage investor to underwrite.",
+            "Be explicit about the biggest execution risk and what would reduce it in the next 6 months.",
+        ]
+    elif investor_target == "growth_late":
+        investor_fixes = [
+            "Lead with the strongest proof of durable growth: retention, expansion, or repeat usage.",
+            "Break down the growth engine clearly by channel, efficiency, and what scales repeatably.",
+            "Show where the business model gets stronger at scale and where the current fragility still sits.",
+        ]
+    for suggestion in reversed(investor_fixes):
+        if suggestion not in experiments:
+            experiments.insert(0, suggestion)
+    if _accelerator_target(metadata) == "antler":
+        antler_fixes = []
+        if snapshots["founder_product_fit"]["status"] != "strong":
+            antler_fixes.append("Write a founder-spike answer with one concrete proof point that shows why you are unusually credible here.")
+        if snapshots["one_sentence_pitch"]["status"] != "strong":
+            antler_fixes.append("Practice a one-sentence company description that states user, pain, and outcome without jargon.")
+        if snapshots["execution_risk"]["status"] != "strong":
+            antler_fixes.append("Prepare an honest answer on the biggest founder or team gap, and how you would close it during Antler.")
+        for suggestion in antler_fixes:
+            if suggestion not in experiments:
+                experiments.insert(0, suggestion)
+    if metadata.get("stage") in {"idea", "pre-revenue"} and len(experiments) < 3:
+        experiments.append("Talk to 5 target users this week and capture the exact language they use to describe the pain.")
+    return experiments[:3]
+
+
+def _report_fingerprint(metadata: dict[str, Any], report: dict[str, Any]) -> str:
+    answers = metadata.get("answers", [])
+    last_answer = answers[-1] if answers else {}
+    payload = {
+        "version": REPORT_NARRATIVE_VERSION,
+        "completed": bool(metadata.get("completed")),
+        "answeredQuestions": len(answers),
+        "overallScore": float(report.get("overallScore", 0.0)),
+        "stopReason": str(report.get("stopReason", "")),
+        "lastQuestionId": str(last_answer.get("questionId", "")),
+        "lastAnsweredAt": str(last_answer.get("answeredAt", "")),
+    }
+    return json.dumps(payload, sort_keys=True)
+
+
+def _report_cache(metadata: dict[str, Any]) -> dict[str, Any]:
+    cache = metadata.get("naturalReportCache")
+    return cache if isinstance(cache, dict) else {}
+
+
+def has_cached_presentable_report(metadata: dict[str, Any], report: dict[str, Any]) -> bool:
+    cache = _report_cache(metadata)
+    return cache.get("fingerprint") == _report_fingerprint(metadata, report) and isinstance(cache.get("report"), dict)
+
+
+def present_evaluation_report(metadata: dict[str, Any]) -> dict[str, Any]:
+    base = build_evaluation_report(metadata)
+    if has_cached_presentable_report(metadata, base):
+        return _report_cache(metadata)["report"]
+    return base
+
+
+def _merge_report_rewrite(base_report: dict[str, Any], rewrite: dict[str, Any]) -> dict[str, Any]:
+    merged = json.loads(json.dumps(base_report))
+
+    for field in ("verdict", "summary", "stopReason"):
+        value = str(rewrite.get(field, "")).strip()
+        if value:
+            merged[field] = value
+
+    for field, limit in (("why", 4), ("suggestions", 5), ("missingEvidence", 4), ("nextExperiments", 5)):
+        value = rewrite.get(field)
+        if isinstance(value, list):
+            cleaned = [str(item).strip() for item in value if str(item).strip()]
+            if cleaned:
+                merged[field] = cleaned[:limit]
+
+    core_updates = rewrite.get("coreLensText", {})
+    if isinstance(core_updates, list):
+        core_updates = {item.get("key", ""): item for item in core_updates if isinstance(item, dict)}
+    if isinstance(core_updates, dict):
+        for item in merged.get("coreLenses", []):
+            update = core_updates.get(item.get("key", ""))
+            if not isinstance(update, dict):
+                continue
+            why = str(update.get("why", "")).strip()
+            improvement = str(update.get("improvement", "")).strip()
+            if why:
+                item["why"] = why
+            if improvement:
+                item["improvement"] = improvement
+
+    supporting_updates = rewrite.get("supportingLensText", {})
+    if isinstance(supporting_updates, list):
+        supporting_updates = {item.get("key", ""): item for item in supporting_updates if isinstance(item, dict)}
+    if isinstance(supporting_updates, dict):
+        for item in merged.get("supportingLenses", []):
+            update = supporting_updates.get(item.get("key", ""))
+            if not isinstance(update, dict):
+                continue
+            why = str(update.get("why", "")).strip()
+            improvement = str(update.get("improvement", "")).strip()
+            if why:
+                item["why"] = why
+            if improvement:
+                item["improvement"] = improvement
+
+    question_updates = rewrite.get("questionText", {})
+    if isinstance(question_updates, list):
+        question_updates = {item.get("questionId", ""): item for item in question_updates if isinstance(item, dict)}
+    if isinstance(question_updates, dict):
+        for item in merged.get("questions", []):
+            update = question_updates.get(item.get("questionId", ""))
+            if not isinstance(update, dict):
+                continue
+            why = str(update.get("why", "")).strip()
+            suggestions = update.get("suggestions")
+            if why:
+                item["why"] = why
+            if isinstance(suggestions, list):
+                cleaned = [str(entry).strip() for entry in suggestions if str(entry).strip()]
+                if cleaned:
+                    item["suggestions"] = cleaned[:3]
+
+    return merged
+
+
+async def naturalize_evaluation_report(
+    *,
+    report: dict[str, Any],
+    metadata: dict[str, Any],
+    state: ConversationState,
+    provider: str,
+    model: str,
+    api_key: str | None = None,
+) -> dict[str, Any]:
+    if not metadata.get("completed"):
+        return report
+
+    fingerprint = _report_fingerprint(metadata, report)
+    if has_cached_presentable_report(metadata, report):
+        return _report_cache(metadata)["report"]
+
+    system = (
+        "You rewrite startup evaluation reports for founders. "
+        "Keep the assessment grounded in the provided evidence, scores, and statuses. "
+        "Make the wording natural, specific, non-repetitive, and founder-facing. "
+        "Use plain language that a student founder can understand. "
+        "When a business or investor term matters, explain it simply instead of sounding academic. "
+        "If a short example would make a point clearer, include one. "
+        "Write like a sharp but helpful memo, not a consultant scorecard or a template. "
+        "Prioritize: verdict, why this score, what is working, what still needs work, top fixes, and next experiments. "
+        "Do not change the score, statuses, evidence meaning, or overall judgment. "
+        "Avoid robotic repetition and avoid generic lines that could fit every section. "
+        "Each section must sound specific to that lens and its evidence, not like a reused template. "
+        "Return valid JSON only."
+    )
+    prompt = {
+        "founderType": state.founder_type,
+        "sector": state.sector,
+        "stage": state.stage,
+        "mode": state.mode,
+        "knowledgeBaseFocus": metadata.get("needsInfo", []),
+        "retrievalGap": metadata.get("retrievalGap", ""),
+        "sourceConflict": metadata.get("sourceConflict", ""),
+        "report": report,
+        "instructions": {
+            "rewriteVerdict": True,
+            "rewriteWhyBullets": True,
+            "rewriteCoreLensText": True,
+            "rewriteSupportingLensText": True,
+            "rewriteQuestionAppendix": True,
+            "keepStructure": True,
+        },
+        "responseShape": {
+            "verdict": "string",
+            "summary": "string",
+            "stopReason": "string",
+            "why": ["string"],
+            "suggestions": ["string"],
+            "missingEvidence": ["string"],
+            "nextExperiments": ["string"],
+            "coreLensText": [{"key": "string", "why": "string", "improvement": "string"}],
+            "supportingLensText": [{"key": "string", "why": "string", "improvement": "string"}],
+            "questionText": [{"questionId": "string", "why": "string", "suggestions": ["string"]}],
+        },
+    }
+    try:
+        result = await generate_provider_text(
+            provider=provider,
+            model=model or default_model_for_provider(provider),
+            api_key=api_key,
+            system=system,
+            messages=[
+                {
+                    "role": "user",
+                    "content": json.dumps(prompt, ensure_ascii=True),
+                }
+            ],
+            max_tokens=1400,
+            temperature=0.35,
+            top_p=0.9,
+            timeout_seconds=35.0,
+        )
+        parsed = _json_blob(result["message"])
+        merged = _merge_report_rewrite(report, parsed)
+        metadata["naturalReportCache"] = {
+            "fingerprint": fingerprint,
+            "report": merged,
+            "provider": result["provider"],
+            "model": result["model"],
+            "naturalized": True,
+        }
+        return merged
+    except Exception:
+        metadata["naturalReportCache"] = {
+            "fingerprint": fingerprint,
+            "report": report,
+            "provider": provider,
+            "model": model or default_model_for_provider(provider),
+            "naturalized": False,
+        }
+        return report
+
+
 def build_evaluation_report(metadata: dict[str, Any]) -> dict[str, Any]:
     answers = metadata.get("answers", [])
-    budget = normalize_budget(metadata.get("questionBudget"))
-    if not answers:
+    budget = normalize_budget(metadata.get("maxQuestionsHidden") or metadata.get("questionBudget"))
+    lens_states = _build_lens_states(metadata)
+    core_sections = [_lens_section(lens_states[key], metadata) for key in CORE_LENSES]
+    supporting_sections = [_lens_section(lens_states[key], metadata) for key in SUPPORTING_LENSES]
+    has_intake_evidence = any(float(item["score"]) >= 35 or item["evidence"] for item in lens_states.values())
+    if not answers and not has_intake_evidence:
+        confidence = float(metadata.get("confidenceScore", 0.0))
+        stop_reason = metadata.get("stopReason", "No evaluation yet.")
+        verdict = "No evaluation yet."
         return {
             "overallScore": 0.0,
             "partial": True,
@@ -1148,51 +2725,40 @@ def build_evaluation_report(metadata: dict[str, Any]) -> dict[str, Any]:
             "why": ["No answers captured yet."],
             "suggestions": ["Start the assessment to generate a score."],
             "questions": [],
-            "summary": "No evaluation yet.",
+            "summary": verdict,
+            "verdict": verdict,
+            "confidence": confidence,
+            "stopReason": stop_reason,
+            "coreLenses": core_sections,
+            "supportingLenses": supporting_sections,
+            "missingEvidence": ["Add a pitch summary or answer the first adaptive question."],
+            "nextExperiments": ["Start with the core story: user, pain, proof, and why now."],
         }
 
     total_weight = 0.0
     weighted_sum = 0.0
-    for answer in answers:
-        weight = float(answer.get("weight", 1.0))
+    for key, entry in lens_states.items():
+        weight = float(LENS_CONFIG[key]["weight"])
         total_weight += weight
-        weighted_sum += float(answer.get("overallScore", 0.0)) * weight
+        weighted_sum += float(entry["score"]) * weight
     overall_score = round(weighted_sum / max(total_weight, 1.0), 1)
 
     dimension_scores = _dimension_averages(answers)
-    category_scores = _category_averages(answers)
-    sorted_dimensions = sorted(dimension_scores.items(), key=lambda item: item[1])
-    weakest_dimensions = sorted_dimensions[:2]
-    weakest_categories = sorted(category_scores.items(), key=lambda item: item[1])[:2]
-
-    why: list[str] = []
-    suggestions: list[str] = []
-    for dimension, score in weakest_dimensions:
-        if score < 60:
-            why.append(f"{DIMENSION_LABELS[dimension]} is weak at {score:.0f} because answers stayed too vague or unsupported.")
-    for category, score in weakest_categories:
-        if score < 65:
-            why.append(f"{category} is dragging the assessment because the answers did not land clearly enough.")
-    for answer in sorted(answers, key=lambda item: item.get("overallScore", 0.0))[:3]:
-        for suggestion in answer.get("suggestions", []):
-            if suggestion not in suggestions:
-                suggestions.append(suggestion)
-            if len(suggestions) >= 5:
-                break
-        if len(suggestions) >= 5:
-            break
-
-    partial = not bool(metadata.get("completed")) or len(answers) < budget
-    if partial and "Finish the remaining questions to tighten the score." not in suggestions:
-        suggestions.append("Finish the remaining questions to tighten the score.")
-
-    summary = "Promising but not yet investor-clear."
-    if overall_score >= 80:
-        summary = "Strong early narrative with good proof signals."
-    elif overall_score >= 65:
-        summary = "Directionally solid, but still needs sharper proof and precision."
-    elif overall_score < 45:
-        summary = "The core story is still too weak or vague to land well."
+    confidence = float(metadata.get("confidenceScore", 0.0))
+    weakest_sections = sorted(
+        [*core_sections, *supporting_sections],
+        key=lambda item: (
+            0 if item["key"] in CORE_LENSES else 1,
+            item["score"],
+        ),
+    )
+    why = [section["why"] for section in weakest_sections[:4] if section["why"]]
+    missing_evidence = [section["label"] for section in weakest_sections if section["status"] == "weak"][:4]
+    suggestions = [section["improvement"] for section in weakest_sections if section["improvement"]][:3]
+    stop_reason = metadata.get("stopReason", "Gathering evidence.")
+    partial = not bool(metadata.get("completed"))
+    verdict = _report_verdict(overall_score, confidence, core_sections)
+    next_experiments = _report_experiments(lens_states, metadata)
 
     return {
         "overallScore": overall_score,
@@ -1203,8 +2769,8 @@ def build_evaluation_report(metadata: dict[str, Any]) -> dict[str, Any]:
             {"key": key, "label": DIMENSION_LABELS[key], "score": score}
             for key, score in dimension_scores.items()
         ],
-        "why": why[:4] or ["The assessment needs more specific, better-supported answers."],
-        "suggestions": suggestions[:5] or ["Add clearer proof, sharper quantification, and more precise user language."],
+        "why": why[:4] or ["The assessment still needs clearer proof and more exact language in the weakest sections."],
+        "suggestions": suggestions[:5] or ["Tighten the user, proof, and value story before going deeper."],
         "questions": [
             {
                 "questionId": item["questionId"],
@@ -1216,18 +2782,27 @@ def build_evaluation_report(metadata: dict[str, Any]) -> dict[str, Any]:
             }
             for item in answers
         ],
-        "summary": summary,
+        "summary": verdict,
+        "verdict": verdict,
+        "confidence": confidence,
+        "stopReason": stop_reason,
+        "coreLenses": core_sections,
+        "supportingLenses": supporting_sections,
+        "missingEvidence": missing_evidence or ["No major evidence gaps remain."],
+        "nextExperiments": next_experiments,
     }
 
 
 def public_progress(metadata: dict[str, Any], state: "ConversationState | None" = None) -> dict[str, Any]:
     answers = metadata.get("answers", [])
     report = build_evaluation_report(metadata)
-    current_question = metadata.get("clarifyingQuestion") or QUESTION_LOOKUP.get(metadata.get("currentQuestionId", ""))
     completed = bool(metadata.get("completed"))
+    current_question = None if completed else (metadata.get("clarifyingQuestion") or QUESTION_LOOKUP.get(metadata.get("currentQuestionId", "")))
     return {
         "questionBudget": normalize_budget(metadata.get("questionBudget")),
         "answeredQuestions": len(answers),
+        "questionsAsked": len(answers),
+        "maxQuestions": normalize_budget(metadata.get("maxQuestionsHidden") or metadata.get("questionBudget")),
         "completed": completed,
         "partial": bool(report.get("partial", False)),
         "currentQuestion": public_question(current_question, state, metadata) if current_question else None,
@@ -1235,6 +2810,101 @@ def public_progress(metadata: dict[str, Any], state: "ConversationState | None" 
         "dimensionScores": report["dimensionScores"] if completed else [],
         "website": metadata.get("website", {}),
         "lastFeedback": answers[-1]["reciprocal"] if answers else "",
+        "stopReason": metadata.get("stopReason", ""),
+        "canGoDeeper": completed and len(answers) < normalize_budget(metadata.get("maxQuestionsHidden") or metadata.get("questionBudget")),
+    }
+
+
+async def continue_evaluation_deeper(
+    state: ConversationState,
+    metadata: dict[str, Any],
+    *,
+    provider: str,
+    model: str,
+    api_key: str | None,
+    retrieval_context: str = "",
+    needs_info: list[str] | None = None,
+    retrieval_gap: str = "",
+    source_conflict: str = "",
+) -> dict[str, Any]:
+    metadata.pop("naturalReportCache", None)
+    metadata.pop("currentQuestionSurfaceText", None)
+    metadata.pop("currentQuestionContextHint", None)
+    if len(metadata.get("answers", [])) >= normalize_budget(metadata.get("maxQuestionsHidden") or metadata.get("questionBudget")):
+        metadata["completed"] = True
+        metadata["stopReason"] = f"Stopped at the {normalize_budget(metadata.get('maxQuestionsHidden') or metadata.get('questionBudget'))}-question safety cap."
+        return {
+            "metadata": metadata,
+            "question": None,
+            "report": build_evaluation_report(metadata),
+            "answered": {"reciprocal": "There is no room for a deeper round because the safety cap is already reached."},
+        }
+
+    metadata["completed"] = False
+    metadata["completedAt"] = None
+    metadata["deeperRounds"] = int(metadata.get("deeperRounds", 0) or 0) + 1
+    metadata["deeperQuestionsRemaining"] = min(
+        DEEPER_QUESTION_BATCH,
+        normalize_budget(metadata.get("maxQuestionsHidden") or metadata.get("questionBudget")) - len(metadata.get("answers", [])),
+    )
+    metadata["stopReason"] = "Pressure-testing deeper."
+
+    next_question = select_next_question(state, metadata)
+    if next_question is None:
+        metadata["completed"] = True
+        metadata["completedAt"] = _now()
+        metadata["deeperQuestionsRemaining"] = 0
+        metadata["stopReason"] = "No higher-value follow-up questions remained."
+        return {
+            "metadata": metadata,
+            "question": None,
+            "report": build_evaluation_report(metadata),
+            "answered": {"reciprocal": "There are no higher-value follow-ups left. The report is already as tight as it should be."},
+        }
+
+    metadata.setdefault("askedQuestionIds", []).append(next_question["id"])
+    metadata["currentQuestionId"] = next_question["id"]
+    probe_intent = _question_probe_intent(next_question, state, metadata)
+    context_hint = _question_context_hint(next_question, state, metadata)
+    move_type = "move_to_next_gap"
+    phrased = await phrase_evaluator_turn(
+        provider=provider,
+        model=model,
+        api_key=api_key,
+        state=state,
+        metadata=metadata,
+        question=next_question,
+        probe_intent=probe_intent,
+        default_reciprocal="All right. Let's pressure-test the remaining edges.",
+        context_hint=context_hint,
+        opening_style="deeper",
+        retrieval_context=retrieval_context,
+        needs_info=needs_info,
+        retrieval_gap=retrieval_gap,
+        source_conflict=source_conflict,
+        move_type=move_type,
+    )
+    _remember_phrase_metadata(
+        metadata,
+        move_type=move_type,
+        reciprocal=phrased["reciprocal"],
+        question=phrased["question"],
+        probe_intent=probe_intent,
+        needs_info=needs_info,
+        retrieval_gap=retrieval_gap,
+        source_conflict=source_conflict,
+    )
+    metadata["nextProbeIntent"] = probe_intent
+    metadata["currentQuestionSurfaceText"] = phrased["question"]
+    metadata["currentQuestionContextHint"] = context_hint
+    return {
+        "metadata": metadata,
+        "question": public_question(next_question, state, metadata),
+        "report": build_evaluation_report(metadata),
+        "answered": {
+            "reciprocal": phrased["reciprocal"],
+            "questionLabel": "",
+        },
     }
 
 
@@ -1247,15 +2917,41 @@ async def evaluate_answer(
     model: str,
     api_key: str | None,
     upload_context: str = "",
+    retrieval_context: str = "",
+    needs_info: list[str] | None = None,
+    retrieval_gap: str = "",
+    source_conflict: str = "",
 ) -> dict[str, Any]:
+    metadata.pop("naturalReportCache", None)
+    metadata.pop("currentQuestionSurfaceText", None)
+    metadata.pop("currentQuestionContextHint", None)
     if not metadata.get("intakeComplete"):
         intake_bits = [metadata.get("setupContext", "").strip(), answer.strip()]
+        if upload_context.strip():
+            intake_bits.append(upload_context.strip())
         metadata["setupContext"] = "\n\n".join(bit for bit in intake_bits if bit).strip()
         metadata["intakeComplete"] = True
+        _refresh_intake_state(metadata)
+        ready, stop_reason = _report_readiness(metadata)
+        metadata["stopReason"] = stop_reason
+        if ready:
+            metadata["completed"] = True
+            metadata["completedAt"] = _now()
+            metadata["currentQuestionId"] = ""
+            metadata["nextProbeIntent"] = ""
+            return {
+                "metadata": metadata,
+                "question": None,
+                "report": build_evaluation_report(metadata),
+                "answered": {
+                    "reciprocal": "I already have enough to evaluate this directly.",
+                },
+            }
         first_question = select_next_question(state, metadata)
         if first_question is None:
             metadata["completed"] = True
             metadata["completedAt"] = _now()
+            metadata["stopReason"] = "There was enough evidence to evaluate without follow-up questions."
             return {
                 "metadata": metadata,
                 "question": None,
@@ -1266,13 +2962,47 @@ async def evaluate_answer(
             }
         metadata.setdefault("askedQuestionIds", []).append(first_question["id"])
         metadata["currentQuestionId"] = first_question["id"]
+        probe_intent = _question_probe_intent(first_question, state, metadata)
+        context_hint = _question_context_hint(first_question, state, metadata)
+        move_type = "move_to_next_gap"
+        phrased = await phrase_evaluator_turn(
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            state=state,
+            metadata=metadata,
+            question=first_question,
+            probe_intent=probe_intent,
+            default_reciprocal="Got it. I have enough context to pressure-test the weak spots.",
+            context_hint=context_hint,
+            latest_answer=answer.strip(),
+            opening_style="first_follow_up",
+            retrieval_context=retrieval_context,
+            needs_info=needs_info,
+            retrieval_gap=retrieval_gap,
+            source_conflict=source_conflict,
+            move_type=move_type,
+        )
+        _remember_phrase_metadata(
+            metadata,
+            move_type=move_type,
+            reciprocal=phrased["reciprocal"],
+            question=phrased["question"],
+            probe_intent=probe_intent,
+            needs_info=needs_info,
+            retrieval_gap=retrieval_gap,
+            source_conflict=source_conflict,
+        )
+        metadata["nextProbeIntent"] = probe_intent
+        metadata["currentQuestionSurfaceText"] = phrased["question"]
+        metadata["currentQuestionContextHint"] = context_hint
         return {
             "metadata": metadata,
             "question": public_question(first_question, state, metadata),
             "report": build_evaluation_report(metadata),
             "answered": {
-                "reciprocal": "Got it. That is enough context to dive in properly.",
-                "questionLabel": "First question",
+                "reciprocal": phrased["reciprocal"],
+                "questionLabel": "",
             },
         }
 
@@ -1283,6 +3013,7 @@ async def evaluate_answer(
         if question is None:
             metadata["completed"] = True
             metadata["completedAt"] = _now()
+            metadata["nextProbeIntent"] = ""
             return {
                 "metadata": metadata,
                 "question": None,
@@ -1296,6 +3027,34 @@ async def evaluate_answer(
     metadata.pop("clarifyingQuestion", None)
     answer_text = " ".join(bit for bit in [pending_prefix, answer.strip()] if bit).strip()
 
+    if _is_clarification_request(answer_text):
+        clarify_question = {
+            "id": f"{question['id']}:clarify",
+            "text": _clarified_question_text(question, state),
+            "category": question["category"],
+            "weightTier": question["weightTier"],
+        }
+        metadata["clarifyingQuestion"] = clarify_question
+        _remember_phrase_metadata(
+            metadata,
+            move_type="clarify_same_point",
+            reciprocal="Sure. Let me restate that more simply.",
+            question=clarify_question["text"],
+            probe_intent="restate the same question in simpler language",
+            needs_info=needs_info,
+            retrieval_gap=retrieval_gap,
+            source_conflict=source_conflict,
+        )
+        return {
+            "metadata": metadata,
+            "answered": {
+                "reciprocal": "Sure. Let me restate that more simply.",
+                "questionLabel": "Same question",
+            },
+            "question": public_question(clarify_question, state, metadata),
+            "report": build_evaluation_report(metadata),
+        }
+
     if _is_brief_answer(answer_text):
         follow_up = {
             "id": f"{question['id']}:followup",
@@ -1305,6 +3064,16 @@ async def evaluate_answer(
         }
         metadata["pendingAnswerPrefix"] = answer_text
         metadata["clarifyingQuestion"] = follow_up
+        _remember_phrase_metadata(
+            metadata,
+            move_type="clarify_same_point",
+            reciprocal="Got it, but I need one more specific line before I move on.",
+            question=follow_up["text"],
+            probe_intent="stay on the same lens and ask for one more concrete line",
+            needs_info=needs_info,
+            retrieval_gap=retrieval_gap,
+            source_conflict=source_conflict,
+        )
         return {
             "metadata": metadata,
             "answered": {
@@ -1318,7 +3087,7 @@ async def evaluate_answer(
     combined_scores = _deterministic_scores(question, answer_text, answers)
     overall_score = _question_overall_score(combined_scores, question)
 
-    reciprocal = _coach_line_for_scores(combined_scores, state)
+    reciprocal = _coach_line_for_scores(combined_scores, state, question, answers)
     why = _why_for_scores(combined_scores)
     suggestions = _suggestions_for_scores(combined_scores, question)
     contradictions = _detect_contradictions(answer_text, answers)
@@ -1346,11 +3115,31 @@ async def evaluate_answer(
     answers.append(answered)
     _update_belief_state(metadata, question, combined_scores, contradictions)
 
-    budget = normalize_budget(metadata.get("questionBudget"))
+    if metadata.get("deeperQuestionsRemaining", 0) > 0:
+        metadata["deeperQuestionsRemaining"] = max(int(metadata.get("deeperQuestionsRemaining", 0)) - 1, 0)
+
+    ready, stop_reason = _report_readiness(metadata)
+    metadata["stopReason"] = stop_reason
+    budget = normalize_budget(metadata.get("maxQuestionsHidden") or metadata.get("questionBudget"))
     if len(answers) >= budget:
         metadata["completed"] = True
         metadata["completedAt"] = _now()
         metadata["currentQuestionId"] = ""
+        metadata["nextProbeIntent"] = ""
+        metadata["deeperQuestionsRemaining"] = 0
+        report = build_evaluation_report(metadata)
+        return {
+            "metadata": metadata,
+            "answered": answered,
+            "question": None,
+            "report": report,
+        }
+
+    if ready and metadata.get("deeperQuestionsRemaining", 0) <= 0:
+        metadata["completed"] = True
+        metadata["completedAt"] = _now()
+        metadata["currentQuestionId"] = ""
+        metadata["nextProbeIntent"] = ""
         report = build_evaluation_report(metadata)
         return {
             "metadata": metadata,
@@ -1364,6 +3153,8 @@ async def evaluate_answer(
         metadata["completed"] = True
         metadata["completedAt"] = _now()
         metadata["currentQuestionId"] = ""
+        metadata["nextProbeIntent"] = ""
+        metadata["deeperQuestionsRemaining"] = 0
         report = build_evaluation_report(metadata)
         return {
             "metadata": metadata,
@@ -1374,6 +3165,40 @@ async def evaluate_answer(
 
     metadata.setdefault("askedQuestionIds", []).append(next_question["id"])
     metadata["currentQuestionId"] = next_question["id"]
+    probe_intent = _probe_intent_for_question(combined_scores, next_question, state)
+    context_hint = _question_context_hint(next_question, state, metadata)
+    move_type = probe_intent
+    phrased = await phrase_evaluator_turn(
+        provider=provider,
+        model=model,
+        api_key=api_key,
+        state=state,
+        metadata=metadata,
+        question=next_question,
+        probe_intent=probe_intent,
+        default_reciprocal=reciprocal.strip(),
+        context_hint=context_hint,
+        latest_answer=answer_text,
+        retrieval_context=retrieval_context,
+        needs_info=needs_info,
+        retrieval_gap=retrieval_gap,
+        source_conflict=source_conflict,
+        move_type=move_type,
+    )
+    answered["reciprocal"] = phrased["reciprocal"].strip()
+    _remember_phrase_metadata(
+        metadata,
+        move_type=move_type,
+        reciprocal=phrased["reciprocal"],
+        question=phrased["question"],
+        probe_intent=probe_intent,
+        needs_info=needs_info,
+        retrieval_gap=retrieval_gap,
+        source_conflict=source_conflict,
+    )
+    metadata["nextProbeIntent"] = probe_intent
+    metadata["currentQuestionSurfaceText"] = phrased["question"]
+    metadata["currentQuestionContextHint"] = context_hint
     report = build_evaluation_report(metadata)
     return {
         "metadata": metadata,

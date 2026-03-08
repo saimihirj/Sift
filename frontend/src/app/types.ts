@@ -30,7 +30,6 @@ export type SetupDraft = {
   setupContext: string;
   sessionType: SessionType;
   mode: Mode;
-  questionBudget: 10 | 15 | 20;
 };
 
 export type ChatTurn = {
@@ -89,6 +88,16 @@ export type DimensionScore = {
   score: number;
 };
 
+export type LensAssessment = {
+  key: string;
+  label: string;
+  status: string;
+  score: number;
+  why: string;
+  evidence: string[];
+  improvement: string;
+};
+
 export type QuestionScore = {
   questionId: string;
   question: string;
@@ -101,6 +110,8 @@ export type QuestionScore = {
 export type EvaluationProgress = {
   questionBudget: number;
   answeredQuestions: number;
+  questionsAsked: number;
+  maxQuestions: number;
   completed: boolean;
   partial: boolean;
   currentQuestion: EvaluationQuestion | null;
@@ -108,6 +119,8 @@ export type EvaluationProgress = {
   dimensionScores: DimensionScore[];
   website: Record<string, unknown>;
   lastFeedback: string;
+  stopReason: string;
+  canGoDeeper: boolean;
 };
 
 export type EvaluationReport = {
@@ -120,6 +133,13 @@ export type EvaluationReport = {
   suggestions: string[];
   questions: QuestionScore[];
   summary: string;
+  verdict: string;
+  confidence: number;
+  stopReason: string;
+  coreLenses: LensAssessment[];
+  supportingLenses: LensAssessment[];
+  missingEvidence: string[];
+  nextExperiments: string[];
 };
 
 export type ProviderOption = {

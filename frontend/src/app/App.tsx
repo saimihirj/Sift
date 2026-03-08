@@ -21,17 +21,20 @@ import { SetupWizard } from "../features/onboarding/SetupWizard";
 import { OutlineScreen } from "../features/outline/OutlineScreen";
 import { saveSessionCredential } from "../lib/sessionCredentials";
 
+declare const __APP_BUILD__: string;
+
 const SESSION_STORAGE_KEY = "signal-session-id";
 const LEGACY_SESSION_STORAGE_KEY = "vishwakarma-session-id";
 const LEGACY_DISPLAY_NAME_STORAGE_KEY = "vishwakarma-display-name";
 const THEME_STORAGE_KEY = "vishwakarma-theme";
 const CLIENT_STORAGE_KEY = "vishwakarma-client-id";
+const APP_BUILD_STORAGE_KEY = "signal-app-build";
 const DEFAULT_AUTH_PROVIDERS: AuthProviderOption[] = [
   { key: "google", label: "Google", configured: false },
   { key: "apple", label: "Apple", configured: false },
 ];
 const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
-  { key: "ollama", label: "Ollama", requiresApiKey: false, defaultSpeedModel: "llama3.2:latest", defaultBalancedModel: "qwen3:4b" },
+  { key: "ollama", label: "Ollama", requiresApiKey: false, defaultSpeedModel: "llama3.2:latest", defaultBalancedModel: "qwen3:8b" },
   { key: "cerebras", label: "Cerebras", requiresApiKey: true, defaultSpeedModel: "llama3.1-8b", defaultBalancedModel: "gpt-oss-120b" },
   { key: "groq", label: "Groq", requiresApiKey: true, defaultSpeedModel: "llama-3.1-8b-instant", defaultBalancedModel: "llama-3.3-70b-versatile" },
   { key: "openai", label: "OpenAI", requiresApiKey: true, defaultSpeedModel: "gpt-4o-mini", defaultBalancedModel: "gpt-4.1" },
@@ -51,7 +54,6 @@ const DEFAULT_SETUP_DRAFT: SetupDraft = {
   setupContext: "",
   sessionType: "mentor",
   mode: "think_it_through",
-  questionBudget: 15,
 };
 const LAST_SETUP_STEP = 2;
 
@@ -98,6 +100,21 @@ function clearStoredSessionId(): void {
   sessionStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
 }
 
+function applyBuildResetIfNeeded(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const currentBuild = __APP_BUILD__ || "dev";
+  const lastBuild = localStorage.getItem(APP_BUILD_STORAGE_KEY);
+  if (lastBuild === currentBuild) {
+    return false;
+  }
+  clearStoredSessionId();
+  localStorage.removeItem(LEGACY_DISPLAY_NAME_STORAGE_KEY);
+  localStorage.setItem(APP_BUILD_STORAGE_KEY, currentBuild);
+  return true;
+}
+
 function AppBody() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -119,6 +136,17 @@ function AppBody() {
   const [authError, setAuthError] = useState("");
   const [adminEnabled, setAdminEnabled] = useState(false);
   const effectiveClientId = authUser?.clientId || anonymousClientId;
+
+  useEffect(() => {
+    const resetApplied = applyBuildResetIfNeeded();
+    if (resetApplied) {
+      setSession(null);
+      setLoadingSession(false);
+      if (location.pathname !== "/admin") {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [location.pathname, navigate]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -250,6 +278,10 @@ function AppBody() {
     void listSessions(effectiveClientId)
       .then((response) => setRecentSessions(response.sessions))
       .catch(() => undefined);
+    if (payload.sessionType === "evaluator" && payload.evaluationProgress?.completed) {
+      navigate(`/evaluate/${payload.sessionId}/report`);
+      return;
+    }
     navigate("/");
   };
 
@@ -271,7 +303,6 @@ function AppBody() {
     provider: string;
     model: string;
     apiKey: string;
-    questionBudget: 10 | 15 | 20;
     websiteUrl: string;
     setupContext: string;
   }) => {
@@ -286,9 +317,9 @@ function AppBody() {
         stage: payload.stage,
         mode: payload.mode,
         sessionType: payload.sessionType,
-        questionBudget: payload.sessionType === "evaluator" ? payload.questionBudget : undefined,
         provider: payload.provider,
         model: payload.model,
+        apiKey: payload.apiKey.trim(),
         websiteUrl: payload.websiteUrl,
         setupContext: payload.setupContext,
         clientId: effectiveClientId,
@@ -430,6 +461,7 @@ function AppBody() {
             theme={theme}
             onThemeChange={setTheme}
             onExitSession={handleExitSession}
+            onResumeSession={handleOpenSession}
           />
         }
       />

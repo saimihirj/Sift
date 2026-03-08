@@ -8,6 +8,7 @@ type Props = {
   model: string;
   apiKey: string;
   responseProfile: ResponseProfile;
+  onResponseProfileChange?: (profile: ResponseProfile) => void;
   applying: boolean;
   onClose: () => void;
   onProviderChange: (provider: string) => void;
@@ -25,6 +26,7 @@ export function RuntimeSidebar({
   model,
   apiKey,
   responseProfile,
+  onResponseProfileChange,
   applying,
   onClose,
   onProviderChange,
@@ -35,6 +37,14 @@ export function RuntimeSidebar({
 }: Props) {
   const selectedProvider = providerOptions.find((item) => item.key === provider) ?? providerOptions[0] ?? null;
   const requiresApiKey = Boolean(selectedProvider?.requiresApiKey);
+  const profileLabel = responseProfile === "speed" ? "Fast" : "Sharper";
+  const modelValue = model.trim();
+  const isCustomModel = Boolean(
+    selectedProvider
+      && modelValue
+      && modelValue !== selectedProvider.defaultSpeedModel
+      && modelValue !== selectedProvider.defaultBalancedModel,
+  );
 
   return (
     <div className={isOpen ? "floating-panel is-open align-right" : "floating-panel align-right"} aria-hidden={!isOpen}>
@@ -49,6 +59,24 @@ export function RuntimeSidebar({
             Close
           </button>
         </div>
+
+        {onResponseProfileChange ? (
+          <div className="identity-field">
+            <span className="rail-label">Quality mode</span>
+            <div className="segmented runtime-segmented">
+              {(["speed", "balanced"] as ResponseProfile[]).map((profile) => (
+                <button
+                  key={profile}
+                  type="button"
+                  className={responseProfile === profile ? "segment active" : "segment"}
+                  onClick={() => onResponseProfileChange(profile)}
+                >
+                  {profile === "speed" ? "Fast" : "Sharper"}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         <div className="identity-field">
           <span className="rail-label">Provider</span>
@@ -74,14 +102,15 @@ export function RuntimeSidebar({
             onChange={(event) => onModelChange(event.target.value)}
             placeholder={selectedProvider?.defaultSpeedModel || "Enter a model id"}
           />
+          {isCustomModel ? <small className="muted-copy">Custom model</small> : null}
         </label>
 
         <div className="runtime-chip-row">
           <button type="button" className="ghost-button compact" onClick={() => onUseDefaultModel("speed")}>
-            Use speed default
+            Use Fast default
           </button>
           <button type="button" className="ghost-button compact" onClick={() => onUseDefaultModel("balanced")}>
-            Use balanced default
+            Use Sharper default
           </button>
         </div>
 
@@ -100,7 +129,7 @@ export function RuntimeSidebar({
         <p className="muted-copy">
           {requiresApiKey
             ? "The key stays only in this browser session. Provider and model are saved for the session."
-            : `Current quality mode stays on ${responseProfile}. Local Ollama remains key-free.`}
+            : `Current quality mode is ${profileLabel}. Local Ollama remains key-free.`}
         </p>
 
         <div className="floating-actions">

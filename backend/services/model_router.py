@@ -53,7 +53,7 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         base_url=OLLAMA_BASE_URL,
         env_api_key_var=None,
         default_speed_model=os.environ.get("OLLAMA_MODEL_SPEED", "llama3.2:latest"),
-        default_balanced_model=os.environ.get("OLLAMA_MODEL_BALANCED", "qwen3:4b"),
+        default_balanced_model=os.environ.get("OLLAMA_MODEL_BALANCED", "qwen3:8b"),
         requires_api_key=False,
     ),
     "cerebras": ProviderConfig(
@@ -126,22 +126,22 @@ OLLAMA_MODEL_PROFILES = {
         timeout_seconds=_env_float("OLLAMA_TIMEOUT_SPEED", 30.0),
         options={
             "num_ctx": 8192,
-            "temperature": 0.7,
+            "temperature": 0.72,
             "top_p": 0.9,
-            "repeat_penalty": 1.12,
-            "num_predict": 120,
+            "repeat_penalty": 1.06,
+            "num_predict": 150,
         },
     ),
     "balanced": ModelProfileConfig(
         key="balanced",
         model=PROVIDER_CONFIGS["ollama"].default_balanced_model,
-        timeout_seconds=_env_float("OLLAMA_TIMEOUT_BALANCED", 45.0),
+        timeout_seconds=_env_float("OLLAMA_TIMEOUT_BALANCED", 50.0),
         options={
             "num_ctx": 8192,
-            "temperature": 0.7,
+            "temperature": 0.74,
             "top_p": 0.9,
-            "repeat_penalty": 1.12,
-            "num_predict": 140,
+            "repeat_penalty": 1.05,
+            "num_predict": 220,
         },
     ),
 }
@@ -214,13 +214,13 @@ def _profile_config_for_provider(
     chosen_model = model_override.strip() or default_model_for_provider(normalized_provider, profile)
 
     if normalized_provider == "ollama":
-        timeout_seconds = _env_float("OLLAMA_TIMEOUT_SPEED", 30.0) if profile == "speed" else _env_float("OLLAMA_TIMEOUT_BALANCED", 45.0)
+        timeout_seconds = _env_float("OLLAMA_TIMEOUT_SPEED", 30.0) if profile == "speed" else _env_float("OLLAMA_TIMEOUT_BALANCED", 50.0)
         options = {
             "num_ctx": 8192,
-            "temperature": 0.7,
+            "temperature": 0.72 if profile == "speed" else 0.74,
             "top_p": 0.9,
-            "repeat_penalty": 1.12,
-            "num_predict": 120 if profile == "speed" else 140,
+            "repeat_penalty": 1.06 if profile == "speed" else 1.05,
+            "num_predict": 150 if profile == "speed" else 220,
         }
         return ModelProfileConfig(key=profile, model=chosen_model, timeout_seconds=timeout_seconds, options=options)
 

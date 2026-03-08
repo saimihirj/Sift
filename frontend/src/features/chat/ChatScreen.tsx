@@ -11,7 +11,6 @@ import type {
   ThemeMode,
   UploadSummary,
 } from "../../app/types";
-import { SignalLockup } from "../../app/SignalBrand";
 import { ThemePicker } from "../../app/ThemePicker";
 import { streamChat, updateSessionRuntime } from "../../lib/api/client";
 import { loadSessionCredential, saveSessionCredential } from "../../lib/sessionCredentials";
@@ -112,6 +111,10 @@ function defaultModelForProvider(providerOptions: ProviderOption[], provider: st
   return profile === "balanced" ? providerMeta.defaultBalancedModel : providerMeta.defaultSpeedModel;
 }
 
+function profileLabel(profile: ResponseProfile): string {
+  return profile === "balanced" ? "Sharper" : "Fast";
+}
+
 export function ChatScreen({
   session,
   setSession,
@@ -130,9 +133,12 @@ export function ChatScreen({
   const [streamingAssistant, setStreamingAssistant] = useState("");
   const [pending, setPending] = useState(false);
   const [mobilePane, setMobilePane] = useState<MobilePane>("chat");
-  const [statusLine, setStatusLine] = useState("Local-first ideation");
+  const [statusLine, setStatusLine] = useState("");
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [runtimeOpen, setRuntimeOpen] = useState(false);
+  const [progressOpen, setProgressOpen] = useState(false);
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
   const [applyingRuntime, setApplyingRuntime] = useState(false);
   const [runtimeProvider, setRuntimeProvider] = useState<SessionPayload["provider"]>(session.provider);
   const [runtimeModel, setRuntimeModel] = useState(session.model);
@@ -144,6 +150,9 @@ export function ChatScreen({
     setRuntimeApiKey(loadSessionCredential(session.sessionId)?.apiKey ?? "");
     setSessionsOpen(false);
     setRuntimeOpen(false);
+    setProgressOpen(false);
+    setFilesOpen(false);
+    setThemeOpen(false);
   }, [session.sessionId, session.provider, session.model]);
 
   const selectedProvider = useMemo(
@@ -171,6 +180,13 @@ export function ChatScreen({
     () => promptHelper(session.state.founder_type, session.nextGap),
     [session.state.founder_type, session.nextGap],
   );
+  const coverageCompactSections = useMemo(() => coverageSections.slice(0, 8), [coverageSections]);
+  const visibleChips = useMemo(() => {
+    if (session.history.length <= 3) {
+      return session.chips;
+    }
+    return session.chips.slice(0, 3);
+  }, [session.chips, session.history.length]);
 
   const applyRuntime = async () => {
     if (!runtimeProvider) {
@@ -261,7 +277,7 @@ export function ChatScreen({
               provider: provider as SessionPayload["provider"],
               model,
             }));
-            setStatusLine(fallbackUsed ? `${provider} fell back to ${model}` : `${profile.toUpperCase()} · ${provider} · ${model}`);
+            setStatusLine(fallbackUsed ? `${provider} fell back to ${model}` : `${profileLabel(profile)} · ${provider} · ${model}`);
           },
           onDelta: (delta) => {
             setStreamingAssistant((current) => current + delta);
@@ -292,7 +308,7 @@ export function ChatScreen({
             }
             if (timings?.firstTokenSeconds !== undefined) {
               setStatusLine(
-                `${((data.responseProfile as ResponseProfile) ?? session.responseProfile).toUpperCase()} · first token ${timings.firstTokenSeconds}s`,
+                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s`,
               );
             }
             setStreamingAssistant("");
@@ -317,87 +333,14 @@ export function ChatScreen({
   };
 
   return (
-    <div className="app-shell">
-      <aside className="left-rail">
-        <div>
-          <SignalLockup compact className="workspace-lockup" />
-
-          <div className="rail-card">
-            <span className="rail-label">Response profile</span>
-            <div className="segmented">
-              {(["speed", "balanced"] as ResponseProfile[]).map((profile) => (
-                <button
-                  key={profile}
-                  type="button"
-                  className={session.responseProfile === profile ? "segment active" : "segment"}
-                  onClick={() => {
-                    setSession((previous) => ({ ...previous, responseProfile: profile }));
-                    setRuntimeModel((current) => current || defaultModelForProvider(providerOptions, runtimeProvider, profile));
-                  }}
-                >
-                  {profile === "speed" ? "Speed" : "Balanced"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rail-card">
-            <span className="rail-label">Session</span>
-            <dl className="meta-list">
-              <div>
-                <dt>Mode</dt>
-                <dd>{session.state.mode.replace(/_/g, " ")}</dd>
-              </div>
-              <div>
-                <dt>Stage</dt>
-                <dd>{session.state.stage}</dd>
-              </div>
-              <div>
-                <dt>Coverage</dt>
-                <dd>{Math.round(coverageSummary)}%</dd>
-              </div>
-              <div>
-                <dt>Next gap</dt>
-                <dd>{nextGapMeta.title}</dd>
-              </div>
-              <div>
-                <dt>Runtime</dt>
-                <dd>{session.provider}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-
-        <div className="rail-footer">
-          <ThemePicker theme={theme} onChange={onThemeChange} />
-          <div className="rail-action-grid">
-            <button type="button" className="ghost-button" onClick={() => setSessionsOpen(true)}>
-              Sessions
-            </button>
-            <button type="button" className="ghost-button" onClick={() => setRuntimeOpen(true)}>
-              Runtime
-            </button>
-            <button type="button" className="ghost-button" onClick={onNewSession}>
-              New session
-            </button>
-            <button type="button" className="ghost-button" onClick={() => navigate(`/outline/${session.sessionId}`)}>
-              Outline
-            </button>
-          </div>
-          <button type="button" className="ghost-button rail-action-wide" onClick={onExitSession}>
-            Exit session
-          </button>
-        </div>
-      </aside>
-
+    <div className="app-shell compact-workspace-shell">
       <main className={mobilePane === "chat" ? "main-pane mobile-chat" : "main-pane mobile-coverage"}>
         <header className="pane-header">
           <div>
-            <span className="eyebrow">Cut Through The Noise.</span>
+            <span className="eyebrow">Ideate</span>
             <h2>{session.state.company_name || "Ideate"}</h2>
           </div>
           <div className="status-stack">
-            <span>{statusLine}</span>
             <div className="header-actions">
               <button type="button" className="ghost-button compact" onClick={() => setSessionsOpen(true)}>
                 Sessions
@@ -405,26 +348,37 @@ export function ChatScreen({
               <button type="button" className="ghost-button compact" onClick={() => setRuntimeOpen(true)}>
                 Runtime
               </button>
+              <button type="button" className="ghost-button compact" onClick={() => setProgressOpen(true)}>
+                Progress
+              </button>
+              <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
+                Theme
+              </button>
+              {session.activeUploads.length > 0 ? (
+                <button type="button" className="ghost-button compact" onClick={() => setFilesOpen(true)}>
+                  Files
+                </button>
+              ) : null}
               <button type="button" className="ghost-button compact" onClick={onNewSession}>
                 New
               </button>
               <button type="button" className="ghost-button compact" onClick={() => navigate(`/outline/${session.sessionId}`)}>
-                Outline
+                Pitch
               </button>
               <button type="button" className="ghost-button compact" onClick={onExitSession}>
                 Exit
               </button>
             </div>
-            {session.activeUploads.length > 0 && <small>{session.activeUploads.length} active uploads</small>}
+            <small>{statusLine || (session.activeUploads.length > 0 ? `${session.activeUploads.length} file${session.activeUploads.length > 1 ? "s" : ""} in context` : "")}</small>
           </div>
         </header>
 
         {mobilePane === "chat" ? (
           <div className="chat-panel">
             <ChatMessageList history={session.history} streamingAssistant={streamingAssistant} assistantLabel="Ideate" />
-            {starterHelper ? <div className="prompt-helper">{starterHelper}</div> : null}
+            {starterHelper && session.history.length <= 3 ? <div className="prompt-helper">{starterHelper}</div> : null}
             <div className="chip-row">
-              {session.chips.map((chip) => (
+              {visibleChips.map((chip) => (
                 <button key={chip} type="button" className="chip-button" onClick={() => void submit(chip)} disabled={pending}>
                   {chip}
                 </button>
@@ -484,48 +438,6 @@ export function ChatScreen({
         )}
       </main>
 
-      <aside className="right-drawer">
-        <div className="drawer-card">
-          <span className="rail-label">Deck progress</span>
-          <div className="focus-card">
-            <span className="focus-tag">Next focus</span>
-            <strong>{nextGapMeta.title}</strong>
-            <p>{nextGapMeta.hint}</p>
-          </div>
-          <div className="coverage-list">
-            {coverageSections.map((item) => (
-              <div key={item.section} className="coverage-item deck-item">
-                <div className="coverage-head">
-                  <strong>{item.meta.title}</strong>
-                  <span>{item.status}</span>
-                </div>
-                <small className="deck-hint">{item.meta.hint}</small>
-                <div className="coverage-bar">
-                  <div style={{ width: `${item.score}%` }} />
-                </div>
-                <small>{item.score}% covered</small>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="drawer-card">
-          <span className="rail-label">Files in context</span>
-          {session.activeUploads.length === 0 ? (
-            <p className="muted-copy">Attach a deck, notes, or research. Only the relevant parts will be used.</p>
-          ) : (
-            <ul className="upload-list">
-              {session.activeUploads.map((upload) => (
-                <li key={`${upload.name}-${upload.uploadedAt}`}>
-                  <strong>{upload.name}</strong>
-                  <span>{upload.docType}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </aside>
-
       <SessionSidebar
         isOpen={sessionsOpen}
         sessions={recentSessions}
@@ -554,8 +466,124 @@ export function ChatScreen({
         onModelChange={setRuntimeModel}
         onApiKeyChange={setRuntimeApiKey}
         onUseDefaultModel={(profile) => setRuntimeModel(defaultModelForProvider(providerOptions, runtimeProvider, profile))}
+        onResponseProfileChange={(profile) => {
+          setSession((previous) => ({ ...previous, responseProfile: profile }));
+          setRuntimeModel(defaultModelForProvider(providerOptions, runtimeProvider, profile));
+        }}
         onApply={() => void applyRuntime()}
       />
+
+      <div className={progressOpen ? "floating-panel is-open align-right" : "floating-panel align-right"} aria-hidden={!progressOpen}>
+        <button type="button" className={progressOpen ? "floating-backdrop is-open" : "floating-backdrop"} onClick={() => setProgressOpen(false)} aria-label="Close progress" />
+        <aside className={progressOpen ? "floating-card runtime-card is-open" : "floating-card runtime-card"}>
+          <div className="floating-head">
+            <div>
+              <span className="rail-label">Progress</span>
+              <strong>Pitch map</strong>
+            </div>
+            <button type="button" className="ghost-button compact" onClick={() => setProgressOpen(false)}>
+              Close
+            </button>
+          </div>
+          <div className="floating-scroll">
+            <div className="drawer-card">
+              <span className="rail-label">Current read</span>
+              <div className="compact-session-grid">
+                <div className="compact-session-pill">
+                  <span>Mode</span>
+                  <strong>{session.state.mode === "think_it_through" ? "Ideate" : "Pressure-test"}</strong>
+                </div>
+                <div className="compact-session-pill">
+                  <span>Stage</span>
+                  <strong>{session.state.stage}</strong>
+                </div>
+                <div className="compact-session-pill">
+                  <span>Coverage</span>
+                  <strong>{Math.round(coverageSummary)}%</strong>
+                </div>
+                <div className="compact-session-pill">
+                  <span>Engine</span>
+                  <strong>{session.provider}</strong>
+                </div>
+              </div>
+              <div className="focus-card compact-focus-card">
+                <span className="focus-tag">Current strongest output</span>
+                <strong>Ideate stays two-way. Open the refined pitch whenever you want a cleaner working draft.</strong>
+                <p>Nothing stops the conversation. The pitch doc simply reflects the current thread.</p>
+              </div>
+              <button type="button" className="ghost-button compact full-width-button" onClick={() => navigate(`/outline/${session.sessionId}`)}>
+                Open refined pitch
+              </button>
+            </div>
+            <div className="drawer-card">
+              <div className="working-map-head">
+                <div>
+                  <span className="rail-label">Working map</span>
+                  <strong>{nextGapMeta.title}</strong>
+                </div>
+                <small>{nextGapMeta.hint}</small>
+              </div>
+              <div className="compact-coverage-grid ideate-coverage-grid">
+                {coverageCompactSections.map((item) => (
+                  <div key={item.section} className="coverage-item deck-item compact-deck-item">
+                    <div className="coverage-head">
+                      <strong>{item.meta.title}</strong>
+                      <span>{item.score}%</span>
+                    </div>
+                    <div className="coverage-bar">
+                      <div style={{ width: `${item.score}%` }} />
+                    </div>
+                    <small>{item.status}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div className={filesOpen ? "floating-panel is-open align-right" : "floating-panel align-right"} aria-hidden={!filesOpen}>
+        <button type="button" className={filesOpen ? "floating-backdrop is-open" : "floating-backdrop"} onClick={() => setFilesOpen(false)} aria-label="Close files" />
+        <aside className={filesOpen ? "floating-card runtime-card is-open" : "floating-card runtime-card"}>
+          <div className="floating-head">
+            <div>
+              <span className="rail-label">Files</span>
+              <strong>Context in use</strong>
+            </div>
+            <button type="button" className="ghost-button compact" onClick={() => setFilesOpen(false)}>
+              Close
+            </button>
+          </div>
+          {session.activeUploads.length === 0 ? (
+            <p className="muted-copy">No files are active in this session yet.</p>
+          ) : (
+            <ul className="upload-list floating-scroll">
+              {session.activeUploads.map((upload) => (
+                <li key={`${upload.name}-${upload.uploadedAt}`}>
+                  <strong>{upload.name}</strong>
+                  <span>{upload.docType}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </aside>
+      </div>
+
+      <div className={themeOpen ? "floating-panel is-open align-right" : "floating-panel align-right"} aria-hidden={!themeOpen}>
+        <button type="button" className={themeOpen ? "floating-backdrop is-open" : "floating-backdrop"} onClick={() => setThemeOpen(false)} aria-label="Close theme" />
+        <aside className={themeOpen ? "floating-card is-open theme-card" : "floating-card theme-card"}>
+          <div className="floating-head">
+            <div>
+              <span className="rail-label">Theme</span>
+              <strong>Display</strong>
+            </div>
+            <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(false)}>
+              Close
+            </button>
+          </div>
+          <ThemePicker theme={theme} onChange={onThemeChange} />
+        </aside>
+      </div>
 
       <nav className="mobile-nav">
         <button
@@ -573,7 +601,7 @@ export function ChatScreen({
           Coverage
         </button>
         <button type="button" className="mobile-tab" onClick={() => navigate(`/outline/${session.sessionId}`)}>
-          Outline
+          Pitch
         </button>
       </nav>
     </div>

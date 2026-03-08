@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -20,14 +21,22 @@ from backend.schemas import (
 from backend.services.evaluator import (
     build_evaluation_report,
     initial_evaluation_metadata,
+    naturalize_evaluation_report,
     normalize_budget,
     normalize_session_type,
+    phrase_evaluator_turn,
+    _question_context_hint,
+    _question_probe_intent,
+    _refresh_intake_state,
+    _report_readiness,
+    present_evaluation_report,
     public_question,
     public_progress,
     select_next_question,
 )
 from backend.services.model_router import default_model_for_provider, normalize_provider, provider_catalog
 from backend.services.prompting import DEFAULT_RESPONSE_PROFILE, build_personalized_opening, get_chip_suggestions
+from backend.services.retrieval import infer_retrieval_needs
 from backend.services.state_engine import coverage_items, last_assistant_message, next_gap
 from backend.services.uploads import list_active_uploads
 from backend.services.website_fetch import fetch_website_context
@@ -137,25 +146,68 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
             model=model,
             setup_context=payload.setupContext,
             website=website_result,
+            founder_type=payload.founderType,
+            sector=payload.sector,
+            stage=payload.stage,
+            mode=payload.mode,
         )
         has_starting_context = bool((payload.setupContext or "").strip() or website_result.get("text", "").strip())
-        evaluator_style = "guided build" if payload.mode == "think_it_through" else "tight review"
         if has_starting_context:
             metadata["intakeComplete"] = True
-            first_question = select_next_question(state, metadata)
-            if first_question is None:
-                raise HTTPException(status_code=500, detail="Failed to initialize evaluator questions")
-            metadata["askedQuestionIds"].append(first_question["id"])
-            metadata["currentQuestionId"] = first_question["id"]
-            first_public_question = public_question(first_question, state, metadata)
-            context_hint = first_public_question.get("contextHint", "").strip()
-            hint_block = f"{context_hint}\n\n" if context_hint else ""
-            opening = (
-                f"I've got enough context to dive in. We’ll keep this {evaluator_style} and adaptive.\n\n"
-                f"{hint_block}First question: {first_public_question['text']}"
-            )
+            _refresh_intake_state(metadata)
+            ready, stop_reason = _report_readiness(metadata)
+            metadata["stopReason"] = stop_reason
+            if ready:
+                metadata["completed"] = True
+                metadata["completedAt"] = datetime.now(timezone.utc).isoformat()
+                opening = "I've got enough context to evaluate this directly. Let me build the report."
+            else:
+                first_question = select_next_question(state, metadata)
+                if first_question is None:
+                    raise HTTPException(status_code=500, detail="Failed to initialize evaluator questions")
+                metadata["askedQuestionIds"].append(first_question["id"])
+                metadata["currentQuestionId"] = first_question["id"]
+                probe_intent = _question_probe_intent(first_question, state, metadata)
+                context_hint = _question_context_hint(first_question, state, metadata)
+                intake_context = "\n\n".join(
+                    bit
+                    for bit in [
+                        payload.setupContext.strip(),
+                        website_result.get("text", "").strip(),
+                    ]
+                    if bit
+                )[:900]
+                needs_info = infer_retrieval_needs(intake_context or first_question["text"], state)
+                phrased = await phrase_evaluator_turn(
+                    provider=provider,
+                    model=model,
+                    api_key=payload.apiKey or None,
+                    state=state,
+                    metadata=metadata,
+                    question=first_question,
+                    probe_intent=probe_intent,
+                    default_reciprocal="I've got enough context to pressure-test the weak spots.",
+                    context_hint=context_hint,
+                    latest_answer=payload.setupContext,
+                    opening_style="first_follow_up",
+                    retrieval_context=intake_context,
+                    needs_info=needs_info,
+                    move_type="move_to_next_gap",
+                )
+                metadata["nextProbeIntent"] = probe_intent
+                metadata["currentQuestionSurfaceText"] = phrased["question"]
+                metadata["currentQuestionContextHint"] = context_hint
+                metadata["conversationMove"] = probe_intent
+                metadata["needsInfo"] = needs_info
+                metadata["retrievalGap"] = ""
+                metadata["sourceConflict"] = ""
+                metadata["lastQuestionStem"] = " ".join(phrased["question"].split()[:6])
+                metadata["lastMoveType"] = "move_to_next_gap"
+                metadata["lastReflectionUsed"] = " ".join(phrased["reciprocal"].split()[:6])
+                first_public_question = public_question(first_question, state, metadata)
+                opening = f"{phrased['reciprocal']}\n\n{first_public_question['text']}"
         else:
-            opening = "Hi. What are you building? Give me the problem, who it is for, and anything you already know."
+            opening = "Hi. What are you building? Paste the pitch, deck notes, or URL. Half-baked answers are fine. I'll only ask what is missing."
     else:
         metadata = {}
         opening = build_personalized_opening(state.founder_type, state.sector, state.stage)
@@ -195,7 +247,7 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
             "mode": payload.mode,
             "provider": provider,
             "model": model,
-            "questionBudget": question_budget,
+            "questionBudget": question_budget if session_type == "evaluator" else None,
         },
     )
     if session_type == "evaluator":
@@ -221,8 +273,18 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
                 metadata={"url": payload.websiteUrl, "warning": website_result.get("warning", "")},
             )
 
-    evaluation_progress = public_progress(metadata) if session_type == "evaluator" else None
-    evaluation_report = build_evaluation_report(metadata) if session_type == "evaluator" else None
+    evaluation_report = None
+    if session_type == "evaluator":
+        evaluation_report = build_evaluation_report(metadata)
+        if metadata.get("completed"):
+            evaluation_report = await naturalize_evaluation_report(
+                report=evaluation_report,
+                metadata=metadata,
+                state=state,
+                provider=provider,
+                model=model,
+                api_key=payload.apiKey or None,
+            )
     return StartSessionResponse(
         sessionId=session_id,
         openingMessage=opening,
@@ -235,9 +297,9 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
         sessionType=session_type,
         provider=provider,
         model=model,
-        questionBudget=question_budget,
+        questionBudget=question_budget if session_type == "evaluator" else None,
         websiteUrl=(payload.websiteUrl or "").strip(),
-        evaluationProgress=evaluation_progress,
+        evaluationProgress=public_progress(metadata, state) if session_type == "evaluator" else None,
         evaluationReport=evaluation_report,
     )
 
@@ -262,6 +324,9 @@ async def get_session(session_id: str) -> SessionResponse:
         for turn in turns
         if turn["role"] in ("user", "assistant")
     ]
+    evaluation_report = None
+    if session_type == "evaluator":
+        evaluation_report = present_evaluation_report(metadata)
     return SessionResponse(
         sessionId=session_id,
         history=history,
@@ -276,8 +341,8 @@ async def get_session(session_id: str) -> SessionResponse:
         model=session_row.get("model", ""),
         questionBudget=session_row.get("question_budget"),
         websiteUrl=session_row.get("website_url", ""),
-        evaluationProgress=public_progress(metadata) if session_type == "evaluator" else None,
-        evaluationReport=build_evaluation_report(metadata) if session_type == "evaluator" else None,
+        evaluationProgress=public_progress(metadata, state) if session_type == "evaluator" else None,
+        evaluationReport=evaluation_report,
     )
 
 
