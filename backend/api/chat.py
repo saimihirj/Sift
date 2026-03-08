@@ -6,6 +6,7 @@ import json
 import time
 from typing import AsyncIterator
 
+import httpx
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
@@ -26,6 +27,10 @@ from backend.services.uploads import ingest_upload, list_active_uploads
 
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+MAX_HISTORY_MESSAGES = 4
+MAX_HISTORY_MESSAGE_CHARS = 320
+MAX_HISTORY_TOTAL_CHARS = 1100
 
 
 def _sse(event: str, data: dict) -> str:
@@ -62,6 +67,35 @@ def _active_session_context(metadata: dict) -> str:
         ]
         if bit
     )
+
+
+def _trim_text(text: str, max_chars: int) -> str:
+    value = (text or "").strip()
+    if len(value) <= max_chars:
+        return value
+    return value[: max_chars - 1].rstrip() + "..."
+
+
+def _compact_history(turns: list[dict]) -> list[dict[str, str]]:
+    history = [
+        {"role": turn["role"], "content": _trim_text(turn["content"], MAX_HISTORY_MESSAGE_CHARS)}
+        for turn in turns
+        if turn["role"] in ("user", "assistant")
+    ][-MAX_HISTORY_MESSAGES:]
+    total = sum(len(item["content"]) for item in history)
+    if total <= MAX_HISTORY_TOTAL_CHARS:
+        return history
+
+    compacted: list[dict[str, str]] = []
+    remaining = MAX_HISTORY_TOTAL_CHARS
+    for item in reversed(history):
+        allowance = max(120, remaining // max(len(history) - len(compacted), 1))
+        text = _trim_text(item["content"], allowance)
+        compacted.append({"role": item["role"], "content": text})
+        remaining -= len(text)
+        if remaining <= 0:
+            break
+    return list(reversed(compacted))
 
 
 @router.post("")
@@ -112,15 +146,10 @@ async def chat(
             elif upload_entry is not None:
                 display_message = f"{user_message}\n\n[Attached {upload_entry['name']}]"
 
-            history_window = [
-                {"role": turn["role"], "content": turn["content"]}
-                for turn in turns
-                if turn["role"] in ("user", "assistant")
-            ][-6:]
+            history_window = _compact_history(turns)
 
-            query = user_message
-            if history_window:
-                query = f"{history_window[-1]['content']} {user_message}".strip()
+            recent_user_context = " ".join(turn["content"] for turn in history_window if turn["role"] == "user")
+            query = " ".join(bit for bit in [recent_user_context, user_message] if bit).strip()
             current_state = restored_state
             refinement = refine_founder_input(
                 user_message,
@@ -176,6 +205,8 @@ async def chat(
                 answer_record=session_metadata.get("answerRecord"),
             )
             active_uploads = list_active_uploads(sessionId)
+            history_chars = sum(len(turn["content"]) for turn in history_window)
+            system_prompt_chars = len(system_prompt)
 
             assistant_chunks: list[str] = []
             completion_payload = None
@@ -190,6 +221,8 @@ async def chat(
                 if event == "meta":
                     payload["activeUploads"] = active_uploads
                     payload["retrievalChars"] = retrieval["promptChars"]
+                    payload["historyChars"] = history_chars
+                    payload["systemPromptChars"] = system_prompt_chars
                     payload["researchSources"] = retrieval["researchSources"]
                     yield _sse("meta", payload)
                 elif event == "delta":
@@ -211,6 +244,8 @@ async def chat(
                 "model": chosen_model,
                 "upload": upload_entry,
                 "retrievalChars": retrieval["promptChars"],
+                "historyChars": history_chars,
+                "systemPromptChars": system_prompt_chars,
                 "researchSources": retrieval["researchSources"],
                 "needsInfo": retrieval["needsInfo"],
                 "retrievalGap": retrieval["retrievalGap"],
@@ -230,6 +265,8 @@ async def chat(
                 },
                 "activeUploads": active_uploads,
                 "researchSources": retrieval["researchSources"],
+                "historyChars": history_chars,
+                "systemPromptChars": system_prompt_chars,
                 "state_snapshot": current_state.to_dict(),
                 **conversation_metadata,
             }
@@ -279,6 +316,9 @@ async def chat(
                     "totalSeconds": assistant_metadata["timings"].get("totalSeconds", 0),
                     "totalBackendSeconds": total_seconds,
                     "hadUpload": upload_entry is not None,
+                    "historyChars": history_chars,
+                    "systemPromptChars": system_prompt_chars,
+                    "retrievalChars": retrieval["promptChars"],
                 },
             )
 
@@ -296,6 +336,16 @@ async def chat(
                     "timings": assistant_metadata["timings"],
                     "fallbackUsed": completion_payload.get("fallbackUsed", False),
                     "activeUploads": active_uploads,
+                    "historyChars": history_chars,
+                    "systemPromptChars": system_prompt_chars,
+                    "retrievalChars": retrieval["promptChars"],
+                },
+            )
+        except httpx.ReadTimeout:
+            yield _sse(
+                "error",
+                {
+                    "message": "The local model took too long to respond. I trimmed the prompt path, but this turn still timed out. Try Fast mode or send a shorter turn.",
                 },
             )
         except Exception as exc:

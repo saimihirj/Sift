@@ -2278,7 +2278,7 @@ def _recent_answer_summary(metadata: dict[str, Any], limit: int = 3) -> str:
     for item in answers:
         question = str(item.get("question", "")).strip()
         answer = str(item.get("answer", "")).strip()
-        lines.append(f"- Q: {question[:120]} | A: {answer[:180]}")
+        lines.append(f"- Q: {question[:90]} | A: {answer[:120]}")
     return "\n".join(lines)
 
 
@@ -2332,13 +2332,17 @@ async def phrase_evaluator_turn(
         "latestFounderAnswer": latest_answer,
         "domainFocus": metadata.get("domainFocus", []),
         "assumptionsToVerify": metadata.get("assumptionsToVerify", []),
-        "answerRecordSummary": summarize_answer_record(metadata.get("answerRecord")),
+        "answerRecordSummary": summarize_answer_record(metadata.get("answerRecord"), limit_domains=3),
         "knowledgeBaseFocus": needs_info or [],
         "retrievalGap": retrieval_gap,
         "sourceConflict": source_conflict,
-        "retrievalContext": retrieval_context[:900],
-        "recentEvaluatedTurns": _recent_answer_summary(metadata),
-        "avoidEchoing": [str(item.get("reciprocal", "")).strip() for item in metadata.get("answers", [])[-3:] if str(item.get("reciprocal", "")).strip()],
+        "retrievalContext": retrieval_context[:420],
+        "recentEvaluatedTurns": _recent_answer_summary(metadata, limit=2),
+        "avoidEchoing": [
+            str(item.get("reciprocal", "")).strip()[:90]
+            for item in metadata.get("answers", [])[-2:]
+            if str(item.get("reciprocal", "")).strip()
+        ],
         "responseShape": {
             "reciprocal": "string",
             "question": "string",

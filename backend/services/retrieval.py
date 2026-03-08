@@ -113,6 +113,8 @@ CONFLICT_RULES = [
     ("manual", "fully automated", "The available context alternates between a manual workaround story and a fully automated story."),
 ]
 
+MAX_RETRIEVAL_CONTEXT_CHARS = 1700
+
 
 def _contains_any(text: str, values: tuple[str, ...]) -> bool:
     return any(value in text for value in values)
@@ -175,6 +177,32 @@ def _merge_needs_from_domains(needs_info: list[str], domain_focus: list[str] | N
     return merged[:4]
 
 
+def _trim_block(text: str, max_chars: int) -> str:
+    value = (text or "").strip()
+    if len(value) <= max_chars:
+        return value
+    return value[: max_chars - 1].rstrip() + "..."
+
+
+def _assemble_with_budget(parts: list[str], budget: int) -> str:
+    assembled: list[str] = []
+    used = 0
+    for part in parts:
+        cleaned = (part or "").strip()
+        if not cleaned:
+            continue
+        separator = "\n\n" if assembled else ""
+        remaining = budget - used - len(separator)
+        if remaining <= 40:
+            break
+        piece = _trim_block(cleaned, remaining)
+        assembled.append(piece)
+        used += len(separator) + len(piece)
+        if len(piece) < len(cleaned):
+            break
+    return "\n\n".join(assembled)
+
+
 def build_retrieval_context(
     session_id: str,
     state: ConversationState,
@@ -195,10 +223,10 @@ def build_retrieval_context(
         search_query += "\n\nAssumptions to verify:\n" + "\n".join(f"- {item}" for item in assumptions_to_verify[:3])
 
     sector_snippet = get_sector_prompt_snippet(state.sector)
-    upload_snippets = retrieve_upload_context(session_id, query=search_query, top_k=2, max_chars=960)
-    external_research = retrieve_external_research_context(state, query=search_query, top_k=2, max_chars=520)
+    upload_snippets = retrieve_upload_context(session_id, query=search_query, top_k=2, max_chars=720)
+    external_research = retrieve_external_research_context(state, query=search_query, top_k=2, max_chars=360)
     should_fetch_vc = _contains_any(search_query.lower(), INVESTOR_QUERY_TERMS)
-    vc_firm_context = retrieve_vc_firm_context(state, query=search_query, top_k=2, max_chars=680) if should_fetch_vc else {"text": "", "sources": []}
+    vc_firm_context = retrieve_vc_firm_context(state, query=search_query, top_k=2, max_chars=460) if should_fetch_vc else {"text": "", "sources": []}
 
     parts: list[str] = []
     if needs_info:
@@ -214,9 +242,7 @@ def build_retrieval_context(
         if answer_record_summary:
             parts.append("Internal answer record:\n" + answer_record_summary)
     if session_context.strip():
-        context_excerpt = session_context.strip()
-        if len(context_excerpt) > 900:
-            context_excerpt = context_excerpt[:899].rstrip() + "..."
+        context_excerpt = _trim_block(session_context.strip(), 420)
         parts.append("Active session context:\n" + context_excerpt)
 
     if upload_snippets:
@@ -248,7 +274,7 @@ def build_retrieval_context(
     if retrieval_gap:
         parts.append(f"Knowledge base gap:\n- {retrieval_gap}")
 
-    context_text = "\n\n".join(part for part in parts if part.strip())
+    context_text = _assemble_with_budget(parts, MAX_RETRIEVAL_CONTEXT_CHARS)
     return {
         "text": context_text,
         "sectorSnippet": sector_snippet,
