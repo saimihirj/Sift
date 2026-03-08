@@ -39,6 +39,7 @@ export function AdminScreen({ theme, onThemeChange }: Props) {
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [status, setStatus] = useState("Loading admin data...");
+  const [themeOpen, setThemeOpen] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
@@ -102,7 +103,9 @@ export function AdminScreen({ theme, onThemeChange }: Props) {
           <Link to="/" className="ghost-button">
             Back to app
           </Link>
-          <ThemePicker theme={theme} onChange={onThemeChange} />
+          <button type="button" className="ghost-button" onClick={() => setThemeOpen(true)}>
+            Themes
+          </button>
         </div>
       </aside>
 
@@ -192,6 +195,28 @@ export function AdminScreen({ theme, onThemeChange }: Props) {
           </div>
         </section>
       </main>
+
+      <div className={themeOpen ? "floating-panel is-open align-right" : "floating-panel align-right"} aria-hidden={!themeOpen}>
+        <button type="button" className={themeOpen ? "floating-backdrop is-open" : "floating-backdrop"} onClick={() => setThemeOpen(false)} aria-label="Close themes" />
+        <aside className={themeOpen ? "floating-card is-open theme-card" : "floating-card theme-card"}>
+          <div className="floating-head">
+            <div>
+              <span className="rail-label">Themes</span>
+              <strong>Display</strong>
+            </div>
+            <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(false)}>
+              Close
+            </button>
+          </div>
+          <ThemePicker
+            theme={theme}
+            onChange={(nextTheme) => {
+              onThemeChange(nextTheme);
+              setThemeOpen(false);
+            }}
+          />
+        </aside>
+      </div>
     </div>
   );
 }

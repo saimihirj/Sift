@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type { AuthProviderOption, AuthUser, ThemeMode } from "../../app/types";
 import { ThemePicker } from "../../app/ThemePicker";
 import { authLoginUrl } from "../../lib/api/client";
@@ -29,6 +31,7 @@ export function LandingScreen({
   authError,
   onSignOut,
 }: Props) {
+  const [themeOpen, setThemeOpen] = useState(false);
   const google = providerState("google", authProviders);
   const apple = providerState("apple", authProviders);
   const canContinue = Boolean(displayName.trim() || authUser);
@@ -45,7 +48,9 @@ export function LandingScreen({
             <span className="eyebrow">Start</span>
             <strong>Signal</strong>
           </div>
-          <ThemePicker theme={theme} onChange={onThemeChange} />
+          <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
+            Themes
+          </button>
         </div>
 
         <div className="landing-hero">
@@ -114,6 +119,28 @@ export function LandingScreen({
         <button type="button" className="solid-button" onClick={onContinue} disabled={!canContinue}>
           Continue
         </button>
+      </div>
+
+      <div className={themeOpen ? "floating-panel is-open align-right" : "floating-panel align-right"} aria-hidden={!themeOpen}>
+        <button type="button" className={themeOpen ? "floating-backdrop is-open" : "floating-backdrop"} onClick={() => setThemeOpen(false)} aria-label="Close themes" />
+        <aside className={themeOpen ? "floating-card is-open theme-card" : "floating-card theme-card"}>
+          <div className="floating-head">
+            <div>
+              <span className="rail-label">Themes</span>
+              <strong>Display</strong>
+            </div>
+            <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(false)}>
+              Close
+            </button>
+          </div>
+          <ThemePicker
+            theme={theme}
+            onChange={(nextTheme) => {
+              onThemeChange(nextTheme);
+              setThemeOpen(false);
+            }}
+          />
+        </aside>
       </div>
     </section>
   );

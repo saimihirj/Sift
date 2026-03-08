@@ -1,7 +1,7 @@
 export type ResponseProfile = "speed" | "balanced";
 export type SessionType = "mentor" | "evaluator";
 export type Provider = "ollama" | "cerebras" | "groq" | "openai" | "openrouter" | "anthropic" | "gemini";
-export type ThemeMode = "light" | "dark" | "neon";
+export type ThemeMode = "light" | "dark" | "dusk" | "neon";
 export type OAuthProvider = "google" | "apple";
 
 export type FounderType = "student" | "professional" | "founder" | "serial" | "unknown";

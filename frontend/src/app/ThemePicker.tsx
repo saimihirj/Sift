@@ -5,10 +5,11 @@ type Props = {
   onChange: (theme: ThemeMode) => void;
 };
 
-const OPTIONS: Array<{ key: ThemeMode; label: string }> = [
-  { key: "light", label: "Light" },
-  { key: "dark", label: "Dark" },
-  { key: "neon", label: "Neon" },
+const OPTIONS: Array<{ key: ThemeMode; label: string; note: string }> = [
+  { key: "light", label: "Paper", note: "Warm black and white" },
+  { key: "dark", label: "Midnight", note: "Soft dark focus" },
+  { key: "dusk", label: "Dusk", note: "Muted evening contrast" },
+  { key: "neon", label: "Neon", note: "Sharper electric glow" },
 ];
 
 export function ThemePicker({ theme, onChange }: Props) {
@@ -23,7 +24,8 @@ export function ThemePicker({ theme, onChange }: Props) {
           className={theme === option.key ? "theme-option active" : "theme-option"}
           onClick={() => onChange(option.key)}
         >
-          {option.label}
+          <span className="theme-option-label">{option.label}</span>
+          <small className="theme-option-note">{option.note}</small>
         </button>
       ))}
     </div>

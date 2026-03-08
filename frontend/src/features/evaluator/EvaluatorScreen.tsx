@@ -240,7 +240,7 @@ export function EvaluatorScreen({
                 Progress
               </button>
               <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
-                Theme
+                Themes
               </button>
               {progress?.completed ? (
                 <button type="button" className="ghost-button compact" onClick={() => navigate(`/evaluate/${session.sessionId}/report`)}>
@@ -444,7 +444,13 @@ export function EvaluatorScreen({
               Close
             </button>
           </div>
-          <ThemePicker theme={theme} onChange={onThemeChange} />
+          <ThemePicker
+            theme={theme}
+            onChange={(nextTheme) => {
+              onThemeChange(nextTheme);
+              setThemeOpen(false);
+            }}
+          />
         </aside>
       </div>
 

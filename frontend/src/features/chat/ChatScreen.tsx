@@ -356,7 +356,7 @@ export function ChatScreen({
                 Progress
               </button>
               <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
-                Theme
+                Themes
               </button>
               {session.activeUploads.length > 0 ? (
                 <button type="button" className="ghost-button compact" onClick={() => setFilesOpen(true)}>
@@ -590,7 +590,13 @@ export function ChatScreen({
               Close
             </button>
           </div>
-          <ThemePicker theme={theme} onChange={onThemeChange} />
+          <ThemePicker
+            theme={theme}
+            onChange={(nextTheme) => {
+              onThemeChange(nextTheme);
+              setThemeOpen(false);
+            }}
+          />
         </aside>
       </div>
 

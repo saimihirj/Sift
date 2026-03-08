@@ -2,20 +2,20 @@
 
 :root {
   color-scheme: light;
-  --bg: #f4f3ef;
-  --panel: rgba(255, 255, 255, 0.94);
-  --panel-muted: #f8f7f2;
-  --ink: #0b0b0b;
-  --ink-soft: #5c5c57;
-  --line: rgba(18, 18, 18, 0.12);
-  --line-strong: rgba(18, 18, 18, 0.26);
-  --accent: #0b0b0b;
-  --accent-weak: #ecebe6;
-  --glow-a: rgba(255, 255, 255, 0.72);
-  --glow-b: rgba(205, 203, 194, 0.24);
-  --shadow-soft: 0 24px 72px rgba(0, 0, 0, 0.05);
-  --shadow-hover: 0 18px 38px rgba(0, 0, 0, 0.1);
-  --focus-ring: 0 0 0 3px rgba(17, 17, 17, 0.14);
+  --bg: #f1ede4;
+  --panel: rgba(255, 252, 246, 0.95);
+  --panel-muted: #f7f2e8;
+  --ink: #181512;
+  --ink-soft: #6c6458;
+  --line: rgba(24, 20, 16, 0.1);
+  --line-strong: rgba(24, 20, 16, 0.18);
+  --accent: #181512;
+  --accent-weak: #ece3d4;
+  --glow-a: rgba(255, 255, 255, 0.58);
+  --glow-b: rgba(201, 184, 155, 0.16);
+  --shadow-soft: 0 24px 72px rgba(24, 20, 16, 0.045);
+  --shadow-hover: 0 18px 38px rgba(24, 20, 16, 0.09);
+  --focus-ring: 0 0 0 3px rgba(24, 20, 16, 0.12);
   --ease-fluid: cubic-bezier(0.22, 1, 0.36, 1);
   --font-body: "IBM Plex Sans", sans-serif;
   --font-display: "IBM Plex Sans", sans-serif;
@@ -25,38 +25,56 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #060606;
-  --panel: rgba(12, 12, 12, 0.96);
-  --panel-muted: #111111;
-  --ink: #f6f3eb;
-  --ink-soft: #b7b2a8;
-  --line: rgba(255, 255, 255, 0.11);
-  --line-strong: rgba(255, 255, 255, 0.24);
-  --accent: #f6f3eb;
-  --accent-weak: #151515;
-  --glow-a: rgba(255, 255, 255, 0.05);
-  --glow-b: rgba(255, 255, 255, 0.02);
-  --shadow-soft: 0 28px 80px rgba(0, 0, 0, 0.38);
-  --shadow-hover: 0 18px 38px rgba(0, 0, 0, 0.32);
-  --focus-ring: 0 0 0 3px rgba(246, 243, 235, 0.16);
+  --bg: #0d1014;
+  --panel: rgba(18, 22, 28, 0.95);
+  --panel-muted: #151a22;
+  --ink: #f1ede4;
+  --ink-soft: #afa796;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --accent: #f1ede4;
+  --accent-weak: #1b212b;
+  --glow-a: rgba(255, 255, 255, 0.035);
+  --glow-b: rgba(164, 172, 191, 0.04);
+  --shadow-soft: 0 28px 80px rgba(0, 0, 0, 0.34);
+  --shadow-hover: 0 18px 38px rgba(0, 0, 0, 0.28);
+  --focus-ring: 0 0 0 3px rgba(241, 237, 228, 0.14);
+}
+
+:root[data-theme="dusk"] {
+  color-scheme: dark;
+  --bg: #10141d;
+  --panel: rgba(21, 27, 40, 0.95);
+  --panel-muted: #1a2231;
+  --ink: #edf1ff;
+  --ink-soft: #adb8d4;
+  --line: rgba(193, 205, 255, 0.12);
+  --line-strong: rgba(193, 205, 255, 0.24);
+  --accent: #c9d2ff;
+  --accent-weak: #232c3d;
+  --glow-a: rgba(117, 131, 255, 0.075);
+  --glow-b: rgba(88, 221, 208, 0.05);
+  --shadow-soft: 0 28px 80px rgba(5, 9, 18, 0.42);
+  --shadow-hover: 0 18px 38px rgba(18, 28, 60, 0.3);
+  --focus-ring: 0 0 0 3px rgba(201, 210, 255, 0.16);
 }
 
 :root[data-theme="neon"] {
   color-scheme: dark;
-  --bg: #040608;
-  --panel: rgba(10, 12, 16, 0.95);
-  --panel-muted: #0f1318;
-  --ink: #eefdf8;
-  --ink-soft: #9cbab1;
-  --line: rgba(143, 255, 213, 0.16);
-  --line-strong: rgba(143, 255, 213, 0.4);
-  --accent: #8fffd5;
-  --accent-weak: #0f1718;
-  --glow-a: rgba(143, 255, 213, 0.07);
-  --glow-b: rgba(99, 226, 255, 0.06);
-  --shadow-soft: 0 28px 72px rgba(0, 0, 0, 0.42);
-  --shadow-hover: 0 18px 38px rgba(143, 255, 213, 0.14);
-  --focus-ring: 0 0 0 3px rgba(143, 255, 213, 0.18);
+  --bg: #061110;
+  --panel: rgba(9, 18, 20, 0.95);
+  --panel-muted: #0d2123;
+  --ink: #f2fff9;
+  --ink-soft: #9dcabd;
+  --line: rgba(93, 255, 214, 0.14);
+  --line-strong: rgba(93, 255, 214, 0.32);
+  --accent: #5dffd6;
+  --accent-weak: #0f2727;
+  --glow-a: rgba(93, 255, 214, 0.09);
+  --glow-b: rgba(48, 219, 255, 0.08);
+  --shadow-soft: 0 28px 72px rgba(0, 0, 0, 0.4);
+  --shadow-hover: 0 18px 38px rgba(93, 255, 214, 0.18);
+  --focus-ring: 0 0 0 3px rgba(93, 255, 214, 0.18);
 }
 
 * {
@@ -859,7 +877,7 @@ a:focus-visible,
 }
 
 .theme-card {
-  width: min(240px, calc(100vw - 20px));
+  width: min(296px, calc(100vw - 20px));
 }
 
 .floating-head,
@@ -898,14 +916,38 @@ a:focus-visible,
 
 .theme-picker {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .theme-option {
-  border-radius: 999px;
-  padding: 9px 10px;
+  border-radius: 18px;
+  padding: 12px;
+  min-height: 74px;
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  text-align: left;
   font-size: 0.78rem;
+}
+
+.theme-option-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.theme-option-note {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.theme-option.active .theme-option-note {
+  color: currentColor;
+  opacity: 0.76;
 }
 
 .segmented {
