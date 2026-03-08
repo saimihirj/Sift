@@ -7,6 +7,7 @@ from typing import Iterable
 
 from knowledge import D2C_KNOWLEDGE, FINTECH_KNOWLEDGE, MARKETPLACE_KNOWLEDGE, SAAS_KNOWLEDGE
 from state import ConversationState
+from backend.services.refinement import summarize_answer_record
 
 
 DEFAULT_RESPONSE_PROFILE = "speed"
@@ -893,6 +894,9 @@ def derive_mentor_turn_metadata(
     needs_info: list[str] | None = None,
     retrieval_gap: str = "",
     source_conflict: str = "",
+    domain_focus: list[str] | None = None,
+    assumptions_to_verify: list[str] | None = None,
+    answer_record: dict | None = None,
 ) -> dict[str, str | list[str]]:
     plan = derive_mentor_turn_plan(state, last_user_message, recent_assistant_turns)
     return {
@@ -900,6 +904,9 @@ def derive_mentor_turn_metadata(
         "needsInfo": list(needs_info or []),
         "retrievalGap": retrieval_gap,
         "sourceConflict": source_conflict,
+        "domainFocus": list(domain_focus or []),
+        "assumptionsToVerify": list(assumptions_to_verify or []),
+        "answerRecordSummary": summarize_answer_record(answer_record),
         "lastQuestionStem": str(plan["questionStem"]),
         "lastMoveType": str(plan["moveType"]),
         "lastReflectionUsed": str(plan["reflectionStem"]),
@@ -914,8 +921,12 @@ def build_system_prompt(
     needs_info: list[str] | None = None,
     retrieval_gap: str = "",
     source_conflict: str = "",
+    domain_focus: list[str] | None = None,
+    assumptions_to_verify: list[str] | None = None,
+    answer_record: dict | None = None,
 ) -> str:
     turn_plan = derive_mentor_turn_plan(state, last_user_message, recent_assistant_turns)
+    answer_record_summary = summarize_answer_record(answer_record)
     parts = [
         BASE_MENTOR_PROMPT,
         MENTOR_ROLE_PROMPT,
@@ -928,9 +939,17 @@ def build_system_prompt(
         get_section_question_lens(state),
         build_conversation_move(state, last_user_message, recent_assistant_turns),
         build_recent_memory_instruction(recent_assistant_turns),
-        f"Current phase: {state.phase}. Sector: {state.sector}. Stage: {state.stage}. Urgency: {'yes' if state.urgency else 'no'}.",
+        f"Current phase: {state.phase}. Sector: {state.sector}. Stage: {state.stage}. Geography: {state.geography}. Urgency: {'yes' if state.urgency else 'no'}.",
         f"State snapshot: {state.to_json(compact=True)}",
     ]
+    if domain_focus:
+        parts.append("Current business-domain focus: " + ", ".join(domain_focus) + ".")
+    if assumptions_to_verify:
+        parts.append(
+            "Assumptions to verify, not facts:\n" + "\n".join(f"- {item}" for item in assumptions_to_verify[:3])
+        )
+    if answer_record_summary:
+        parts.append("Internal answer record so far:\n" + answer_record_summary)
     if needs_info:
         parts.append("Current KB lookup focus: " + ", ".join(needs_info) + ".")
     if retrieval_gap:
@@ -967,15 +986,37 @@ def build_system_prompt(
     return "\n\n".join(parts)
 
 
-def build_outline_prompt(state: ConversationState, history: Iterable[dict]) -> str:
+def build_outline_prompt(
+    state: ConversationState,
+    history: Iterable[dict],
+    *,
+    answer_record: dict | None = None,
+    assumptions_to_verify: list[str] | None = None,
+) -> str:
     transcript = []
     for msg in history:
         speaker = "Founder" if msg["role"] == "user" else "Mentor"
         transcript.append(f"{speaker}: {msg['content']}")
     return "\n\n".join(
         [
-            OUTLINE_PROMPT,
+            OUTLINE_PROMPT
+            + "\n## Channel / GTM hypothesis"
+            + "\n## 90-day plan"
+            + "\n\nAdditional rules:\n"
+            + "- if business model, GTM, or roadmap details are weak, mark them clearly as hypotheses instead of facts\n"
+            + "- use the answer record when it helps compress what the founder already said\n"
+            + "- keep the conversation open-ended; this is a working draft, not a completion signal",
             f"State: {state.to_json(compact=True)}",
+            (
+                "Internal answer record:\n" + summarize_answer_record(answer_record, limit_domains=5)
+                if answer_record
+                else ""
+            ),
+            (
+                "Assumptions still to verify:\n" + "\n".join(f"- {item}" for item in (assumptions_to_verify or [])[:4])
+                if assumptions_to_verify
+                else ""
+            ),
             "Transcript:",
             "\n".join(transcript),
         ]

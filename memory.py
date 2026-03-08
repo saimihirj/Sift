@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     sector          TEXT DEFAULT 'unknown',
     stage           TEXT DEFAULT 'unknown',
     mode            TEXT DEFAULT 'think_it_through',
+    geography       TEXT DEFAULT 'unspecified',
     question_budget INTEGER DEFAULT 15,
     provider        TEXT DEFAULT 'ollama',
     model           TEXT DEFAULT '',
@@ -144,6 +145,8 @@ def init_db() -> None:
             con.execute("ALTER TABLE sessions ADD COLUMN session_type TEXT DEFAULT 'mentor'")
         if "question_budget" not in session_columns:
             con.execute("ALTER TABLE sessions ADD COLUMN question_budget INTEGER DEFAULT 15")
+        if "geography" not in session_columns:
+            con.execute("ALTER TABLE sessions ADD COLUMN geography TEXT DEFAULT 'unspecified'")
         if "provider" not in session_columns:
             con.execute("ALTER TABLE sessions ADD COLUMN provider TEXT DEFAULT 'ollama'")
         if "model" not in session_columns:
@@ -177,9 +180,9 @@ def create_session(
         con.execute(
             """INSERT INTO sessions
                (id, user_identifier, display_name, session_type, founder_type, sector, stage, mode,
-                question_budget, provider, model, website_url, company_name, coverage_json, facts_json,
+                geography, question_budget, provider, model, website_url, company_name, coverage_json, facts_json,
                 metadata_json, created_at, last_active)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 session_id,
                 user_identifier.strip().lower() if user_identifier else "",
@@ -189,6 +192,7 @@ def create_session(
                 getattr(state, "sector", "unknown"),
                 getattr(state, "stage", "unknown"),
                 getattr(state, "mode", "think_it_through"),
+                getattr(state, "geography", "unspecified") or "unspecified",
                 question_budget or 15,
                 provider or "ollama",
                 model or "",
@@ -254,6 +258,7 @@ def update_session(session_id: str, state) -> None:
                stage         = ?,
                founder_type  = ?,
                mode          = ?,
+               geography     = ?,
                last_active   = ?
                WHERE id = ?""",
             (
@@ -264,6 +269,7 @@ def update_session(session_id: str, state) -> None:
                 getattr(state, "stage", "unknown"),
                 getattr(state, "founder_type", "unknown"),
                 getattr(state, "mode", "think_it_through"),
+                getattr(state, "geography", "unspecified") or "unspecified",
                 datetime.now(timezone.utc).isoformat(),
                 session_id,
             ),

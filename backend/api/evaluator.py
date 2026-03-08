@@ -39,6 +39,7 @@ def _restore_state(session_row: dict, turns: list[dict]) -> ConversationState:
             "stage": session_row.get("stage", "unknown"),
             "founder_type": session_row.get("founder_type", "unknown"),
             "mode": session_row.get("mode", "think_it_through"),
+            "geography": session_row.get("geography", "unspecified"),
             "company_name": session_row.get("company_name", ""),
         }
     )
@@ -94,6 +95,22 @@ async def answer_question(
         sessionId,
         state,
         f"{metadata.get('currentQuestionId', '')} {answer_text}".strip(),
+        domain_focus=metadata.get("domainFocus", []),
+        geography=getattr(state, "geography", metadata.get("geography", "unspecified")),
+        assumptions_to_verify=metadata.get("assumptionsToVerify", []),
+        answer_record=metadata.get("answerRecord"),
+        session_context="\n\n".join(
+            bit
+            for bit in [
+                str(metadata.get("setupContext", "")).strip(),
+                (
+                    metadata.get("website", {}).get("text", "").strip()
+                    if isinstance(metadata.get("website"), dict)
+                    else ""
+                ),
+            ]
+            if bit
+        ),
     )
 
     result = await evaluate_answer(
@@ -245,6 +262,22 @@ async def continue_deeper(session_id: str) -> EvaluatorAnswerResponse:
         session_id,
         state,
         f"{metadata.get('currentQuestionId', '')} {recent_user_context}".strip(),
+        domain_focus=metadata.get("domainFocus", []),
+        geography=getattr(state, "geography", metadata.get("geography", "unspecified")),
+        assumptions_to_verify=metadata.get("assumptionsToVerify", []),
+        answer_record=metadata.get("answerRecord"),
+        session_context="\n\n".join(
+            bit
+            for bit in [
+                str(metadata.get("setupContext", "")).strip(),
+                (
+                    metadata.get("website", {}).get("text", "").strip()
+                    if isinstance(metadata.get("website"), dict)
+                    else ""
+                ),
+            ]
+            if bit
+        ),
     )
     result = await continue_evaluation_deeper(
         state,

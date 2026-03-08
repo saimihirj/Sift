@@ -6,6 +6,7 @@ from state import ConversationState
 
 from backend.services.external_sources import retrieve_external_research_context
 from backend.services.prompting import get_sector_prompt_snippet
+from backend.services.refinement import summarize_answer_record
 from backend.services.uploads import retrieve_upload_context
 from backend.services.vc_firm_knowledge import retrieve_vc_firm_context
 
@@ -158,9 +159,40 @@ def _detect_source_conflict(*texts: str) -> str:
     return ""
 
 
-def build_retrieval_context(session_id: str, state: ConversationState, query: str) -> dict:
+def _merge_needs_from_domains(needs_info: list[str], domain_focus: list[str] | None) -> list[str]:
+    merged = list(needs_info)
+    domain_map = {
+        "problem": ["problem and users", "pain and workflow", "current workaround"],
+        "market": ["problem and users", "pricing and willingness to pay"],
+        "solution": ["solution and value", "constraints and risks"],
+        "business": ["pricing and willingness to pay", "solution and value"],
+        "founder": ["problem and users", "constraints and risks"],
+    }
+    for domain in domain_focus or []:
+        for item in domain_map.get(domain, []):
+            if item not in merged:
+                merged.append(item)
+    return merged[:4]
+
+
+def build_retrieval_context(
+    session_id: str,
+    state: ConversationState,
+    query: str,
+    *,
+    domain_focus: list[str] | None = None,
+    geography: str = "",
+    assumptions_to_verify: list[str] | None = None,
+    answer_record: dict | None = None,
+    session_context: str = "",
+) -> dict:
     needs_info = infer_retrieval_needs(query, state)
+    needs_info = _merge_needs_from_domains(needs_info, domain_focus)
     search_query = _needs_query(query, needs_info)
+    if geography and geography != "unspecified":
+        search_query += f"\n\nGeography: {geography}."
+    if assumptions_to_verify:
+        search_query += "\n\nAssumptions to verify:\n" + "\n".join(f"- {item}" for item in assumptions_to_verify[:3])
 
     sector_snippet = get_sector_prompt_snippet(state.sector)
     upload_snippets = retrieve_upload_context(session_id, query=search_query, top_k=2, max_chars=960)
@@ -171,6 +203,21 @@ def build_retrieval_context(session_id: str, state: ConversationState, query: st
     parts: list[str] = []
     if needs_info:
         parts.append("Current information need:\n" + "\n".join(f"- {item}" for item in needs_info))
+    if domain_focus:
+        parts.append("Business-domain focus:\n" + "\n".join(f"- {item}" for item in domain_focus))
+    if geography and geography != "unspecified":
+        parts.append(f"Geography context:\n- {geography}")
+    if assumptions_to_verify:
+        parts.append("Assumptions to verify:\n" + "\n".join(f"- {item}" for item in assumptions_to_verify[:3]))
+    if answer_record:
+        answer_record_summary = summarize_answer_record(answer_record, limit_domains=4)
+        if answer_record_summary:
+            parts.append("Internal answer record:\n" + answer_record_summary)
+    if session_context.strip():
+        context_excerpt = session_context.strip()
+        if len(context_excerpt) > 900:
+            context_excerpt = context_excerpt[:899].rstrip() + "..."
+        parts.append("Active session context:\n" + context_excerpt)
 
     if upload_snippets:
         formatted = [f"[{snippet['source']} · {snippet['docType']}]\n{snippet['text']}" for snippet in upload_snippets]
@@ -190,6 +237,7 @@ def build_retrieval_context(session_id: str, state: ConversationState, query: st
         retrieval_gap = f"The knowledge base does not currently have a strong answer on {_format_needs(needs_info)}."
 
     source_conflict = _detect_source_conflict(
+        session_context,
         " ".join(snippet["text"] for snippet in upload_snippets),
         external_research["text"],
         vc_firm_context["text"],

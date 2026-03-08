@@ -28,6 +28,7 @@ def _restore_state(turns: list[dict], session_row: dict) -> ConversationState:
             "stage": session_row.get("stage", "unknown"),
             "founder_type": session_row.get("founder_type", "unknown"),
             "mode": session_row.get("mode", "think_it_through"),
+            "geography": session_row.get("geography", "unspecified"),
             "company_name": session_row.get("company_name", ""),
         }
     )
@@ -55,7 +56,13 @@ async def create_outline(payload: OutlineRequest) -> OutlineResponse:
         if turn["role"] in ("user", "assistant")
     ]
     state = _restore_state(turns, session_row)
-    prompt = build_outline_prompt(state, history)
+    metadata = memory.get_session_metadata(session_row)
+    prompt = build_outline_prompt(
+        state,
+        history,
+        answer_record=metadata.get("answerRecord"),
+        assumptions_to_verify=metadata.get("assumptionsToVerify"),
+    )
     result = await generate_text(
         system="You turn ideation transcripts into clean founder-ready refined pitch documents.",
         messages=[{"role": "user", "content": prompt}],

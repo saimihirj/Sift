@@ -104,6 +104,7 @@ class StartSessionRequest(BaseModel):
     sector: Sector = "unknown"
     stage: Stage = "unknown"
     mode: Mode = "think_it_through"
+    geography: str = "unspecified"
     sessionType: SessionType = "mentor"
     questionBudget: int | None = None
     provider: Provider = "ollama"

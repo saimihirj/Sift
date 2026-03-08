@@ -38,6 +38,7 @@ from backend.services.evaluator import (
 )
 from backend.services.model_router import default_model_for_provider, normalize_provider, provider_catalog
 from backend.services.prompting import DEFAULT_RESPONSE_PROFILE, build_personalized_opening, get_chip_suggestions
+from backend.services.refinement import empty_answer_record, refine_founder_input, update_answer_record
 from backend.services.retrieval import infer_retrieval_needs
 from backend.services.state_engine import coverage_items, last_assistant_message, next_gap
 from backend.services.uploads import list_active_uploads
@@ -64,6 +65,7 @@ def _session_state_from_storage(session_row: dict | None, turns: list[dict]) -> 
             "stage": session_row.get("stage", "unknown"),
             "founder_type": session_row.get("founder_type", "unknown"),
             "mode": session_row.get("mode", "think_it_through"),
+            "geography": session_row.get("geography", "unspecified"),
             "company_name": session_row.get("company_name", ""),
         }
     )
@@ -71,6 +73,49 @@ def _session_state_from_storage(session_row: dict | None, turns: list[dict]) -> 
 
 def _session_metadata(row: dict | None) -> dict:
     return memory.get_session_metadata(row)
+
+
+def _seed_session_refinement_metadata(
+    state: ConversationState,
+    *,
+    setup_context: str = "",
+    website: dict | None = None,
+) -> dict:
+    metadata = {
+        "setupContext": (setup_context or "").strip(),
+        "website": website or {},
+        "geography": state.geography,
+        "domainFocus": [],
+        "answerRecord": empty_answer_record(),
+        "assumptionsToVerify": [],
+        "conversationMove": "",
+        "needsInfo": [],
+        "retrievalGap": "",
+        "sourceConflict": "",
+        "lastQuestionStem": "",
+        "lastMoveType": "",
+        "lastReflectionUsed": "",
+    }
+    combined = "\n\n".join(
+        bit
+        for bit in [metadata["setupContext"], metadata["website"].get("text", "").strip()]
+        if bit
+    )
+    if not combined.strip():
+        return metadata
+
+    refinement = refine_founder_input(combined, state=state)
+    metadata["domainFocus"] = refinement["domainFocus"]
+    metadata["assumptionsToVerify"] = refinement["assumptionsToVerify"]
+    metadata["answerRecord"] = update_answer_record(
+        metadata["answerRecord"],
+        combined,
+        refinement["domainFocus"],
+        source="setup",
+        evidence_status=refinement["evidenceStatus"],
+        assumptions=refinement["assumptionsToVerify"],
+    )
+    return metadata
 
 
 def _session_profile(turns: list[dict]) -> str:
@@ -147,9 +192,10 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
         sector=payload.sector,
         stage=payload.stage,
         mode=payload.mode,
+        geography=(payload.geography or "").strip() or "unspecified",
     )
     website_result = {}
-    if session_type == "evaluator" and payload.websiteUrl.strip():
+    if payload.websiteUrl.strip():
         website_result = await fetch_website_context(payload.websiteUrl)
 
     if session_type == "evaluator":
@@ -163,6 +209,7 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
             sector=payload.sector,
             stage=payload.stage,
             mode=payload.mode,
+            geography=state.geography,
         )
         has_starting_context = bool((payload.setupContext or "").strip() or website_result.get("text", "").strip())
         if has_starting_context:
@@ -222,7 +269,11 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
         else:
             opening = "Hi. What are you building? Paste the pitch, deck notes, or URL. Half-baked answers are fine. I'll only ask what is missing."
     else:
-        metadata = {}
+        metadata = _seed_session_refinement_metadata(
+            state,
+            setup_context=payload.setupContext,
+            website=website_result,
+        )
         opening = build_personalized_opening(state.founder_type, state.sector, state.stage)
 
     session_id = memory.create_session(
@@ -285,6 +336,15 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
                 pathname="/",
                 metadata={"url": payload.websiteUrl, "warning": website_result.get("warning", "")},
             )
+    elif website_result and not website_result.get("ok"):
+        memory.track_event(
+            event_type="website_fetch_failed",
+            client_id=payload.clientId or "",
+            session_id=session_id,
+            display_name=payload.displayName or "",
+            pathname="/",
+            metadata={"url": payload.websiteUrl, "warning": website_result.get("warning", "")},
+        )
 
     evaluation_report = None
     if session_type == "evaluator":

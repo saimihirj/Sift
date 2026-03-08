@@ -55,6 +55,7 @@ class ConversationState:
     # Onboarding-collected profile
     founder_type: str = "unknown"   # "student", "professional", "founder", "serial"
     mode: str = "think_it_through"  # "think_it_through", "quick_stress_test"
+    geography: str = "unspecified"
     urgency: bool = False           # True if pitch deadline detected
 
     # Number claims tracking
@@ -76,6 +77,7 @@ class ConversationState:
             "company_name": self.company_name,
             "founder_type": self.founder_type,
             "mode": self.mode,
+            "geography": self.geography,
             "urgency": self.urgency,
             "number_claims": [n.to_dict() for n in self.number_claims],
             "phase": self.phase,
@@ -107,6 +109,7 @@ class ConversationState:
         state.company_name = data.get("company_name", state.company_name)
         state.founder_type = data.get("founder_type", state.founder_type)
         state.mode = data.get("mode", state.mode)
+        state.geography = data.get("geography", state.geography) or "unspecified"
         state.urgency = bool(data.get("urgency", state.urgency))
         state.phase = data.get("phase", state.phase)
         state.turns = int(data.get("turns", state.turns))

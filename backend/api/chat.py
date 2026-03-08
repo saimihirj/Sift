@@ -19,6 +19,7 @@ from backend.services.prompting import (
     derive_mentor_turn_metadata,
     get_chip_suggestions,
 )
+from backend.services.refinement import empty_answer_record, refine_founder_input, update_answer_record
 from backend.services.retrieval import build_retrieval_context
 from backend.services.state_engine import coverage_items, next_gap, update_state_from_turn
 from backend.services.uploads import ingest_upload, list_active_uploads
@@ -44,8 +45,22 @@ def _restore_state(turns: list[dict], session_row: dict) -> ConversationState:
             "stage": session_row.get("stage", "unknown"),
             "founder_type": session_row.get("founder_type", "unknown"),
             "mode": session_row.get("mode", "think_it_through"),
+            "geography": session_row.get("geography", "unspecified"),
             "company_name": session_row.get("company_name", ""),
         }
+    )
+
+
+def _active_session_context(metadata: dict) -> str:
+    website = metadata.get("website", {})
+    website_text = website.get("text", "").strip() if isinstance(website, dict) else ""
+    return "\n\n".join(
+        bit
+        for bit in [
+            str(metadata.get("setupContext", "")).strip(),
+            website_text,
+        ]
+        if bit
     )
 
 
@@ -68,6 +83,10 @@ async def chat(
 
     turns = memory.get_session_turns(sessionId)
     restored_state = _restore_state(turns, session_row)
+    session_metadata = memory.get_session_metadata(session_row)
+    session_metadata["answerRecord"] = session_metadata.get("answerRecord") or empty_answer_record()
+    session_metadata["assumptionsToVerify"] = list(session_metadata.get("assumptionsToVerify", []))
+    session_metadata["domainFocus"] = list(session_metadata.get("domainFocus", []))
     chosen_provider = normalize_provider(provider or session_row.get("provider", "ollama"))
     chosen_model = (model or session_row.get("model", "")).strip() or default_model_for_provider(chosen_provider, responseProfile)
     api_key = (apiKey or "").strip() or None
@@ -103,7 +122,36 @@ async def chat(
             if history_window:
                 query = f"{history_window[-1]['content']} {user_message}".strip()
             current_state = restored_state
-            retrieval = build_retrieval_context(sessionId, current_state, query)
+            refinement = refine_founder_input(
+                user_message,
+                state=current_state,
+                recent_history=[turn["content"] for turn in history_window],
+            )
+            merged_assumptions = list(session_metadata.get("assumptionsToVerify", []))
+            for item in refinement["assumptionsToVerify"]:
+                if item not in merged_assumptions:
+                    merged_assumptions.append(item)
+            session_metadata["domainFocus"] = refinement["domainFocus"]
+            session_metadata["assumptionsToVerify"] = merged_assumptions[:5]
+            session_metadata["answerRecord"] = update_answer_record(
+                session_metadata.get("answerRecord"),
+                user_message,
+                refinement["domainFocus"],
+                source="founder",
+                evidence_status=refinement["evidenceStatus"],
+                assumptions=refinement["assumptionsToVerify"],
+            )
+            session_context = _active_session_context(session_metadata)
+            retrieval = build_retrieval_context(
+                sessionId,
+                current_state,
+                query,
+                domain_focus=session_metadata.get("domainFocus", []),
+                geography=current_state.geography,
+                assumptions_to_verify=session_metadata.get("assumptionsToVerify", []),
+                answer_record=session_metadata.get("answerRecord"),
+                session_context=session_context,
+            )
             conversation_metadata = derive_mentor_turn_metadata(
                 current_state,
                 user_message,
@@ -111,6 +159,9 @@ async def chat(
                 needs_info=retrieval["needsInfo"],
                 retrieval_gap=retrieval["retrievalGap"],
                 source_conflict=retrieval["sourceConflict"],
+                domain_focus=session_metadata.get("domainFocus", []),
+                assumptions_to_verify=session_metadata.get("assumptionsToVerify", []),
+                answer_record=session_metadata.get("answerRecord"),
             )
             system_prompt = build_system_prompt(
                 current_state,
@@ -120,6 +171,9 @@ async def chat(
                 needs_info=retrieval["needsInfo"],
                 retrieval_gap=retrieval["retrievalGap"],
                 source_conflict=retrieval["sourceConflict"],
+                domain_focus=session_metadata.get("domainFocus", []),
+                assumptions_to_verify=session_metadata.get("assumptionsToVerify", []),
+                answer_record=session_metadata.get("answerRecord"),
             )
             active_uploads = list_active_uploads(sessionId)
 
@@ -161,6 +215,9 @@ async def chat(
                 "needsInfo": retrieval["needsInfo"],
                 "retrievalGap": retrieval["retrievalGap"],
                 "sourceConflict": retrieval["sourceConflict"],
+                "domainFocus": session_metadata.get("domainFocus", []),
+                "assumptionsToVerify": session_metadata.get("assumptionsToVerify", []),
+                "evidenceStatus": refinement["evidenceStatus"],
             }
             assistant_metadata = {
                 "responseProfile": completion_payload["responseProfile"],
@@ -177,9 +234,22 @@ async def chat(
                 **conversation_metadata,
             }
 
+            session_metadata.update(
+                {
+                    "conversationMove": conversation_metadata.get("conversationMove", ""),
+                    "needsInfo": retrieval["needsInfo"],
+                    "retrievalGap": retrieval["retrievalGap"],
+                    "sourceConflict": retrieval["sourceConflict"],
+                    "lastQuestionStem": conversation_metadata.get("lastQuestionStem", ""),
+                    "lastMoveType": conversation_metadata.get("lastMoveType", ""),
+                    "lastReflectionUsed": conversation_metadata.get("lastReflectionUsed", ""),
+                }
+            )
+
             memory.store_turn(sessionId, "user", display_message, metadata=user_metadata)
             memory.store_turn(sessionId, "assistant", assistant_message, metadata=assistant_metadata)
             memory.update_session(sessionId, current_state)
+            memory.update_session_metadata(sessionId, session_metadata)
             if upload_entry is not None:
                 memory.track_event(
                     event_type="file_uploaded",

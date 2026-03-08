@@ -10,6 +10,13 @@ from typing import Any
 from state import ConversationState
 
 from backend.services.model_router import default_model_for_provider, generate_provider_text
+from backend.services.refinement import (
+    detect_evidence_balance,
+    empty_answer_record,
+    refine_founder_input,
+    summarize_answer_record,
+    update_answer_record,
+)
 from knowledge import VC_STAGE_MAP, get_stage_metrics_context, get_vc_pass_reasons_context, get_yc_frameworks_context
 
 
@@ -733,6 +740,18 @@ QUESTION_LENS_MAP: dict[str, list[str]] = {
     "sustainability_signal": ["proof_validation"],
 }
 
+LENS_DOMAIN_MAP = {
+    "founder_product_fit": "founder",
+    "one_sentence_pitch": "problem",
+    "growth_readiness": "business",
+    "user_problem": "problem",
+    "icp_wedge": "market",
+    "proof_validation": "problem",
+    "business_model": "business",
+    "why_now": "market",
+    "execution_risk": "solution",
+}
+
 CATEGORY_BELIEF_KEYS = {
     "Pitch": "clarity",
     "Problem": "problem",
@@ -1142,6 +1161,7 @@ def initial_evaluation_metadata(
     sector: str = "unknown",
     stage: str = "unknown",
     mode: str = "think_it_through",
+    geography: str = "unspecified",
 ) -> dict[str, Any]:
     return {
         "questionBudget": normalize_budget(question_budget),
@@ -1154,6 +1174,7 @@ def initial_evaluation_metadata(
         "sector": sector,
         "stage": stage,
         "mode": mode,
+        "geography": geography or "unspecified",
         "intakeComplete": False,
         "askedQuestionIds": [],
         "currentQuestionId": "",
@@ -1172,6 +1193,9 @@ def initial_evaluation_metadata(
         "deeperRounds": 0,
         "deeperQuestionsRemaining": 0,
         "conversationMove": "",
+        "domainFocus": [],
+        "answerRecord": empty_answer_record(),
+        "assumptionsToVerify": [],
         "needsInfo": [],
         "retrievalGap": "",
         "sourceConflict": "",
@@ -1239,6 +1263,7 @@ def _score_text_lenses(text: str, metadata: dict[str, Any]) -> dict[str, Any]:
     lowered = (text or "").lower()
     if not lowered.strip():
         return result
+    evidence_balance = detect_evidence_balance(text)
 
     first_sentence = (_sentences(text)[:1] or [""])[0]
     has_user = _contains_any(lowered, ("user", "customer", "buyer", "seller", "employee", "student", "team", "finance"))
@@ -1255,7 +1280,7 @@ def _score_text_lenses(text: str, metadata: dict[str, Any]) -> dict[str, Any]:
     )
     has_risk = _contains_any(lowered, ("risk", "blocker", "milestone", "next", "need to prove", "uncertain", "hardest"))
     has_numbers = bool(NUMBER_PATTERN.search(text))
-    has_evidence = _contains_any(lowered, EVIDENCE_MARKERS)
+    has_evidence = _contains_any(lowered, EVIDENCE_MARKERS) or evidence_balance["status"] == "evidence"
     concise_pitch = 8 <= len(_tokens(first_sentence)) <= 32 and has_user and (has_problem or has_value)
 
     if concise_pitch:
@@ -1343,6 +1368,13 @@ def _score_text_lenses(text: str, metadata: dict[str, Any]) -> dict[str, Any]:
             "The intake already identifies an execution risk or next milestone.",
         )
 
+    if evidence_balance["status"] == "hypothesis":
+        for key in ("proof_validation", "growth_readiness", "business_model"):
+            result[key]["score"] = min(float(result[key]["score"]), 38.0)
+            result[key]["status"] = _status_from_score(result[key]["score"], len(result[key]["evidence"]))
+            if not result[key]["why"]:
+                result[key]["why"] = "Most of this section is still a future plan or hypothesis, not evidence yet."
+
     return result
 
 
@@ -1354,6 +1386,26 @@ def _refresh_intake_state(metadata: dict[str, Any]) -> dict[str, Any]:
             metadata.get("website", {}).get("text", "").strip(),
         ]
         if bit
+    )
+    refinement = refine_founder_input(
+        source_text,
+        state=ConversationState(
+            founder_type=metadata.get("founderType", "unknown"),
+            sector=metadata.get("sector", "unknown"),
+            stage=metadata.get("stage", "unknown"),
+            mode=metadata.get("mode", "think_it_through"),
+            geography=metadata.get("geography", "unspecified"),
+        ),
+    )
+    metadata["domainFocus"] = refinement["domainFocus"]
+    metadata["assumptionsToVerify"] = refinement["assumptionsToVerify"]
+    metadata["answerRecord"] = update_answer_record(
+        metadata.get("answerRecord"),
+        source_text,
+        refinement["domainFocus"],
+        source="setup",
+        evidence_status=refinement["evidenceStatus"],
+        assumptions=refinement["assumptionsToVerify"],
     )
     intake_map = _score_text_lenses(source_text, metadata)
     metadata["initialEvidenceMap"] = intake_map
@@ -1640,6 +1692,7 @@ def _deterministic_scores(question: dict[str, Any], answer: str, answers: list[d
     ratio = _text_ratio(text)
     has_numbers = bool(NUMBER_PATTERN.search(text))
     has_evidence = _contains_any(text, EVIDENCE_MARKERS)
+    evidence_balance = detect_evidence_balance(text)
     vague_count = sum(text.lower().count(marker) for marker in VAGUE_MARKERS)
 
     question_keywords = [token for token in _tokens(question["text"]) if len(token) > 3]
@@ -1660,6 +1713,8 @@ def _deterministic_scores(question: dict[str, Any], answer: str, answers: list[d
     evidence = 1.5 + (2.2 if has_evidence else 0.0)
     if has_numbers and has_evidence:
         evidence += 0.8
+    if evidence_balance["status"] == "hypothesis":
+        evidence -= 1.0
 
     if question.get("expectsQuantification"):
         quantification = 4.8 if has_numbers else 1.2
@@ -1683,6 +1738,8 @@ def _deterministic_scores(question: dict[str, Any], answer: str, answers: list[d
         logic += 0.8
     if length > 40:
         logic += 0.5
+    if evidence_balance["status"] == "hypothesis":
+        logic -= 0.4
 
     scores = {
         "comprehension": max(0.5, min(comprehension, 5.0)),
@@ -1792,6 +1849,13 @@ def _why_for_scores(scores: dict[str, float]) -> str:
     return "The answer is directionally strong, but it can still be sharper and more concrete."
 
 
+def _why_for_scores_with_balance(scores: dict[str, float], answer: str) -> str:
+    evidence_balance = detect_evidence_balance(answer)
+    if evidence_balance["status"] == "hypothesis":
+        return "Most of this answer is still a plan or belief. I need evidence from something already observed, tested, or done."
+    return _why_for_scores(scores)
+
+
 def _suggestions_for_scores(scores: dict[str, float], question: dict[str, Any]) -> list[str]:
     suggestions: list[str] = []
     if scores["comprehension"] < 2.5:
@@ -1806,6 +1870,16 @@ def _suggestions_for_scores(scores: dict[str, float], question: dict[str, Any]) 
         suggestions.append("Make the cause-and-effect clearer so the argument feels stronger.")
     if not suggestions:
         suggestions.append(f"Go one level deeper on the strongest part of your answer to `{question['category']}`.")
+    return suggestions[:3]
+
+
+def _suggestions_for_scores_with_balance(scores: dict[str, float], question: dict[str, Any], answer: str) -> list[str]:
+    suggestions = _suggestions_for_scores(scores, question)
+    evidence_balance = detect_evidence_balance(answer)
+    if evidence_balance["status"] == "hypothesis":
+        plan_fix = "Separate what you plan to do next from what you have already observed, tested, or measured."
+        if plan_fix not in suggestions:
+            suggestions.insert(0, plan_fix)
     return suggestions[:3]
 
 
@@ -2249,12 +2323,16 @@ async def phrase_evaluator_turn(
         "sector": state.sector,
         "stage": state.stage,
         "mode": state.mode,
+        "geography": getattr(state, "geography", metadata.get("geography", "unspecified")),
         "openingStyle": opening_style,
         "moveType": move_type,
         "probeIntent": probe_intent,
         "canonicalQuestion": get_question_text(question, state),
         "contextHint": context_hint,
         "latestFounderAnswer": latest_answer,
+        "domainFocus": metadata.get("domainFocus", []),
+        "assumptionsToVerify": metadata.get("assumptionsToVerify", []),
+        "answerRecordSummary": summarize_answer_record(metadata.get("answerRecord")),
         "knowledgeBaseFocus": needs_info or [],
         "retrievalGap": retrieval_gap,
         "sourceConflict": source_conflict,
@@ -2352,8 +2430,14 @@ def _report_lens_why(entry: dict[str, Any], metadata: dict[str, Any]) -> str:
     stage = str(metadata.get("stage", "unknown"))
     has_evidence = bool(entry.get("evidence"))
     clause = _snippet_clause(entry)
+    domain_key = LENS_DOMAIN_MAP.get(key, "")
+    answer_record = metadata.get("answerRecord", {})
+    domain_entry = answer_record.get(domain_key, {}) if isinstance(answer_record, dict) else {}
+    hypothesis_only = bool(domain_entry.get("hypotheses")) and not bool(domain_entry.get("evidence"))
 
     if key == "founder_product_fit":
+        if hypothesis_only and status != "strong":
+            return "The founder fit story is still mostly asserted. I need a concrete example that proves this team has earned the right to solve it."
         if status == "strong":
             return f"There is a credible founder edge here{clause}. It feels earned, not just claimed."
         if status == "partial":
@@ -2368,6 +2452,8 @@ def _report_lens_why(entry: dict[str, Any], metadata: dict[str, Any]) -> str:
         return "The core story is still too fuzzy. I cannot repeat the company back in one sharp line yet."
 
     if key == "growth_readiness":
+        if hypothesis_only and status != "strong":
+            return "Most of the growth or proof story is still future plan. I need evidence from real behavior, testing, or completed work."
         if stage in {"idea", "pre-revenue"}:
             if status == "strong":
                 return f"There is enough early proof here to justify deeper pressure-testing{clause}."
@@ -2395,6 +2481,8 @@ def _report_lens_why(entry: dict[str, Any], metadata: dict[str, Any]) -> str:
         return "The customer wedge is still too broad. I do not yet know who says yes first and why."
 
     if key == "proof_validation":
+        if hypothesis_only and status != "strong":
+            return "Validation is still mostly hypothetical. I need proof from real users, tests, pilots, or observed behavior."
         if status == "strong":
             return f"There is real validation here{clause}. This reads more like observed behavior than opinion."
         if status == "partial":
@@ -2402,6 +2490,8 @@ def _report_lens_why(entry: dict[str, Any], metadata: dict[str, Any]) -> str:
         return "Validation is still thin. I need stronger proof from real users, tests, or behavior."
 
     if key == "business_model":
+        if hypothesis_only and status != "strong":
+            return "The business model is still mostly a hypothesis. I need a clearer story on what gets paid for and what it costs in reality."
         if status == "strong":
             return f"The payment and delivery logic is starting to hold up{clause}. I can see how value could turn into a business."
         if status == "partial":
@@ -2642,6 +2732,10 @@ async def naturalize_evaluation_report(
         "sector": state.sector,
         "stage": state.stage,
         "mode": state.mode,
+        "geography": getattr(state, "geography", metadata.get("geography", "unspecified")),
+        "domainFocus": metadata.get("domainFocus", []),
+        "assumptionsToVerify": metadata.get("assumptionsToVerify", []),
+        "answerRecordSummary": summarize_answer_record(metadata.get("answerRecord"), limit_domains=5),
         "knowledgeBaseFocus": metadata.get("needsInfo", []),
         "retrievalGap": metadata.get("retrievalGap", ""),
         "sourceConflict": metadata.get("sourceConflict", ""),
@@ -2653,6 +2747,7 @@ async def naturalize_evaluation_report(
             "rewriteSupportingLensText": True,
             "rewriteQuestionAppendix": True,
             "keepStructure": True,
+            "plansAreHypotheses": True,
         },
         "responseShape": {
             "verdict": "string",
@@ -3026,6 +3121,24 @@ async def evaluate_answer(
     pending_prefix = metadata.pop("pendingAnswerPrefix", "").strip()
     metadata.pop("clarifyingQuestion", None)
     answer_text = " ".join(bit for bit in [pending_prefix, answer.strip()] if bit).strip()
+    refinement_state = ConversationState(
+        founder_type=state.founder_type,
+        sector=state.sector,
+        stage=state.stage,
+        mode=state.mode,
+        geography=getattr(state, "geography", metadata.get("geography", "unspecified")),
+    )
+    refinement = refine_founder_input(answer_text, state=refinement_state)
+    metadata["domainFocus"] = refinement["domainFocus"]
+    metadata["assumptionsToVerify"] = refinement["assumptionsToVerify"]
+    metadata["answerRecord"] = update_answer_record(
+        metadata.get("answerRecord"),
+        answer_text,
+        refinement["domainFocus"],
+        source="founder",
+        evidence_status=refinement["evidenceStatus"],
+        assumptions=refinement["assumptionsToVerify"],
+    )
 
     if _is_clarification_request(answer_text):
         clarify_question = {
@@ -3088,8 +3201,8 @@ async def evaluate_answer(
     overall_score = _question_overall_score(combined_scores, question)
 
     reciprocal = _coach_line_for_scores(combined_scores, state, question, answers)
-    why = _why_for_scores(combined_scores)
-    suggestions = _suggestions_for_scores(combined_scores, question)
+    why = _why_for_scores_with_balance(combined_scores, answer_text)
+    suggestions = _suggestions_for_scores_with_balance(combined_scores, question, answer_text)
     contradictions = _detect_contradictions(answer_text, answers)
     for note in contradictions:
         if note not in suggestions:
@@ -3111,6 +3224,9 @@ async def evaluate_answer(
         "modelProvider": provider,
         "model": model or default_model_for_provider(provider),
         "contradictions": contradictions,
+        "domainFocus": refinement["domainFocus"],
+        "assumptionsToVerify": refinement["assumptionsToVerify"],
+        "evidenceStatus": refinement["evidenceStatus"],
     }
     answers.append(answered)
     _update_belief_state(metadata, question, combined_scores, contradictions)

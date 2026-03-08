@@ -15,6 +15,7 @@ type Props = {
     founderType: SetupDraft["founderType"];
     sector: SetupDraft["sector"];
     stage: SetupDraft["stage"];
+    geography: string;
     mode: SetupDraft["mode"];
     provider: Provider;
     model: string;
@@ -277,6 +278,14 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
 
             <div className="drawer-card">
               <div className="field-grid">
+                <label className="identity-field">
+                  <span className="rail-label">Geography</span>
+                  <input
+                    value={draft.geography}
+                    onChange={(event) => onDraftChange((current) => ({ ...current, geography: event.target.value }))}
+                    placeholder="India, US, Global, or unspecified"
+                  />
+                </label>
                 <label className="identity-field field-span">
                   <span className="rail-label">Website URL</span>
                   <input
@@ -379,6 +388,7 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
                   founderType: draft.founderType,
                   sector: draft.sector,
                   stage: draft.stage,
+                  geography: draft.geography,
                   mode: draft.mode,
                   provider: resolvedProvider as Provider,
                   model: resolvedModel,

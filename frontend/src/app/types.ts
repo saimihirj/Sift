@@ -26,6 +26,7 @@ export type SetupDraft = {
   founderType: FounderType;
   sector: Sector;
   stage: Stage;
+  geography: string;
   websiteUrl: string;
   setupContext: string;
   sessionType: SessionType;
@@ -52,6 +53,7 @@ export type SessionState = {
   company_name: string;
   founder_type: string;
   mode: string;
+  geography: string;
   urgency: boolean;
   number_claims: Array<{
     claim: string;

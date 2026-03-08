@@ -50,6 +50,7 @@ const DEFAULT_SETUP_DRAFT: SetupDraft = {
   founderType: "founder",
   sector: "saas",
   stage: "idea",
+  geography: "unspecified",
   websiteUrl: "",
   setupContext: "",
   sessionType: "mentor",
@@ -316,6 +317,7 @@ function AppBody() {
     founderType: string;
     sector: string;
     stage: string;
+    geography: string;
     mode: "think_it_through" | "quick_stress_test";
     provider: string;
     model: string;
@@ -333,6 +335,7 @@ function AppBody() {
         sector: payload.sector,
         stage: payload.stage,
         mode: payload.mode,
+        geography: payload.geography,
         sessionType: payload.sessionType,
         provider: payload.provider,
         model: payload.model,
