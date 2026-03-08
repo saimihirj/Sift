@@ -1,4 +1,4 @@
-"""FastAPI entrypoint for Signal."""
+"""FastAPI entrypoint for SignalX."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
 FRONTEND_ASSETS = FRONTEND_DIST / "assets"
 
-app = FastAPI(title="Signal API", version="0.2.0")
+app = FastAPI(title="SignalX API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,7 +44,7 @@ app.add_middleware(
 if SessionMiddleware is not None:
     app.add_middleware(
         SessionMiddleware,
-        secret_key=os.environ.get("VK_SESSION_SECRET", "signal-local-dev-secret"),
+        secret_key=os.environ.get("VK_SESSION_SECRET", "signalx-local-dev-secret"),
         same_site="lax",
         https_only=os.environ.get("VK_COOKIE_SECURE", "false").strip().lower() == "true",
         max_age=60 * 60 * 24 * 30,
@@ -61,7 +61,7 @@ async def on_startup() -> None:
 async def health() -> dict:
     return {
         "status": "ok",
-        "app": "Signal",
+        "app": "SignalX",
         "modelProvider": active_provider(),
         "dataDir": str(memory.DATA_DIR),
     }

@@ -1,6 +1,6 @@
-# Signal Platform Overview
+# SignalX Platform Overview
 
-This is the single handoff document for the current Signal platform.
+This is the single handoff document for the current SignalX platform.
 
 It explains:
 - what the product is
@@ -13,9 +13,9 @@ It explains:
 
 This document is written for founder, product, and technical review.
 
-## 1. What Signal Is
+## 1. What SignalX Is
 
-Signal is a founder copilot with two working modes:
+SignalX is a founder copilot with two working modes:
 - `Ideate` for open-ended, two-way pitch refinement
 - `Evaluate` for sharper, evidence-driven assessment
 
@@ -142,7 +142,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    B["Browser"] --> APP["vk.py single-port app"]
+    B["Browser"] --> APP["signalx_app.py single-port app"]
     APP --> FAST["FastAPI"]
     FAST --> DIST["Built React frontend"]
     FAST --> OLL["Ollama"]
@@ -479,7 +479,7 @@ VK_ADMIN_TOKEN=your_secret_token
 Run from the project root:
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signal
+cd /Users/saimihirj/Desktop/Ideas/signalx
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -502,7 +502,7 @@ ollama pull qwen3:8b
 ### Normal MVP app
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signal
+cd /Users/saimihirj/Desktop/Ideas/signalx
 source .venv/bin/activate
 npm run mvp
 ```
@@ -516,7 +516,7 @@ http://127.0.0.1:7860
 ### Admin directly
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signal
+cd /Users/saimihirj/Desktop/Ideas/signalx
 source .venv/bin/activate
 npm run admin
 ```
@@ -530,7 +530,7 @@ http://127.0.0.1:7860/admin
 ### LAN share
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signal
+cd /Users/saimihirj/Desktop/Ideas/signalx
 source .venv/bin/activate
 npm run mvp:lan
 ```
@@ -546,7 +546,7 @@ http://YOUR-LAN-IP:7860/admin
 ### Dev mode
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signal
+cd /Users/saimihirj/Desktop/Ideas/signalx
 source .venv/bin/activate
 npm run dev
 ```
@@ -560,9 +560,9 @@ http://127.0.0.1:5173
 ### Docker
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signal
-docker build -t signal .
-docker run -p 8000:8000 --env-file .env signal
+cd /Users/saimihirj/Desktop/Ideas/signalx
+docker build -t signalx .
+docker run -p 8000:8000 --env-file .env signalx
 ```
 
 Open:

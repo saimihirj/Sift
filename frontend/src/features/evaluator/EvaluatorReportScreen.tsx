@@ -71,7 +71,7 @@ function buildReportMarkdown(payload: EvaluatorReportPayload): string {
   const report = payload.evaluationReport;
   const groups = pickLensGroups(report);
   return [
-    "# Signal Evaluation Report",
+    "# SignalX Evaluation Report",
     "",
     `**Verdict:** ${report.verdict || report.summary || "Not available"}`,
     `**Success score:** ${report.overallScore.toFixed(1)}`,
@@ -163,7 +163,7 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onR
     const link = document.createElement("a");
     const suffix = report.partial ? "partial" : "final";
     link.href = url;
-    link.download = `signal-evaluation-${sessionId || "report"}-${suffix}.md`;
+    link.download = `signalx-evaluation-${sessionId || "report"}-${suffix}.md`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

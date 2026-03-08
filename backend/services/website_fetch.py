@@ -28,7 +28,7 @@ async def fetch_website_context(url: str, max_chars: int = 3200) -> dict:
 
     timeout = httpx.Timeout(12.0, connect=4.0, read=12.0)
     headers = {
-        "User-Agent": "Signal/0.2 (founder evaluator)",
+        "User-Agent": "SignalX/0.2 (founder evaluator)",
         "Accept": "text/html,application/xhtml+xml",
     }
 

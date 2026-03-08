@@ -1,6 +1,6 @@
 # Execution Guide
 
-This document is the accurate runbook for the current Signal app.
+This document is the accurate runbook for the current SignalX app.
 
 It covers:
 - local setup
@@ -73,7 +73,7 @@ Notes:
 Best default for normal use.
 
 ```bash
-python3 vk.py --build
+python3 signalx_app.py --build
 ```
 
 Shortcut:
@@ -97,9 +97,9 @@ http://127.0.0.1:7860
 Useful flags:
 
 ```bash
-python3 vk.py --build --port 7870
-python3 vk.py --build --no-open
-python3 signal_app.py --build --idle-timeout 90
+python3 signalx_app.py --build --port 7870
+python3 signalx_app.py --build --no-open
+python3 signalx_app.py --build --idle-timeout 90
 ```
 
 ### B. LAN Test Mode
@@ -107,7 +107,7 @@ python3 signal_app.py --build --idle-timeout 90
 Use this to let a co-founder test on the same Wi‑Fi network.
 
 ```bash
-python3 vk.py --host 0.0.0.0 --port 7860 --build
+python3 signalx_app.py --host 0.0.0.0 --port 7860 --build
 ```
 
 Shortcut:
@@ -154,8 +154,8 @@ Important:
 For container-style deployment:
 
 ```bash
-docker build -t signal .
-docker run -p 8000:8000 signal
+docker build -t signalx .
+docker run -p 8000:8000 signalx
 ```
 
 App URL:
@@ -182,14 +182,14 @@ Recommended deploy path:
 
 Important:
 - the current blueprint uses a persistent disk
-- app data is written under `/var/data/signal`
+- app data is written under `/var/data/signalx`
 - admin monitoring is available at `/admin`
 
 If you want zero paid dependencies, skip this section and stay on local / LAN mode.
 
 ## 5. VC Firm Knowledge Cluster
 
-Signal can build a dedicated `vc_firms` retrieval cluster from:
+SignalX can build a dedicated `vc_firms` retrieval cluster from:
 
 ```text
 knowledge_inbox/Investor.xlsx
@@ -294,7 +294,7 @@ Typical local flow:
 
 ### Ollama is not reachable
 
-Signal normally starts Ollama for you. If it still cannot reach Ollama, check:
+SignalX normally starts Ollama for you. If it still cannot reach Ollama, check:
 
 Check:
 - `OLLAMA_BASE_URL`
@@ -315,7 +315,7 @@ If it is still unavailable, the app should fall back to `speed`.
 That auto-stop behavior only applies to:
 
 ```bash
-python3 vk.py
+python3 signalx_app.py
 ```
 
 It does not apply to:
@@ -348,7 +348,7 @@ npm --prefix frontend run build
 Then restart:
 
 ```bash
-python3 vk.py --build
+python3 signalx_app.py --build
 ```
 
 ## 8. Key Commands
@@ -366,13 +366,13 @@ npm --prefix frontend install
 Run local app:
 
 ```bash
-python3 vk.py --build
+python3 signalx_app.py --build
 ```
 
 Run LAN share:
 
 ```bash
-python3 vk.py --host 0.0.0.0 --port 7860 --build
+python3 signalx_app.py --host 0.0.0.0 --port 7860 --build
 ```
 
 Run dev:
@@ -390,6 +390,6 @@ npm --prefix frontend run build
 Run Docker:
 
 ```bash
-docker build -t signal .
-docker run -p 8000:8000 signal
+docker build -t signalx .
+docker run -p 8000:8000 signalx
 ```

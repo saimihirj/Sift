@@ -1,6 +1,6 @@
-# Signal
+# SignalX
 
-Signal is a local-first founder copilot for ideation and evaluation.
+SignalX is a local-first founder copilot for ideation and evaluation.
 
 It is built to behave more like a sharp human mentor than a generic chatbot:
 - it pushes on problem clarity, customer understanding, validation, and reasoning
@@ -106,13 +106,7 @@ Useful variants:
 Direct launcher:
 
 ```bash
-python3 signal_app.py --build
-```
-
-The old launcher name still works for compatibility:
-
-```bash
-python3 vk.py --build
+python3 signalx_app.py --build
 ```
 
 ## How It Works
@@ -161,13 +155,12 @@ For external providers, API keys are session-scoped in the browser and are not p
 - `frontend/` — React app
 - `backend/` — FastAPI APIs and services
 - `memory.py` — SQLite session and analytics persistence
-- `signal_app.py` — primary single-process launcher
-- `vk.py` — compatibility wrapper for the old launcher name
+- `signalx_app.py` — primary single-process launcher
 - `docs/` — architecture, execution, and platform notes
 
 ## Current State
 
-- active product name: `Signal`
+- active product name: `SignalX`
 - local-first MVP is fully runnable without paid services
 - admin is exposed only in admin launch mode
 - Ideate and Evaluate both support resumed sessions

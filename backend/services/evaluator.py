@@ -1,4 +1,4 @@
-"""Adaptive evaluator engine for Signal."""
+"""Adaptive evaluator engine for SignalX."""
 
 from __future__ import annotations
 
@@ -2010,7 +2010,7 @@ async def score_answer_with_model(
     pass_reasons = get_vc_pass_reasons_context()
     yc_benchmarks = get_yc_frameworks_context()
     system = (
-        "You are Signal's evaluator grader. Score only the founder's latest answer. Return valid JSON only. "
+        "You are SignalX's evaluator grader. Score only the founder's latest answer. Return valid JSON only. "
         "Use 0 to 5 scores. Keep why and coachLine short. "
         "coachLine must be one coaching sentence, not a question, and must not include the next question.\n\n"
         "Use the following VC evaluation standards to calibrate your scoring:\n\n"
@@ -2302,7 +2302,7 @@ async def phrase_evaluator_turn(
     move_type: str = "",
 ) -> dict[str, str]:
     system = (
-        "You are Signal's live evaluator interviewer. "
+        "You are SignalX's live evaluator interviewer. "
         "You sound like a sharp early-stage VC operator: concise, natural, specific, and human. "
         "Use the knowledge base and conversation history as the primary source of truth. "
         "If the knowledge base is thin, say so briefly instead of pretending. "

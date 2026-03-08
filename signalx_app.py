@@ -1,4 +1,4 @@
-"""Single-process launcher for Signal."""
+"""Single-process launcher for SignalX."""
 
 from __future__ import annotations
 
@@ -92,7 +92,7 @@ def ensure_ollama_running() -> subprocess.Popen[str] | None:
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=5)
-    raise RuntimeError("Signal started Ollama, but it did not become ready in time.")
+    raise RuntimeError("SignalX started Ollama, but it did not become ready in time.")
 
 
 def cleanup_process(process: subprocess.Popen[str] | None) -> None:
@@ -107,7 +107,7 @@ def cleanup_process(process: subprocess.Popen[str] | None) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run Signal as a single local web app.")
+    parser = argparse.ArgumentParser(description="Run SignalX as a single local web app.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=7860)
     parser.add_argument("--idle-timeout", type=int, default=90, help="Stop after this many idle seconds once the browser disappears.")
@@ -134,7 +134,7 @@ def main() -> int:
     if not args.no_ollama:
         ollama_process = ensure_ollama_running()
 
-    print(f"Signal running at {browser_url}")
+    print(f"SignalX running at {browser_url}")
     if args.host == "0.0.0.0":
         print(f"LAN test URL: {shared_url}")
     if ollama_process is not None:

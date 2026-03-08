@@ -46,7 +46,7 @@ export function LandingScreen({
         <div className="landing-topbar">
           <div className="plain-header-block">
             <span className="eyebrow">Start</span>
-            <strong>Signal</strong>
+            <strong>SignalX</strong>
           </div>
           <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
             Themes

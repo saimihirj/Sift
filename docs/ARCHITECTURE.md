@@ -1,12 +1,12 @@
-# Signal Architecture
+# SignalX Architecture
 
-This document explains how Signal works today, how it should run in production for the MVP, and what to monitor.
+This document explains how SignalX works today, how it should run in production for the MVP, and what to monitor.
 
 It is written for product and technical review, so it can be shared directly with a co-founder.
 
 ## Product Goal
 
-Signal is a founder copilot, not a generic chatbot.
+SignalX is a founder copilot, not a generic chatbot.
 
 The product should:
 - help founders clarify the real problem
@@ -57,7 +57,7 @@ Browser -> http://127.0.0.1:7860
 This is started by:
 
 ```bash
-python3 vk.py --build
+python3 signalx_app.py --build
 ```
 
 The backend serves the built frontend and API from one process.
@@ -385,7 +385,7 @@ Suggested sections:
 - Ollama
 - SQLite
 - local uploads
-- `python3 vk.py --build`
+- `python3 signalx_app.py --build`
 
 ### MVP / staging
 

@@ -23,12 +23,12 @@ import { saveSessionCredential } from "../lib/sessionCredentials";
 
 declare const __APP_BUILD__: string;
 
-const SESSION_STORAGE_KEY = "signal-session-id";
+const SESSION_STORAGE_KEY = "signalx-session-id";
 const LEGACY_SESSION_STORAGE_KEY = "vishwakarma-session-id";
 const LEGACY_DISPLAY_NAME_STORAGE_KEY = "vishwakarma-display-name";
 const THEME_STORAGE_KEY = "vishwakarma-theme";
 const CLIENT_STORAGE_KEY = "vishwakarma-client-id";
-const APP_BUILD_STORAGE_KEY = "signal-app-build";
+const APP_BUILD_STORAGE_KEY = "signalx-app-build";
 const DEFAULT_AUTH_PROVIDERS: AuthProviderOption[] = [
   { key: "google", label: "Google", configured: false },
   { key: "apple", label: "Apple", configured: false },
@@ -391,7 +391,7 @@ function AppBody() {
   };
 
   if (loadingSession) {
-    return <div className="loading-screen">Loading Signal...</div>;
+    return <div className="loading-screen">Loading SignalX...</div>;
   }
 
   return (

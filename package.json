@@ -1,20 +1,18 @@
 {
-  "name": "signal",
+  "name": "signalx",
   "private": true,
   "version": "0.2.0",
   "scripts": {
-    "mvp": "python3 signal_app.py --build",
-    "mvp:lan": "python3 signal_app.py --host 0.0.0.0 --build",
-    "admin": "python3 signal_app.py --build --admin",
+    "mvp": "python3 signalx_app.py --build",
+    "mvp:lan": "python3 signalx_app.py --host 0.0.0.0 --build",
+    "admin": "python3 signalx_app.py --build --admin",
     "dev": "concurrently \"uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000\" \"npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173\"",
     "dev:backend": "uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000",
     "dev:frontend": "npm --prefix frontend run dev -- --host 0.0.0.0 --port 5173",
     "build": "npm --prefix frontend run build",
     "knowledge:vc": "./.venv/bin/python scripts/build_vc_firm_cluster.py",
-    "run:signal": "python3 signal_app.py",
-    "run:signal:lan": "python3 signal_app.py --host 0.0.0.0",
-    "run:vk": "python3 vk.py",
-    "run:vk:lan": "python3 vk.py --host 0.0.0.0"
+    "run:signalx": "python3 signalx_app.py",
+    "run:signalx:lan": "python3 signalx_app.py --host 0.0.0.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

@@ -54,7 +54,7 @@ WRAP_UP_CUES = (
     "thats all",
 )
 
-BASE_MENTOR_PROMPT = """You are Signal, an AI research partner helping founders and teams refine problem statements, user pain, and solution narratives.
+BASE_MENTOR_PROMPT = """You are SignalX, an AI research partner helping founders and teams refine problem statements, user pain, and solution narratives.
 
 You are not a generic chatbot. You are a founder-facing research partner with a sharp VC lens.
 
