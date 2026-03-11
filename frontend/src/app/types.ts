@@ -1,10 +1,11 @@
 export type ResponseProfile = "speed" | "balanced";
-export type SessionType = "mentor" | "evaluator";
+export type SessionType = "mentor" | "evaluator" | "expert";
 export type Provider = "ollama" | "cerebras" | "groq" | "openai" | "openrouter" | "anthropic" | "gemini";
 export type ThemeMode = "light" | "dark" | "dusk" | "neon";
 export type OAuthProvider = "google" | "apple";
+export type HelpMode = "coach_me" | "challenge_me" | "explain_directly";
 
-export type FounderType = "student" | "professional" | "founder" | "serial" | "unknown";
+export type FounderType = "student" | "operator" | "founder" | "investor" | "professional" | "other" | "serial" | "unknown";
 export type Sector =
   | "saas"
   | "d2c"
@@ -31,6 +32,8 @@ export type SetupDraft = {
   setupContext: string;
   sessionType: SessionType;
   mode: Mode;
+  helpMode: HelpMode;
+  liveWebEnabled: boolean;
 };
 
 export type ChatTurn = {
@@ -44,6 +47,26 @@ export type CoverageItem = {
   section: string;
   score: number;
   label: string;
+};
+
+export type SourceCitation = {
+  title: string;
+  url: string;
+  label: string;
+  sourceType: string;
+  geographyScope: string;
+  confidence: string;
+  domain: string;
+};
+
+export type ExpertAnalysisSnapshot = {
+  strengths: string[];
+  risks: string[];
+  missingEvidence: string[];
+  contradictions: string[];
+  nextQuestions: string[];
+  recommendedNextActions: string[];
+  concepts: string[];
 };
 
 export type SessionState = {
@@ -188,6 +211,14 @@ export type SessionPayload = {
   model: string;
   questionBudget?: number | null;
   websiteUrl: string;
+  sources: SourceCitation[];
+  confidence: number;
+  knowledgeLane: string;
+  usedLiveWeb: boolean;
+  followUpMode: string;
+  helpMode: HelpMode;
+  liveWebEnabled: boolean;
+  analysisSnapshot: ExpertAnalysisSnapshot;
   evaluationProgress?: EvaluationProgress | null;
   evaluationReport?: EvaluationReport | null;
 };
@@ -222,6 +253,14 @@ export type StartSessionPayload = {
   model: string;
   questionBudget?: number | null;
   websiteUrl: string;
+  sources: SourceCitation[];
+  confidence: number;
+  knowledgeLane: string;
+  usedLiveWeb: boolean;
+  followUpMode: string;
+  helpMode: HelpMode;
+  liveWebEnabled: boolean;
+  analysisSnapshot: ExpertAnalysisSnapshot;
   evaluationProgress?: EvaluationProgress | null;
   evaluationReport?: EvaluationReport | null;
 };

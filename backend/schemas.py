@@ -7,13 +7,14 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-FounderType = Literal["student", "professional", "founder", "serial", "unknown"]
+FounderType = Literal["student", "operator", "founder", "investor", "professional", "other", "serial", "unknown"]
 Sector = Literal["saas", "d2c", "fintech", "marketplace", "edtech", "healthtech", "deeptech", "unknown"]
 Stage = Literal["idea", "pre-revenue", "early-revenue", "growth", "unknown"]
 Mode = Literal["think_it_through", "quick_stress_test"]
 ResponseProfile = Literal["speed", "balanced"]
-SessionType = Literal["mentor", "evaluator"]
+SessionType = Literal["mentor", "evaluator", "expert"]
 Provider = Literal["ollama", "cerebras", "groq", "openai", "openrouter", "anthropic", "gemini"]
+HelpMode = Literal["coach_me", "challenge_me", "explain_directly"]
 
 
 class ChatTurn(BaseModel):
@@ -27,6 +28,26 @@ class CoverageItem(BaseModel):
     section: str
     score: int
     label: str
+
+
+class SourceCitation(BaseModel):
+    title: str
+    url: str = ""
+    label: str = ""
+    sourceType: str = "kb"
+    geographyScope: str = "global"
+    confidence: str = "medium"
+    domain: str = "general"
+
+
+class ExpertAnalysisSnapshot(BaseModel):
+    strengths: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    missingEvidence: list[str] = Field(default_factory=list)
+    contradictions: list[str] = Field(default_factory=list)
+    nextQuestions: list[str] = Field(default_factory=list)
+    recommendedNextActions: list[str] = Field(default_factory=list)
+    concepts: list[str] = Field(default_factory=list)
 
 
 class EvaluationQuestion(BaseModel):
@@ -101,11 +122,14 @@ class EvaluationReport(BaseModel):
 
 class StartSessionRequest(BaseModel):
     founderType: FounderType = "unknown"
+    userRole: FounderType | None = None
     sector: Sector = "unknown"
     stage: Stage = "unknown"
     mode: Mode = "think_it_through"
     geography: str = "unspecified"
     sessionType: SessionType = "mentor"
+    helpMode: HelpMode = "coach_me"
+    liveWebEnabled: bool = False
     questionBudget: int | None = None
     provider: Provider = "ollama"
     model: str = ""
@@ -146,6 +170,14 @@ class SessionResponse(BaseModel):
     model: str = ""
     questionBudget: int | None = None
     websiteUrl: str = ""
+    sources: list[SourceCitation] = Field(default_factory=list)
+    confidence: float = 0.0
+    knowledgeLane: str = "general"
+    usedLiveWeb: bool = False
+    followUpMode: str = ""
+    helpMode: HelpMode = "coach_me"
+    liveWebEnabled: bool = False
+    analysisSnapshot: ExpertAnalysisSnapshot = Field(default_factory=ExpertAnalysisSnapshot)
     evaluationProgress: EvaluationProgress | None = None
     evaluationReport: EvaluationReport | None = None
 
@@ -164,6 +196,14 @@ class StartSessionResponse(BaseModel):
     model: str = ""
     questionBudget: int | None = None
     websiteUrl: str = ""
+    sources: list[SourceCitation] = Field(default_factory=list)
+    confidence: float = 0.0
+    knowledgeLane: str = "general"
+    usedLiveWeb: bool = False
+    followUpMode: str = ""
+    helpMode: HelpMode = "coach_me"
+    liveWebEnabled: bool = False
+    analysisSnapshot: ExpertAnalysisSnapshot = Field(default_factory=ExpertAnalysisSnapshot)
     evaluationProgress: EvaluationProgress | None = None
     evaluationReport: EvaluationReport | None = None
 

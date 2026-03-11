@@ -378,6 +378,21 @@ a {
   gap: 12px;
 }
 
+.setup-alert {
+  border: 1px solid var(--line-strong);
+  background: var(--panel-muted);
+  color: var(--ink);
+  border-radius: 18px;
+  padding: 12px 14px;
+  line-height: 1.45;
+}
+
+.setup-inline-hint {
+  display: block;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
 .brand-lockup {
   align-items: flex-start;
 }
@@ -1159,6 +1174,26 @@ a:focus-visible,
   align-content: start;
 }
 
+.history-window-button {
+  justify-self: center;
+  border: 1px solid var(--line);
+  background: var(--panel-muted);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 8px 12px;
+  transition: border-color 180ms var(--ease-fluid), background 180ms var(--ease-fluid), color 180ms var(--ease-fluid);
+}
+
+.history-window-button:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.history-window-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .message {
   display: grid;
   gap: 4px;
@@ -1229,6 +1264,11 @@ a:focus-visible,
   border-radius: 999px;
   padding: 9px 12px;
   background: var(--accent-weak);
+}
+
+.chip-button.active {
+  background: var(--accent);
+  color: var(--bg);
 }
 
 .composer-shell {
@@ -2146,6 +2186,163 @@ a:focus-visible,
 
   .chip-row {
     max-height: 48px;
+  }
+}
+
+/* Expert workbench */
+
+.expert-workbench-shell {
+  min-height: 100dvh;
+}
+
+.expert-workbench-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(280px, 340px);
+  gap: 10px;
+  padding: clamp(8px, 1vw, 14px);
+  min-height: 100dvh;
+}
+
+.expert-left-column,
+.expert-right-column,
+.expert-main-column {
+  min-height: 0;
+}
+
+.expert-left-column,
+.expert-right-column {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.expert-main-column {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+}
+
+.expert-pane-header {
+  margin-bottom: 0;
+}
+
+.expert-header-subline {
+  color: var(--ink-soft);
+}
+
+.expert-panel-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: var(--shadow-soft);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.expert-panel-head {
+  display: grid;
+  gap: 4px;
+}
+
+.expert-control-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 10px 12px;
+}
+
+.expert-toggle-group,
+.expert-quick-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.expert-chat-panel {
+  min-height: 0;
+}
+
+.expert-source-list,
+.expert-session-list {
+  display: grid;
+  gap: 8px;
+}
+
+.expert-source-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: var(--panel-muted);
+  border: 1px solid var(--line);
+  transition: transform 160ms var(--ease-fluid), border-color 160ms var(--ease-fluid), box-shadow 160ms var(--ease-fluid);
+}
+
+.expert-source-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-hover);
+}
+
+.expert-source-card span,
+.expert-source-card small {
+  color: var(--ink-soft);
+}
+
+.expert-left-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.expert-analysis-grid,
+.expert-mobile-evidence {
+  display: grid;
+  gap: 10px;
+}
+
+.expert-bullet-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.expert-bullet-list li {
+  color: var(--ink);
+}
+
+@media (max-width: 1180px) {
+  .expert-workbench-grid {
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  }
+
+  .expert-right-column {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .expert-workbench-grid {
+    grid-template-columns: 1fr;
+    padding-bottom: 72px;
+  }
+
+  .expert-left-column,
+  .expert-right-column {
+    display: none;
+  }
+
+  .expert-main-column.mobile-evidence .expert-chat-panel,
+  .expert-main-column.mobile-evidence .expert-control-row,
+  .expert-main-column.mobile-evidence .pane-header {
+    display: none;
   }
 }
 

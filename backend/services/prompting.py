@@ -93,8 +93,11 @@ ANTI_TEMPLATE_BEHAVIOR = """Anti-template rules:
 
 FOUNDER_STYLE = {
     "student": "Use simple language, teach lightly, avoid jargon unless immediately explained, and ask the most basic useful question first.",
+    "operator": "Assume they think in execution terms. Focus on tradeoffs, bottlenecks, and what would actually work.",
     "professional": "Assume work experience but not startup fluency. Translate business jargon into plain startup logic.",
     "founder": "Assume commitment and some context. Push on the highest-leverage weakness without over-explaining basics.",
+    "investor": "Assume they care about evidence quality, downside, and whether the story is internally consistent.",
+    "other": "Default to plain, direct language and adapt quickly to how they reason.",
     "serial": "Skip basics, challenge assumptions fast, and ask what is genuinely different this time.",
     "unknown": "Default to plain, direct language and do not assume expertise.",
 }
@@ -217,8 +220,11 @@ SECTOR_SNIPPETS = {
 
 OPENING_PREFIX = {
     "student": "You are early, which is useful.",
+    "operator": "You know execution. The question is what is durable and defensible here.",
     "professional": "You know work; now we test whether this is a startup-scale problem.",
     "founder": "Good. Let us make the story harder to break.",
+    "investor": "You know the pattern language. The question is what is actually true here.",
+    "other": "Let us get concrete quickly.",
     "serial": "You know where decks fail. The real question is what is true here.",
     "unknown": "Let us sharpen the idea before you turn it into slides.",
 }
@@ -622,8 +628,12 @@ def build_personalized_opening(founder_type: str, sector: str, stage: str) -> st
 def get_starter_chips(state: ConversationState) -> list[str]:
     if state.founder_type == "student":
         return STUDENT_STARTER_CHIPS + ARTICULATION_CHIPS["Problem"][:2]
+    if state.founder_type == "operator":
+        return PROFESSIONAL_STARTER_CHIPS + SECTION_CHIPS["Solution"][:2]
     if state.founder_type == "professional":
         return PROFESSIONAL_STARTER_CHIPS + ARTICULATION_CHIPS["Problem"][:2]
+    if state.founder_type == "investor":
+        return SERIAL_STARTER_CHIPS
     if state.founder_type == "serial":
         return SERIAL_STARTER_CHIPS
     return STARTER_CHIPS.get(state.stage, STARTER_CHIPS["unknown"])
@@ -637,7 +647,7 @@ def founder_needs_simple_language(state: ConversationState, last_user_message: s
 
 
 def founder_needs_articulation_help(state: ConversationState, last_user_message: str = "") -> bool:
-    if state.founder_type in {"student", "professional"}:
+    if state.founder_type in {"student", "professional", "operator"}:
         return True
     message = (last_user_message or "").lower()
     return any(cue in message for cue in PHRASING_CUES)

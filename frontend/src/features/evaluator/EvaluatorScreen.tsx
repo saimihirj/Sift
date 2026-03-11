@@ -271,7 +271,12 @@ export function EvaluatorScreen({
             </div>
           ) : null}
 
-          <ChatMessageList history={session.history} streamingAssistant="" assistantLabel="Evaluate" />
+          <ChatMessageList
+            history={session.history}
+            streamingAssistant=""
+            assistantLabel="Evaluate"
+            sessionId={session.sessionId}
+          />
 
           {progress?.completed ? (
             <div className="evaluator-complete-banner">

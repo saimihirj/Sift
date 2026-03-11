@@ -53,7 +53,7 @@ class ConversationState:
     company_name: str = ""
 
     # Onboarding-collected profile
-    founder_type: str = "unknown"   # "student", "professional", "founder", "serial"
+    founder_type: str = "unknown"   # "student", "operator", "founder", "investor", "professional", "other", "serial"
     mode: str = "think_it_through"  # "think_it_through", "quick_stress_test"
     geography: str = "unspecified"
     urgency: bool = False           # True if pitch deadline detected

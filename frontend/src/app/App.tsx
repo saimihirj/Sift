@@ -16,6 +16,7 @@ import { AdminScreen } from "../features/admin/AdminScreen";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { EvaluatorReportScreen } from "../features/evaluator/EvaluatorReportScreen";
 import { EvaluatorScreen } from "../features/evaluator/EvaluatorScreen";
+import { ExpertScreen } from "../features/expert/ExpertScreen";
 import { LandingScreen } from "../features/onboarding/LandingScreen";
 import { SetupWizard } from "../features/onboarding/SetupWizard";
 import { OutlineScreen } from "../features/outline/OutlineScreen";
@@ -50,11 +51,13 @@ const DEFAULT_SETUP_DRAFT: SetupDraft = {
   founderType: "founder",
   sector: "saas",
   stage: "idea",
-  geography: "unspecified",
+  geography: "auto",
   websiteUrl: "",
   setupContext: "",
   sessionType: "mentor",
   mode: "think_it_through",
+  helpMode: "coach_me",
+  liveWebEnabled: false,
 };
 const LAST_SETUP_STEP = 2;
 
@@ -122,6 +125,7 @@ function AppBody() {
   const [session, setSession] = useState<SessionPayload | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [setupError, setSetupError] = useState("");
   const [entryScreen, setEntryScreen] = useState<"landing" | "setup">("landing");
   const [setupStep, setSetupStep] = useState(0);
   const [setupDraft, setSetupDraft] = useState<SetupDraft>(DEFAULT_SETUP_DRAFT);
@@ -138,12 +142,14 @@ function AppBody() {
   const [authError, setAuthError] = useState("");
   const [adminEnabled, setAdminEnabled] = useState(false);
   const effectiveClientId = authUser?.clientId || anonymousClientId;
+  const effectiveDisplayName = (displayName || authUser?.displayName || "").trim();
 
   useEffect(() => {
     const resetApplied = applyBuildResetIfNeeded();
     if (resetApplied) {
       setSession(null);
       setLoadingSession(false);
+      setSetupError("");
       if (location.pathname !== "/admin") {
         navigate("/", { replace: true });
       }
@@ -252,10 +258,10 @@ function AppBody() {
     void postAnalyticsEvent({
       eventType: "page_view",
       clientId: effectiveClientId,
-      displayName: displayName || authUser?.displayName || "",
+      displayName: effectiveDisplayName,
       pathname: location.pathname,
     }).catch(() => undefined);
-  }, [effectiveClientId, displayName, authUser, location.pathname]);
+  }, [effectiveClientId, effectiveDisplayName, location.pathname]);
 
   const hydrateStartedSession = (payload: StartSessionPayload) => {
     const next: SessionPayload = {
@@ -272,6 +278,14 @@ function AppBody() {
       model: payload.model,
       questionBudget: payload.questionBudget,
       websiteUrl: payload.websiteUrl,
+      sources: payload.sources,
+      confidence: payload.confidence,
+      knowledgeLane: payload.knowledgeLane,
+      usedLiveWeb: payload.usedLiveWeb,
+      followUpMode: payload.followUpMode,
+      helpMode: payload.helpMode,
+      liveWebEnabled: payload.liveWebEnabled,
+      analysisSnapshot: payload.analysisSnapshot,
       evaluationProgress: payload.evaluationProgress,
       evaluationReport: payload.evaluationReport,
     };
@@ -313,7 +327,7 @@ function AppBody() {
   };
 
   const handleStartSession = async (payload: {
-    sessionType: "mentor" | "evaluator";
+    sessionType: "mentor" | "evaluator" | "expert";
     founderType: string;
     sector: string;
     stage: string;
@@ -324,10 +338,14 @@ function AppBody() {
     apiKey: string;
     websiteUrl: string;
     setupContext: string;
+    helpMode: "coach_me" | "challenge_me" | "explain_directly";
+    liveWebEnabled: boolean;
   }) => {
-    if (!(displayName || authUser?.displayName || "").trim()) {
+    if (!effectiveDisplayName) {
+      setSetupError("Name missing. Go back and enter your name on the first screen before starting a session.");
       return;
     }
+    setSetupError("");
     setStarting(true);
     try {
       const response = await startSession({
@@ -337,13 +355,15 @@ function AppBody() {
         mode: payload.mode,
         geography: payload.geography,
         sessionType: payload.sessionType,
+        helpMode: payload.helpMode,
+        liveWebEnabled: payload.liveWebEnabled,
         provider: payload.provider,
         model: payload.model,
         apiKey: payload.apiKey.trim(),
         websiteUrl: payload.websiteUrl,
         setupContext: payload.setupContext,
         clientId: effectiveClientId,
-        displayName: (displayName || authUser?.displayName || "").trim(),
+        displayName: effectiveDisplayName,
       });
       if (payload.apiKey.trim()) {
         saveSessionCredential(response.sessionId, {
@@ -353,6 +373,8 @@ function AppBody() {
         });
       }
       hydrateStartedSession(response);
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "Failed to start session");
     } finally {
       setStarting(false);
     }
@@ -361,6 +383,7 @@ function AppBody() {
   const handleExitSession = () => {
     clearStoredSessionId();
     setSession(null);
+    setSetupError("");
     setEntryScreen("setup");
     setSetupStep(LAST_SETUP_STEP);
     void refreshSessions();
@@ -370,6 +393,7 @@ function AppBody() {
   const handleNewSession = () => {
     clearStoredSessionId();
     setSession(null);
+    setSetupError("");
     setEntryScreen("setup");
     setSetupStep(LAST_SETUP_STEP);
     void refreshSessions();
@@ -415,6 +439,21 @@ function AppBody() {
                 theme={theme}
                 onThemeChange={setTheme}
               />
+            ) : session.sessionType === "expert" ? (
+              <ExpertScreen
+                session={session}
+                setSession={(updater) => setSession((previous) => (previous ? updater(previous) : previous))}
+                onNewSession={handleNewSession}
+                onExitSession={handleExitSession}
+                onOpenSession={handleOpenSession}
+                onSessionActivity={() => void refreshSessions()}
+                onClearHistory={handleClearHistory}
+                clearingHistory={clearingHistory}
+                recentSessions={recentSessions}
+                providerOptions={providerOptions}
+                theme={theme}
+                onThemeChange={setTheme}
+              />
             ) : (
               <ChatScreen
                 session={session}
@@ -437,6 +476,7 @@ function AppBody() {
                 displayName={displayName}
                 onDisplayNameChange={setDisplayName}
                 onContinue={() => {
+                  setSetupError("");
                   setEntryScreen("setup");
                   setSetupStep(0);
                 }}
@@ -451,12 +491,20 @@ function AppBody() {
               <SetupWizard
                 providerOptions={providerOptions}
                 loading={starting}
+                error={setupError}
+                canStart={Boolean(effectiveDisplayName)}
                 step={setupStep}
                 draft={setupDraft}
-                onStepChange={setSetupStep}
-                onDraftChange={setSetupDraft}
+                onStepChange={(nextStep) => {
+                  setSetupError("");
+                  setSetupStep(nextStep);
+                }}
+                onDraftChange={(updater) => {
+                  setSetupError("");
+                  setSetupDraft(updater);
+                }}
                 onBack={() => {
-                  setDisplayName("");
+                  setSetupError("");
                   setEntryScreen("landing");
                   setSetupStep(0);
                 }}

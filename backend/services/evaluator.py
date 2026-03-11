@@ -1147,7 +1147,12 @@ def normalize_budget(value: int | None) -> int:
 
 
 def normalize_session_type(value: str | None) -> str:
-    return "evaluator" if (value or "").strip().lower() == "evaluator" else "mentor"
+    normalized = (value or "").strip().lower()
+    if normalized == "evaluator":
+        return "evaluator"
+    if normalized == "expert":
+        return "expert"
+    return "mentor"
 
 
 def initial_evaluation_metadata(

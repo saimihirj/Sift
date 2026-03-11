@@ -20,6 +20,7 @@ from backend.schemas import (
     StartSessionRequest,
     StartSessionResponse,
 )
+from backend.services.expert_agent import build_expert_opening, get_expert_quick_actions
 from backend.services.evaluator import (
     build_evaluation_report,
     initial_evaluation_metadata,
@@ -46,6 +47,18 @@ from backend.services.website_fetch import fetch_website_context
 
 
 router = APIRouter(prefix="/api/session", tags=["session"])
+
+
+def _empty_analysis_snapshot() -> dict:
+    return {
+        "strengths": [],
+        "risks": [],
+        "missingEvidence": [],
+        "contradictions": [],
+        "nextQuestions": [],
+        "recommendedNextActions": [],
+        "concepts": [],
+    }
 
 
 def _session_state_from_storage(session_row: dict | None, turns: list[dict]) -> ConversationState:
@@ -120,6 +133,19 @@ def _seed_session_refinement_metadata(
     return metadata
 
 
+def _response_extensions(metadata: dict) -> dict:
+    return {
+        "sources": list(metadata.get("sources", [])),
+        "confidence": float(metadata.get("confidence", 0.0) or 0.0),
+        "knowledgeLane": str(metadata.get("knowledgeLane", "general") or "general"),
+        "usedLiveWeb": bool(metadata.get("usedLiveWeb", False)),
+        "followUpMode": str(metadata.get("followUpMode", "") or ""),
+        "helpMode": str(metadata.get("helpMode", "coach_me") or "coach_me"),
+        "liveWebEnabled": bool(metadata.get("liveWebEnabled", False)),
+        "analysisSnapshot": metadata.get("activeAnalysis") or _empty_analysis_snapshot(),
+    }
+
+
 def _session_profile(turns: list[dict]) -> str:
     for turn in reversed(turns):
         if turn["role"] != "assistant":
@@ -134,14 +160,17 @@ def _session_summary(row: dict) -> dict:
     title = row.get("company_name") or f"{row.get('sector', 'unknown').upper()} · {row.get('stage', 'unknown')}"
     if row.get("session_type") == "evaluator" and not row.get("company_name"):
         title = f"Evaluate · {row.get('sector', 'unknown').upper()}"
+    if row.get("session_type") == "expert" and not row.get("company_name"):
+        title = f"Expert · {row.get('sector', 'unknown').upper()}"
+    workflow_label = "ideate"
+    if row.get("session_type") == "evaluator":
+        workflow_label = "evaluate"
+    elif row.get("session_type") == "expert":
+        workflow_label = "expert"
     subtitle_bits = [
         row.get("display_name", "").strip(),
         row.get("founder_type", "unknown"),
-        (
-            f"evaluate · {row.get('mode', 'think_it_through').replace('_', ' ')}"
-            if row.get("session_type") == "evaluator"
-            else f"ideate · {row.get('mode', 'think_it_through').replace('_', ' ')}"
-        ),
+        f"{workflow_label} · {row.get('mode', 'think_it_through').replace('_', ' ')}",
     ]
     subtitle = " · ".join(bit for bit in subtitle_bits if bit)
     return {
@@ -189,8 +218,9 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
     provider = normalize_provider(payload.provider)
     model = payload.model.strip() or default_model_for_provider(provider)
     question_budget = normalize_budget(payload.questionBudget)
+    user_role = payload.userRole or payload.founderType
     state = ConversationState(
-        founder_type=payload.founderType,
+        founder_type=user_role,
         sector=payload.sector,
         stage=payload.stage,
         mode=payload.mode,
@@ -207,7 +237,7 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
             model=model,
             setup_context=payload.setupContext,
             website=website_result,
-            founder_type=payload.founderType,
+            founder_type=user_role,
             sector=payload.sector,
             stage=payload.stage,
             mode=payload.mode,
@@ -276,7 +306,24 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
             setup_context=payload.setupContext,
             website=website_result,
         )
-        opening = build_personalized_opening(state.founder_type, state.sector, state.stage)
+        metadata.update(
+            {
+                "userRole": user_role,
+                "geographyMode": (payload.geography or "auto").strip().lower() or "auto",
+                "knowledgeLane": metadata.get("knowledgeLane", "startup"),
+                "helpMode": payload.helpMode,
+                "liveWebEnabled": bool(payload.liveWebEnabled),
+                "sources": [],
+                "confidence": 0.0,
+                "usedLiveWeb": False,
+                "followUpMode": "",
+                "activeAnalysis": _empty_analysis_snapshot(),
+            }
+        )
+        if session_type == "expert":
+            opening = build_expert_opening(user_role, metadata["geographyMode"])
+        else:
+            opening = build_personalized_opening(state.founder_type, state.sector, state.stage)
 
     session_id = memory.create_session(
         state,
@@ -307,13 +354,16 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
         pathname="/",
         metadata={
             "sessionType": session_type,
-            "founderType": payload.founderType,
+            "founderType": user_role,
+            "userRole": user_role,
             "sector": payload.sector,
             "stage": payload.stage,
             "mode": payload.mode,
             "provider": provider,
             "model": model,
             "questionBudget": question_budget if session_type == "evaluator" else None,
+            "helpMode": payload.helpMode,
+            "liveWebEnabled": bool(payload.liveWebEnabled),
         },
     )
     if session_type == "evaluator":
@@ -364,7 +414,11 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
         sessionId=session_id,
         openingMessage=opening,
         state=state.to_dict(),
-        chips=get_chip_suggestions(state) if session_type == "mentor" else [],
+        chips=(
+            get_chip_suggestions(state)
+            if session_type == "mentor"
+            else (get_expert_quick_actions() if session_type == "expert" else [])
+        ),
         responseProfile=DEFAULT_RESPONSE_PROFILE,
         coverage=coverage_items(state),
         nextGap=next_gap(state),
@@ -374,6 +428,7 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
         model=model,
         questionBudget=question_budget if session_type == "evaluator" else None,
         websiteUrl=(payload.websiteUrl or "").strip(),
+        **_response_extensions(metadata),
         evaluationProgress=public_progress(metadata, state) if session_type == "evaluator" else None,
         evaluationReport=evaluation_report,
     )
@@ -406,7 +461,11 @@ async def get_session(session_id: str) -> SessionResponse:
         sessionId=session_id,
         history=history,
         state=state.to_dict(),
-        chips=get_chip_suggestions(state, last_assistant_message(history)) if session_type == "mentor" else [],
+        chips=(
+            get_chip_suggestions(state, last_assistant_message(history))
+            if session_type == "mentor"
+            else (get_expert_quick_actions() if session_type == "expert" else [])
+        ),
         responseProfile=_session_profile(turns),
         coverage=coverage_items(state),
         nextGap=next_gap(state),
@@ -416,6 +475,7 @@ async def get_session(session_id: str) -> SessionResponse:
         model=session_row.get("model", ""),
         questionBudget=session_row.get("question_budget"),
         websiteUrl=session_row.get("website_url", ""),
+        **_response_extensions(metadata),
         evaluationProgress=public_progress(metadata, state) if session_type == "evaluator" else None,
         evaluationReport=evaluation_report,
     )

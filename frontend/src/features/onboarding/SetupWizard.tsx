@@ -1,10 +1,12 @@
 import { useMemo, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import type { Provider, ProviderOption, SetupDraft } from "../../app/types";
+import type { HelpMode, Provider, ProviderOption, SetupDraft } from "../../app/types";
 
 type Props = {
   providerOptions: ProviderOption[];
   loading: boolean;
+  error: string;
+  canStart: boolean;
   step: number;
   draft: SetupDraft;
   onStepChange: (step: number) => void;
@@ -22,14 +24,19 @@ type Props = {
     apiKey: string;
     websiteUrl: string;
     setupContext: string;
+    helpMode: HelpMode;
+    liveWebEnabled: boolean;
   }) => Promise<void>;
 };
 
 const founderOptions: Array<{ value: SetupDraft["founderType"]; label: string }> = [
-  { value: "student", label: "Student innovator" },
+  { value: "student", label: "Student" },
+  { value: "operator", label: "Operator" },
+  { value: "founder", label: "Founder" },
+  { value: "investor", label: "Investor" },
   { value: "professional", label: "Working professional" },
-  { value: "founder", label: "First-time founder" },
   { value: "serial", label: "Repeat founder" },
+  { value: "other", label: "Other" },
 ];
 
 const sectorOptions: Array<{ value: SetupDraft["sector"]; label: string }> = [
@@ -58,18 +65,32 @@ const modeOptions: Array<{ value: SetupDraft["mode"]; label: string; note: strin
 const workflowOptions: Array<{ value: SetupDraft["sessionType"]; label: string; note: string }> = [
   { value: "mentor", label: "Ideate", note: "Open-ended refinement, back and forth." },
   { value: "evaluator", label: "Evaluate", note: "Adaptive interview, final score and report at the end." },
+  { value: "expert", label: "Expert", note: "Discuss concepts, compare options, analyze decks, and pre-screen ideas." },
+];
+
+const geographyOptions: Array<{ value: string; label: string }> = [
+  { value: "auto", label: "Auto" },
+  { value: "india", label: "India" },
+  { value: "us", label: "US" },
+  { value: "global", label: "Global" },
+];
+
+const helpModeOptions: Array<{ value: HelpMode; label: string; note: string }> = [
+  { value: "coach_me", label: "Coach me", note: "Answer, then ask one sharp follow-up." },
+  { value: "challenge_me", label: "Challenge me", note: "Push harder on weak assumptions." },
+  { value: "explain_directly", label: "Explain directly", note: "Give the straight answer first." },
 ];
 
 function stepTitle(step: number) {
   if (step === 0) return "Pick a model";
-  if (step === 1) return "Share the basics";
-  return "Choose a flow";
+  if (step === 1) return "Set your context";
+  return "Choose the workflow";
 }
 
 function stepSubtitle(step: number) {
   if (step === 0) return "Stay local or use your own API key for this session.";
-  if (step === 1) return "A little context helps the next reply start deeper.";
-  return "Ideate is open-ended. Evaluate stops when it has enough.";
+  if (step === 1) return "Role, scope, and geography make the workbench sharper from the first turn.";
+  return "Pick how SignalX should work with you on this session.";
 }
 
 function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
@@ -91,7 +112,7 @@ function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
   nextButton.click();
 }
 
-export function SetupWizard({ providerOptions, loading, step, draft, onStepChange, onDraftChange, onBack, onStart }: Props) {
+export function SetupWizard({ providerOptions, loading, error, canStart, step, draft, onStepChange, onDraftChange, onBack, onStart }: Props) {
   const filteredProviders = useMemo(
     () => (draft.runtimeKind === "local" ? providerOptions.filter((item) => item.key === "ollama") : providerOptions.filter((item) => item.key !== "ollama")),
     [providerOptions, draft.runtimeKind],
@@ -130,6 +151,8 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
           <h1>{stepTitle(step)}</h1>
           <p>{stepSubtitle(step)}</p>
         </div>
+
+        {error ? <div className="setup-alert" role="alert">{error}</div> : null}
 
         {step === 0 ? (
           <>
@@ -229,7 +252,7 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
         {step === 1 ? (
           <>
             <div className="drawer-card">
-              <span className="rail-label">Founder type</span>
+              <span className="rail-label">Role</span>
               <div className="chip-grid" onKeyDown={handleArrowSelection}>
                 {founderOptions.map((option) => (
                   <button
@@ -278,14 +301,21 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
 
             <div className="drawer-card">
               <div className="field-grid">
-                <label className="identity-field">
+                <div className="identity-field field-span">
                   <span className="rail-label">Geography</span>
-                  <input
-                    value={draft.geography}
-                    onChange={(event) => onDraftChange((current) => ({ ...current, geography: event.target.value }))}
-                    placeholder="India, US, Global, or unspecified"
-                  />
-                </label>
+                  <div className="chip-grid" onKeyDown={handleArrowSelection}>
+                    {geographyOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={draft.geography === option.value ? "chip-card active" : "chip-card"}
+                        onClick={() => onDraftChange((current) => ({ ...current, geography: option.value }))}
+                      >
+                        <span>{option.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <label className="identity-field field-span">
                   <span className="rail-label">Website URL</span>
                   <input
@@ -341,12 +371,61 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
               </div>
             </div>
 
+            <div className="drawer-card">
+              <span className="rail-label">Mode of help</span>
+              <div className="workflow-row" onKeyDown={handleArrowSelection}>
+                {helpModeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={draft.helpMode === option.value ? "choice-card active" : "choice-card"}
+                    onClick={() => onDraftChange((current) => ({ ...current, helpMode: option.value }))}
+                  >
+                    <span>{option.label}</span>
+                    <small>{option.note}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="drawer-card">
+              <span className="rail-label">Knowledge behavior</span>
+              <div className="workflow-row" onKeyDown={handleArrowSelection}>
+                <button
+                  type="button"
+                  className={!draft.liveWebEnabled ? "choice-card active" : "choice-card"}
+                  onClick={() => onDraftChange((current) => ({ ...current, liveWebEnabled: false }))}
+                >
+                  <span>Local corpus first</span>
+                  <small>Stay on the curated knowledge base unless the corpus is thin.</small>
+                </button>
+                <button
+                  type="button"
+                  className={draft.liveWebEnabled ? "choice-card active" : "choice-card"}
+                  onClick={() => onDraftChange((current) => ({ ...current, liveWebEnabled: true }))}
+                >
+                  <span>Allow live web fallback</span>
+                  <small>Use labeled live web results for freshness or KB gaps.</small>
+                </button>
+              </div>
+            </div>
+
             {draft.sessionType === "evaluator" ? (
               <div className="drawer-card">
                 <span className="rail-label">Evaluate mode</span>
                 <div className="focus-card">
                   <strong>Confidence-driven</strong>
                   <p>Paste the pitch, deck notes, or URL. It will stop as soon as the report is ready.</p>
+                </div>
+              </div>
+            ) : null}
+
+            {draft.sessionType === "expert" ? (
+              <div className="drawer-card">
+                <span className="rail-label">Expert workbench</span>
+                <div className="focus-card">
+                  <strong>Two-way by default</strong>
+                  <p>Use Expert to explain concepts, compare choices, analyze uploaded decks, and pre-screen ideas without collapsing into generic tutoring.</p>
                 </div>
               </div>
             ) : null}
@@ -381,7 +460,7 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
             <button
               type="button"
               className="solid-button"
-              disabled={loading}
+              disabled={loading || !canStart}
               onClick={() =>
                 void onStart({
                   sessionType: draft.sessionType,
@@ -395,6 +474,8 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
                   apiKey: draft.runtimeKind === "external" ? draft.apiKey.trim() : "",
                   websiteUrl: draft.websiteUrl,
                   setupContext: draft.setupContext,
+                  helpMode: draft.helpMode,
+                  liveWebEnabled: draft.liveWebEnabled,
                 })
               }
             >
@@ -402,6 +483,10 @@ export function SetupWizard({ providerOptions, loading, step, draft, onStepChang
             </button>
           )}
         </div>
+
+        {step === 2 && !canStart ? (
+          <small className="setup-inline-hint">Name missing. Click back and enter your name on the first screen.</small>
+        ) : null}
       </div>
     </section>
   );

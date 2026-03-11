@@ -28,6 +28,16 @@ function formatTime(raw?: string | null): string {
   }).format(parsed);
 }
 
+function workflowLabel(sessionType: SessionSummary["sessionType"]): string {
+  if (sessionType === "evaluator") {
+    return "Evaluate";
+  }
+  if (sessionType === "expert") {
+    return "Expert";
+  }
+  return "Ideate";
+}
+
 export function SessionSidebar({ isOpen, sessions, currentSessionId, clearing, onClose, onOpenSession, onClearHistory }: Props) {
   const [confirmClear, setConfirmClear] = useState(false);
 
@@ -64,7 +74,7 @@ export function SessionSidebar({ isOpen, sessions, currentSessionId, clearing, o
                   <strong>{item.title}</strong>
                   <span>{item.subtitle}</span>
                   <span>
-                    {item.sessionType === "evaluator" ? "Evaluate" : "Ideate"} · {formatTime(item.lastActive)}
+                    {workflowLabel(item.sessionType)} · {formatTime(item.lastActive)}
                   </span>
                 </button>
               ))}

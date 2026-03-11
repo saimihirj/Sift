@@ -55,7 +55,7 @@ export function LandingScreen({
 
         <div className="landing-hero">
           <h1>Hi.</h1>
-          <p>Enter your name, pick a model, and start.</p>
+          <p>Enter your name, pick a runtime, and open the workbench.</p>
         </div>
 
         {authUser ? (
