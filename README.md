@@ -1,195 +1,176 @@
 # SignalX
 
-SignalX is a local-first founder copilot for ideation and evaluation.
+SignalX is a local-first startup and finance workbench with three workflows:
+- `Ideate` for shaping rough ideas and reasoning
+- `Evaluate` for structured pressure-testing and reports
+- `Expert` for domain discussion, concept learning, pre-screening, and deck analysis
 
-It is built to behave more like a sharp human mentor than a generic chatbot:
-- it pushes on problem clarity, customer understanding, validation, and reasoning
-- it keeps the conversation simple when the founder is early or non-technical
-- it can switch between open-ended ideation and structured evaluation
-- it stores sessions locally so founders can come back and continue
-- it can turn an Ideate thread into a refined pitch document without ending the conversation
+It is built to feel more like a sharp operator than a generic chatbot:
+- it stays two-way instead of dumping generic advice
+- it shows evidence and grounded reasoning in `Expert`
+- it supports both open-source local runtime and API-key runtime
+- it stores sessions locally so users can resume work
+- it can turn an `Ideate` session into a refined pitch artifact
 
-The current product is a `React + FastAPI` web app with local-first runtime support.
+## Quick Start
 
-## What The Tool Does
+### Clone-and-run with API keys
 
-### Ideate mode
-- conversational founder coaching
-- adaptive, KB-grounded questioning without turning into a lecture
-- session resume, file context, and refined pitch generation
-- stays two-way and open-ended instead of trying to force completion
-
-### Evaluate mode
-- confidence-driven questioning based on prior responses and intake context
-- can stop early when it has enough evidence
-- keeps scoring hidden during the conversation
-- generates a final report with score, why, and fixes only at the end
-
-### Runtime options
-- local open-source mode through Ollama
-- external provider mode with session-scoped API keys
-- live provider/model switching inside a session
-- bundled Expert corpus under `knowledge_base/expert/` for clone-and-run use
-- optional offline VC-firm knowledge cluster built from `knowledge_inbox/Investor.xlsx` and `knowledge_inbox/Investor Firm.xlsx`
-
-## Local Use
-
-### 1. One-time setup
-
-From the project root:
+Best path if you want the easiest local setup and prefer providers like `Groq`, `Cerebras`, `OpenAI`, `OpenRouter`, `Anthropic`, or `Gemini`.
 
 ```bash
+git clone <your-repo-url>
+cd signalx
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 npm install
 npm --prefix frontend install
 cp .env.example .env
-```
-
-### 2. Choose your runtime
-
-In normal local MVP mode, the launcher now starts local Ollama automatically if it is needed and not already running.
-
-If you want to use an external provider, you can skip Ollama entirely and start the app in API-only mode.
-
-```bash
 npm run mvp:api
 ```
 
-Then choose `Use API key` in the UI. You can either paste a session key there or export a provider key in your shell, for example:
+Open `http://127.0.0.1:7860`, choose `Use API key`, then pick your provider.
+
+### Run fully local with open-source models
+
+If you want the app to stay local and avoid paid APIs, use the same setup steps above, then:
 
 ```bash
-export GROQ_API_KEY=...
-```
-
-### 3. Run the app
-
-```bash
+ollama pull llama3.2:latest
+ollama pull qwen3:8b
 npm run mvp
 ```
 
-Open:
+SignalX will auto-start Ollama if it is installed and not already running.
 
-```text
-http://127.0.0.1:7860
-```
+## What You Get
 
-## Main Commands
+### Ideate
+- open-ended discussion
+- sharper framing of problem, customer, wedge, and pitch
+- uploads and session resume
+- refined pitch generation from the conversation
 
-Run the normal local app:
+### Evaluate
+- adaptive interview instead of fixed forms
+- hidden scoring during the conversation
+- structured final report with verdict, evidence gaps, and next steps
 
-```bash
-npm run mvp
-```
+### Expert
+- concept explanations and comparisons
+- evidence-backed answers using the bundled knowledge corpus
+- pre-screening and deck analysis
+- source, confidence, and analysis panels in the workbench
 
-Run the app without Ollama and use API providers:
+## Runtime Modes
 
-```bash
-npm run mvp:api
-```
+### `npm run mvp`
 
-Run the app for LAN sharing:
+Single-port local app with open-source models.
 
-```bash
-npm run mvp:lan
-```
+- serves frontend and backend together on `http://127.0.0.1:7860`
+- auto-starts Ollama if needed
+- good default for solo local use
 
-Run the app with admin enabled:
+### `npm run mvp:api`
 
-```bash
-npm run admin
-```
+Single-port local app without Ollama startup.
 
-Run backend + frontend separately in development:
+- serves frontend and backend together on `http://127.0.0.1:7860`
+- optimized for API-key-based usage
+- supports `groq`, `cerebras`, `openai`, `openrouter`, `anthropic`, and `gemini`
 
-```bash
-npm run dev
-```
+### `npm run mvp:lan`
 
-Build the VC firm knowledge cluster from the spreadsheet inputs:
+LAN sharing for people on the same network.
 
-```bash
-npm run knowledge:vc
-```
+### `npm run dev`
 
-Useful variants:
+Frontend and backend split for active development.
 
-```bash
-./.venv/bin/python scripts/build_vc_firm_cluster.py --max-firms 100
-./.venv/bin/python scripts/build_vc_firm_cluster.py --firm sequoia --force-refresh
-```
+- frontend: `http://127.0.0.1:5173`
+- backend: `http://127.0.0.1:8000`
 
-Direct launcher:
+## Providers
 
-```bash
-python3 signalx_app.py --build
-```
+### Open-source local
+- `ollama`
 
-## How It Works
-
-### Frontend
-- Vite + React + TypeScript
-- fixed-height, single-screen UI
-- hideable session sidebar
-- runtime switcher for provider/model changes
-- clear-history action for old local sessions
-
-### Backend
-- FastAPI
-- SQLite session persistence
-- session-scoped uploads and retrieval
-- deterministic evaluator scoring during live conversation
-- refined pitch generation from Ideate transcripts
-- final evaluator report generation with model-written language over backend scoring
-
-### Data and storage
-- sessions: `data/sessions.db`
-- uploads: `data/session_uploads/`
-- exports: `data/exports/`
-- bundled Expert corpus: `knowledge_base/expert/`
-- VC firm crawl cache: `data/vc_firms/cache/`
-- VC firm ingest manifest: `data/vc_firms/manifest.json`
-
-## Models
-
-Default local open-source path:
-- provider: `ollama`
-- speed model: `llama3.2:latest`
-- balanced model: `qwen3:8b`
-
-Supported external providers in the current runtime layer:
-- `cerebras`
+### API-key providers
 - `groq`
+- `cerebras`
 - `openai`
 - `openrouter`
 - `anthropic`
 - `gemini`
 
-For external providers, API keys are session-scoped in the browser and are not persisted in the database.
+API keys can be entered in the UI for a session or exported in the shell before launch.
+
+Example:
+
+```bash
+export GROQ_API_KEY=...
+npm run mvp:api
+```
+
+## Bundled Knowledge
+
+The Expert workbench ships with a bundled JSON corpus under `knowledge_base/expert/`.
+
+That means:
+- clone-and-run does not depend on a private `/Users/.../Desktop/data` path
+- `/api/health` reports whether the Expert corpus loaded
+- local users and hosted deployments read from the same bundled source by default
 
 ## Project Layout
 
-- `frontend/` — React app
-- `backend/` — FastAPI APIs and services
-- `knowledge_base/expert/` — bundled Expert JSON corpus used by the Expert workbench
-- `memory.py` — SQLite session and analytics persistence
-- `signalx_app.py` — primary single-process launcher
-- `docs/` — architecture, execution, and platform notes
+- `frontend/` - React + Vite UI
+- `backend/` - FastAPI API and services
+- `knowledge_base/expert/` - bundled Expert corpus
+- `data/` - local runtime state, sessions, uploads, exports
+- `memory.py` - SQLite persistence
+- `signalx_app.py` - single-port launcher
+- `docs/` - runbook, architecture, and deployment notes
+
+## Deployment
+
+For the current codebase, the cleanest first public deployment is `Render`.
+
+Why:
+- the app is a single long-running `React + FastAPI` service
+- it uses SQLite and uploaded files on disk
+- it expects same-origin frontend and API behavior
+- the repo already includes `render.yaml` plus a deployment checklist
+
+Use:
+- [Execution Guide](docs/EXECUTION.md) for local and dev commands
+- [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md) for hosting
+
+## Main Commands
+
+```bash
+npm run mvp
+npm run mvp:api
+npm run mvp:lan
+npm run admin
+npm run dev
+npm run build
+npm run knowledge:vc
+```
 
 ## Current State
 
-- active product name: `SignalX`
-- local-first MVP is fully runnable without paid services
-- admin is exposed only in admin launch mode
-- Ideate and Evaluate both support resumed sessions
-- the app clears stale browser session state automatically when a new build is loaded
-- old session history can be cleared from the `Sessions` drawer
+- `SignalX` is now a three-workflow MVP: `Ideate`, `Evaluate`, `Expert`
+- both open-source and API-key runtime paths are supported
+- the Expert corpus is bundled in the repo
+- local API-key mode works without Ollama
+- session history, uploads, and reports persist locally
 
 ## Docs
 
-- [Architecture](docs/ARCHITECTURE.md)
 - [Execution Guide](docs/EXECUTION.md)
 - [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)
 - [Platform Overview](docs/PLATFORM_OVERVIEW.md)
+- [Architecture](docs/ARCHITECTURE.md)
 - [Changelog](CHANGELOG.md)

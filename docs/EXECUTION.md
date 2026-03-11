@@ -13,6 +13,10 @@ It covers:
 - runtime behavior
 - troubleshooting
 
+SignalX supports two normal local paths:
+- open-source local runtime through `Ollama`
+- API-key runtime through providers like `Groq`, `Cerebras`, `OpenAI`, `OpenRouter`, `Anthropic`, and `Gemini`
+
 If you want open-source-only with no paid services, use the local and LAN modes below and keep:
 
 ```env
@@ -25,7 +29,9 @@ Required:
 - Python `3.11+`
 - Node.js `18+`
 - npm
-- [Ollama](https://ollama.com)
+
+Optional:
+- [Ollama](https://ollama.com) for fully local open-source runtime
 
 Recommended local models:
 
@@ -71,6 +77,22 @@ Notes:
 
 ## 4. Run Modes
 
+### Fastest paths
+
+Use one of these after setup:
+
+```bash
+npm run mvp
+```
+
+For fully local open-source mode.
+
+```bash
+npm run mvp:api
+```
+
+For API-key mode without Ollama.
+
 ### A. Local App Mode
 
 Best default for normal use.
@@ -107,7 +129,7 @@ python3 signalx_app.py --build --idle-timeout 90
 
 ### B. LAN Test Mode
 
-Use this to let a co-founder test on the same Wi‑Fi network.
+Use this to let another person test on the same Wi-Fi network.
 
 ```bash
 python3 signalx_app.py --host 0.0.0.0 --port 7860 --build
@@ -150,6 +172,14 @@ Example:
 export GROQ_API_KEY=...
 npm run mvp:api
 ```
+
+Supported external providers:
+- `groq`
+- `cerebras`
+- `openai`
+- `openrouter`
+- `anthropic`
+- `gemini`
 
 ### D. Development Mode
 
