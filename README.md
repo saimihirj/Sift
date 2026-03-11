@@ -29,6 +29,7 @@ The current product is a `React + FastAPI` web app with local-first runtime supp
 - local open-source mode through Ollama
 - external provider mode with session-scoped API keys
 - live provider/model switching inside a session
+- bundled Expert corpus under `knowledge_base/expert/` for clone-and-run use
 - optional offline VC-firm knowledge cluster built from `knowledge_inbox/Investor.xlsx` and `knowledge_inbox/Investor Firm.xlsx`
 
 ## Local Use
@@ -50,7 +51,17 @@ cp .env.example .env
 
 In normal local MVP mode, the launcher now starts local Ollama automatically if it is needed and not already running.
 
-If you want to use an external provider, you can still skip Ollama entirely and choose `Use API key` in the UI instead.
+If you want to use an external provider, you can skip Ollama entirely and start the app in API-only mode.
+
+```bash
+npm run mvp:api
+```
+
+Then choose `Use API key` in the UI. You can either paste a session key there or export a provider key in your shell, for example:
+
+```bash
+export GROQ_API_KEY=...
+```
 
 ### 3. Run the app
 
@@ -70,6 +81,12 @@ Run the normal local app:
 
 ```bash
 npm run mvp
+```
+
+Run the app without Ollama and use API providers:
+
+```bash
+npm run mvp:api
 ```
 
 Run the app for LAN sharing:
@@ -130,6 +147,7 @@ python3 signalx_app.py --build
 - sessions: `data/sessions.db`
 - uploads: `data/session_uploads/`
 - exports: `data/exports/`
+- bundled Expert corpus: `knowledge_base/expert/`
 - VC firm crawl cache: `data/vc_firms/cache/`
 - VC firm ingest manifest: `data/vc_firms/manifest.json`
 
@@ -154,6 +172,7 @@ For external providers, API keys are session-scoped in the browser and are not p
 
 - `frontend/` — React app
 - `backend/` — FastAPI APIs and services
+- `knowledge_base/expert/` — bundled Expert JSON corpus used by the Expert workbench
 - `memory.py` — SQLite session and analytics persistence
 - `signalx_app.py` — primary single-process launcher
 - `docs/` — architecture, execution, and platform notes
@@ -171,5 +190,6 @@ For external providers, API keys are session-scoped in the browser and are not p
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Execution Guide](docs/EXECUTION.md)
+- [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)
 - [Platform Overview](docs/PLATFORM_OVERVIEW.md)
 - [Changelog](CHANGELOG.md)

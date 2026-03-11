@@ -144,7 +144,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
     return providerOptions.find((item) => item.key === draft.provider) ?? fallback ?? providerOptions[0];
   }, [draft.provider, draft.runtimeKind, filteredProviders, providerOptions]);
 
-  const resolvedProvider = draft.runtimeKind === "local" ? "ollama" : (providerMeta?.key ?? "cerebras");
+  const resolvedProvider = draft.runtimeKind === "local" ? "ollama" : (providerMeta?.key ?? "groq");
   const resolvedModel = draft.model.trim()
     || (draft.runtimeKind === "local"
       ? providerMeta?.defaultSpeedModel
@@ -204,7 +204,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                   onDraftChange((current) => ({
                     ...current,
                     runtimeKind: "external",
-                    provider: firstExternal?.key ?? "cerebras",
+                    provider: firstExternal?.key ?? "groq",
                     model: firstExternal?.defaultBalancedModel || firstExternal?.defaultSpeedModel || current.model,
                   }));
                 }}

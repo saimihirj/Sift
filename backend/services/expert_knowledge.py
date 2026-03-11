@@ -187,13 +187,19 @@ def expert_data_dir() -> Path:
     explicit = os.environ.get("SIGNALX_EXPERT_DATA_DIR", "").strip()
     candidates = [Path(explicit)] if explicit else []
     current = Path(__file__).resolve()
-    parent_candidates = []
-    for index in (4, 2):
+    repo_root = current.parents[2] if len(current.parents) > 2 else current.parent
+    candidates.extend(
+        [
+            repo_root / "knowledge_base" / "expert",
+            repo_root / "data" / "expert",
+            repo_root / "data",
+        ]
+    )
+    for index in (4,):
         try:
-            parent_candidates.append(current.parents[index] / "data")
+            candidates.append(current.parents[index] / "data")
         except IndexError:
             continue
-    candidates.extend(parent_candidates)
     candidates.append(Path("/Users/saimihirj/Desktop/data"))
     for candidate in candidates:
         if candidate.exists():

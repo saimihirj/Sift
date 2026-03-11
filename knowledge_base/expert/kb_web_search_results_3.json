@@ -1,0 +1,52 @@
+{
+  "Product_Market_Fit_Web": {
+    "sources": [
+      "https://www.productboard.com/glossary/product-market-fit/",
+      "https://leanstartup.co/resources/articles/a-playbook-for-achieving-product-market-fit/",
+      "https://startupdevkit.com/guide-to-product-market-fit-with-everything-you-need-to-know/"
+    ],
+    "terms": {
+      "Product_Market_Fit": "Being in a good market with a product that consistently solves a meaningful problem for a clearly defined group, where users keep coming back, tell others, and pay in a way supporting sustainable business. Achieved when retaining 40%+ of activated users month-over-month (Sean Ellis benchmark). Takes roughly 2 years; 80% of products never get there.",
+      "Lean_Startup": "Methodology based on Build-Measure-Learn cycle: develop MVPs quickly, measure performance, collect feedback, learn, iterate. Tests problem-solution fit through customer development interviews before building. Originated by Eric Ries. Core principle: fail fast, learn faster.",
+      "Customer_Development": "Steve Blank's methodology for validating startup hypotheses before building. Four steps: Customer Discovery (validate problem exists), Customer Validation (validate solution), Customer Creation (scale), Company Building (transition to execution). Separates problem from solution in early interviews.",
+      "MVP": "Minimum Viable Product \u2014 simplest version of product that allows team to collect maximum amount of validated learning about customers with least effort. Not about minimum features \u2014 about maximum learning. Purpose: test core hypothesis before full build.",
+      "Pivot": "Structured course correction designed to test a new fundamental hypothesis about product, strategy, and growth engine. Data-driven decision. Types: Zoom-in, Zoom-out, Customer Segment, Customer Need, Platform, Business Architecture, Value Capture, Engine of Growth, Channel, Technology.",
+      "Traction": "Evidence that a startup is gaining market momentum. Measured via Pirate Metrics (AARRR): Acquisition (how customers find you), Activation (first great experience), Retention (keep coming back), Referral (tell others), Revenue (paying). PMF signal: strong retention + organic referral.",
+      "Pirate_Metrics_AARRR": "Framework by Dave McClure: Acquisition (traffic/sign-ups), Activation (first value experience), Retention (repeat engagement), Referral (NPS, viral coefficient), Revenue (conversion to paying). Used to identify which part of funnel is broken.",
+      "Problem_Solution_Fit": "Stage before product-market fit. Validation that your proposed solution solves a real, painful problem for specific customers. Validated through customer discovery interviews before any product is built. Must precede MVP development."
+    }
+  },
+  "Market_Sizing_Web": {
+    "sources": [
+      "https://www.goingvc.com/post/how-investors-use-tam-sam-som-to-evaluate-startups",
+      "https://www.antler.co/blog/tam-sam-som",
+      "https://blog.hubspot.com/marketing/tam-sam-som"
+    ],
+    "terms": {
+      "TAM": "Total Addressable Market \u2014 total revenue opportunity if you sold to 100% of the market. Panoramic view of all possible demand. Venture-scale typically requires TAM > $1B. Calculated via top-down (Gartner/IDC reports) or bottom-up (customers \u00d7 price).",
+      "SAM": "Serviceable Available Market \u2014 realistic portion of TAM your business can practically serve at this stage based on current resources, team, capabilities, and strategy. Geographic, vertical, or channel constrained slice of TAM.",
+      "SOM": "Serviceable Obtainable Market \u2014 what you'll realistically win against competitors in 3-5 years. Your defensible share of SAM. Should be backed by bottom-up customer analysis. This is what goes in your financial model Year 3-5 projection.",
+      "Bottoms_Up": "Market sizing methodology building from ground up: number of target customers \u00d7 price per customer. Forces precise customer definition. Preferred by investors \u2014 grounded in real assumptions. More credible than top-down for SOM calculation.",
+      "Top_Down": "Market sizing methodology starting from broad industry level and narrowing: industry TAM from research firms \u2192 filter for your segment. Fast and useful for TAM context. Typically from Gartner, IDC, IBISWorld, Statista reports. Combine with bottom-up for credibility."
+    }
+  },
+  "Unit_Economics_Web": {
+    "sources": [
+      "https://kruzeconsulting.com/blog/unit-economics/",
+      "https://www.basedash.com/startup-metrics/unit-economics",
+      "https://gripped.io/b2b-saas/b2b-saas-cac-ltv-metrics-guide/"
+    ],
+    "terms": {
+      "CAC": "Customer Acquisition Cost = Total Sales & Marketing Expenses / New Customers Acquired in Period. Include salaries, tools, ad spend, events, content. Common mistake: under-counting costs. Blended CAC includes all channels; paid CAC is channel-specific.",
+      "LTV": "Lifetime Value = (Average Revenue Per Account \u00d7 Gross Margin) / Churn Rate. Estimates total revenue a customer generates over entire relationship. For SaaS: LTV = ARPU \u00d7 Gross Margin % / Monthly Churn Rate.",
+      "LTV_CAC": "LTV:CAC ratio benchmark: 3:1 is minimum for healthy unit economics; 3:1-5:1 is sweet spot for growth-stage; >5:1 suggests underinvestment in growth. Series A: 3x. Series B/C: 5x+. Below 1:1 means company destroys value with each customer.",
+      "Payback_Period": "CAC Payback Period = CAC / (Monthly Revenue per Customer \u00d7 Gross Margin). Measures time to recover customer acquisition cost. Benchmarks: <12 months = excellent (B2B SaaS); 12-18 months = good; >24 months = concerning. Median: 6.8 months overall, 8.6 months B2B SaaS.",
+      "Gross_Margin": "= (Revenue - COGS) / Revenue. For SaaS: 70-80%+ is target. Below 70% suggests structural issue (too much cloud infra cost, professional services heavy, marketplace with high payment fees). Gross margin expansion is key value driver.",
+      "Churn_Rate": "Percentage of customers/revenue lost in a period. Monthly churn of 1-2% = good SaaS. Annual = 10-15% acceptable, <5% excellent. Net Revenue Retention (NRR/NDR) > 100% means expansion revenue exceeds churn \u2014 best metric for SaaS health.",
+      "ARR": "Annual Recurring Revenue = MRR \u00d7 12. Foundation metric for SaaS valuation. ARR multiples (EV/ARR) range: 5-15x for high-growth SaaS (2024 market). ARR growth rate of 3x+ year-over-year = T2D3 benchmark for Series A/B SaaS.",
+      "MRR": "Monthly Recurring Revenue \u2014 predictable, recurring revenue from subscriptions. Components: New MRR (new customers) + Expansion MRR (upsells) - Churned MRR (cancellations) - Contraction MRR (downgrades) = Net New MRR.",
+      "Burn_Rate": "Net cash consumed per month. Gross burn = total monthly expenses. Net burn = gross burn - revenue. Key metric for runway calculation. VCs want to see burn multiple (net burn / net new ARR) below 1.5x for efficient growth.",
+      "Runway": "Months of cash remaining = Cash Balance / Monthly Net Burn. VCs typically expect startups to raise with 18-24 months runway. Rule of thumb: raise before you have < 6 months runway. Extend runway by cutting burn or generating revenue faster."
+    }
+  }
+}

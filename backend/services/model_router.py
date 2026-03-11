@@ -56,16 +56,6 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         default_balanced_model=os.environ.get("OLLAMA_MODEL_BALANCED", "qwen3:8b"),
         requires_api_key=False,
     ),
-    "cerebras": ProviderConfig(
-        key="cerebras",
-        label="Cerebras",
-        api_style="openai",
-        base_url=os.environ.get("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1"),
-        env_api_key_var="CEREBRAS_API_KEY",
-        default_speed_model=os.environ.get("CEREBRAS_MODEL_SPEED", "llama3.1-8b"),
-        default_balanced_model=os.environ.get("CEREBRAS_MODEL_BALANCED", "gpt-oss-120b"),
-        requires_api_key=True,
-    ),
     "groq": ProviderConfig(
         key="groq",
         label="Groq",
@@ -74,6 +64,16 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         env_api_key_var="GROQ_API_KEY",
         default_speed_model=os.environ.get("GROQ_MODEL_SPEED", "llama-3.1-8b-instant"),
         default_balanced_model=os.environ.get("GROQ_MODEL_BALANCED", "llama-3.3-70b-versatile"),
+        requires_api_key=True,
+    ),
+    "cerebras": ProviderConfig(
+        key="cerebras",
+        label="Cerebras",
+        api_style="openai",
+        base_url=os.environ.get("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1"),
+        env_api_key_var="CEREBRAS_API_KEY",
+        default_speed_model=os.environ.get("CEREBRAS_MODEL_SPEED", "llama3.1-8b"),
+        default_balanced_model=os.environ.get("CEREBRAS_MODEL_BALANCED", "gpt-oss-120b"),
         requires_api_key=True,
     ),
     "openai": ProviderConfig(

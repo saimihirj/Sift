@@ -1,0 +1,74 @@
+{
+  "Business_Models_Web": {
+    "sources": [
+      "https://blog.acquire.com/business-models-saas/",
+      "https://sloboda-studio.com/blog/online-marketplace-revenue-models/",
+      "https://productled.com/blog/6-free-models-in-saas"
+    ],
+    "terms": {
+      "SaaS": "Cloud-based software delivery model where programs are licensed on subscription basis, hosted by developer, accessed via web interface. Generates predictable recurring revenue through monthly, quarterly or annual fees.",
+      "Freemium_Model": "Blends 'free' and 'premium' access \u2014 users start with no-cost plan delivering essential functionality. Converts free users to paid through feature gates, usage limits, limited storage, or limited support. Common conversion rates: 2-5% of free users.",
+      "Subscription_Model": "Foundation of most SaaS businesses generating predictable recurring revenue. Variants: monthly (MRR focus), annual (ARR focus, better cash flow), usage-based, seat-based.",
+      "Marketplace": "Digital platform facilitating transactions between multiple buyers and sellers. Aggregates many sellers under one roof. Revenue via commission (% of transaction), listing fees, subscriptions, or premium features. Examples: Amazon, Airbnb, Uber.",
+      "Commission_Model": "Revenue model where marketplace charges a percentage or fixed fee when customer pays supplier. Most popular online marketplace business model. Also called take rate.",
+      "Usage_Based_Pricing": "Customers pay based on actual consumption (API calls, data processed, seats used). Aligns cost with value. Common in infrastructure (AWS), data (Snowflake), and communications (Twilio).",
+      "Tiered_Pricing": "Multiple pricing tiers (e.g., Starter, Pro, Enterprise) with increasing features and price points. Allows market segmentation and upsell path.",
+      "Open_Core": "Core product open source, premium features proprietary. Drives adoption via free tier, monetizes through enterprise features. Examples: GitLab, Elasticsearch, MongoDB.",
+      "API_First": "Product built as API first, enabling developer adoption and integration. Revenue via API call volume, subscriptions. Examples: Stripe, Twilio, SendGrid."
+    }
+  },
+  "Macro_Indicators_Web": {
+    "sources": [
+      "https://www.finra.org/investors/insights/key-economic-indicators-every-investor-should-know",
+      "https://www.fe.training/free-resources/portfolio-management/macroeconomic-indicators/",
+      "https://www.rosenbergresearch.com/2024/06/05/economic-indicators-demystified-key-metrics-for-analysts/"
+    ],
+    "terms": {
+      "GDP": "Total value of all goods and services produced within a country. Nominal GDP measures entire value; Real GDP adjusts for price changes. Increase indicates growing economy; decrease suggests slowdown. Formula: GDP = C + I + G + (X-M).",
+      "CPI": "Consumer Price Index \u2014 measures average change over time in prices paid by urban consumers for a basket of goods and services. Most widely used measure of inflation. Affects monetary policy, wage negotiations, and financial planning.",
+      "PMI": "Purchasing Managers' Index \u2014 monthly survey of senior executives about new orders, production, employment, inventory, supplier deliveries. PMI > 50 = expansion; PMI < 50 = contraction. Leading economic indicator.",
+      "Inflation_Rate": "Rate at which general level of prices rises, eroding purchasing power. Measured via CPI, PCE, WPI. Affects interest rates, bond yields, equity valuations, and real returns.",
+      "Yield_Curve": "Measures yield to maturity of bonds across maturities. Normal: upward sloping (higher yield for longer maturity). Inverted yield curve (short > long term yields) historically precedes recessions. Key signal for monetary policy expectations.",
+      "Yield_Curve_Inversion": "When short-term bond yields exceed long-term bond yields. Indicates market expects future rate cuts and slower growth. Historically one of most reliable recession predictors \u2014 inverted before every US recession since 1955.",
+      "Fed_Funds_Rate": "Interest rate at which US depository institutions lend reserve balances to each other overnight. Primary monetary policy tool of the Federal Reserve. Influences all other interest rates in the economy.",
+      "Repo_Rate": "Rate at which central bank (RBI in India, Fed in US) lends to commercial banks. Primary monetary policy instrument. Increase tightens liquidity and credit; decrease stimulates lending.",
+      "VIX": "CBOE Volatility Index \u2014 'fear gauge' measuring market expectation of 30-day volatility in S&P 500. Calculated from options prices. VIX > 30 indicates high fear/uncertainty; VIX < 15 indicates complacency. Inverse correlation with equity markets.",
+      "QE": "Quantitative Easing \u2014 central bank purchases financial assets (bonds) to inject liquidity, lower long-term rates, and stimulate economy. Used when conventional monetary policy (rate cuts) insufficient. Expands central bank balance sheet.",
+      "QT": "Quantitative Tightening \u2014 reverse of QE. Central bank reduces balance sheet by allowing bonds to mature without reinvestment or actively selling holdings. Tightens financial conditions, raises long-term rates."
+    }
+  },
+  "Business_Risks_Web": {
+    "sources": [
+      "https://online.hbs.edu/blog/post/risk-management",
+      "https://corporatefinanceinstitute.com/resources/career-map/sell-side/risk-management/risk-management/",
+      "https://en.wikipedia.org/wiki/Business_risks"
+    ],
+    "terms": {
+      "Market_Risk": "Losses due to changes in market conditions \u2014 stock prices, interest rates, exchange rates, commodity prices. For startups: risk that market timing is wrong or market doesn't develop as expected.",
+      "Credit_Risk": "Risk that counterparty fails to fulfill contractual obligations resulting in non-payment or delayed payment. For startups: customer default risk on receivables; for investors: portfolio company default.",
+      "Operational_Risk": "Losses from broken processes, systems, or human errors \u2014 technology failures, supply chain disruptions, fraud, regulatory non-compliance. Basel III defines it as risk of loss from inadequate or failed internal processes, people, systems, or external events.",
+      "Liquidity_Risk": "Risk of being unable to meet short-term financial obligations without taking a loss. For startups: running out of cash (high burn, slow fundraising). For funds: inability to exit investments.",
+      "Regulatory_Risk": "Risk of changes in laws, regulations, or their interpretation that adversely affect business. High for fintech, healthtech, crypto, edtech. Can materially change business model viability.",
+      "Reputational_Risk": "Risk of damage to brand, trust, and relationships from negative publicity, product failures, leadership misconduct, or customer complaints. Can be existential for consumer businesses.",
+      "Cyber_Risk": "Risk of financial loss, disruption, or reputational damage from cyberattacks \u2014 data breaches, ransomware, DDoS, phishing. Growing with digital transformation. Mitigation: SOC2, ISO 27001, penetration testing.",
+      "Key_Man_Risk": "Dependence on one or few critical individuals whose departure would significantly harm the business. High in early-stage startups. Mitigated by key man insurance, succession planning, knowledge documentation.",
+      "Four_Risk_Responses": "Avoidance (eliminate the risk's cause), Mitigation (reduce probability/impact), Transference (insurance, hedging), Acceptance (accept residual risk with contingency plan)."
+    }
+  },
+  "India_VC_Ecosystem_Web": {
+    "sources": [
+      "https://techcrunch.com/2025/12/27/india-startup-funding-hits-11b-in-2025-as-investors-grow-more-selective/",
+      "https://inc42.com/buzz/fund-launches-in-2025-over-12-1-bn-raised-by-startup-vcs/",
+      "https://inc42.com/features/indian-startups-ecosystem-2024-review-charts-visuals/"
+    ],
+    "terms": {
+      "India_Startup_Ecosystem_2025": "India startup funding hit $11B in 2025 (TechCrunch). Over $12.1B raised in new VC/PE funds in 2025 (up 39% YoY). Deep-tech companies raised USD 1.06B across 137 rounds by July 2025 (double YoY).",
+      "India_Fintech": "Largest startup sector in India. $1.6B across 68 deals in 2024. Accounts for ~16% of new fund corpus in 2025. Driven by UPI, BNPL, neobanks, lending, wealthtech. Key players: Razorpay, PhonePe, Paytm, CRED, Groww, Zerodha.",
+      "India_Healthtech": "28.03% rise in funding signals strong investor confidence. Key companies: TrueMeds ($85M Series C). Driven by digital health, telemedicine, diagnostics, health insurance.",
+      "India_Logistics_Tech": "104% growth from H2 2024. Driven by electric mobility, climate-focused logistics, quick commerce. Quick commerce platforms like Zepto raised $450M.",
+      "India_Edtech": "Received $13.1B in total funding over last decade from national and global investors. Post-BYJU's crash, sector consolidating. Focus on vernacular learning, B2B EdTech, test prep.",
+      "India_AgriTech": "Government launched INR 750 Cr 'AgriSURE' fund for agritech and rural startups. Focus on farm-to-fork, precision farming, FPO digitization, input marketplaces.",
+      "India_DeepTech": "Fastest growing segment. USD 1.06B raised in H1 2025 alone. Focus on AI/ML, semiconductors, defense tech, space tech, quantum computing."
+    }
+  }
+}
