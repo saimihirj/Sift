@@ -46,6 +46,21 @@ const DEFAULT_QUICK_ACTIONS = [
   "Pressure-test unit economics",
 ];
 
+const STARTER_PROMPTS = [
+  {
+    title: "Explain a concept",
+    prompt: "Explain liquidation preference like I am seeing it for the first time.",
+  },
+  {
+    title: "Compare options",
+    prompt: "Compare SAFE vs convertible note for an early-stage startup.",
+  },
+  {
+    title: "Analyze a deck",
+    prompt: "Pre-screen this startup idea and tell me the biggest missing evidence.",
+  },
+];
+
 const HELP_MODES: Array<{ value: HelpMode; label: string }> = [
   { value: "coach_me", label: "Coach me" },
   { value: "challenge_me", label: "Challenge me" },
@@ -169,6 +184,7 @@ export function ExpertScreen({
   const effectiveModel = runtimeModel.trim() || defaultModelForProvider(providerOptions, runtimeProvider, session.responseProfile);
   const quickActions = session.chips.length > 0 ? session.chips : DEFAULT_QUICK_ACTIONS;
   const confidenceText = confidenceLabel(session.confidence);
+  const showStarterCard = session.history.length <= 1 && !streamingAssistant;
 
   const applyRuntime = async () => {
     if (!runtimeProvider) {
@@ -426,6 +442,32 @@ export function ExpertScreen({
             </div>
           </header>
 
+          <section className="expert-panel-card expert-mobile-summary">
+            <div className="expert-panel-head">
+              <span className="rail-label">Session view</span>
+              <strong>{laneLabel(session.knowledgeLane)} · {confidenceText} confidence</strong>
+            </div>
+            <div className="compact-session-grid">
+              <div className="compact-session-pill">
+                <span>Sources</span>
+                <strong>{session.sources.length}</strong>
+              </div>
+              <div className="compact-session-pill">
+                <span>Uploads</span>
+                <strong>{session.activeUploads.length}</strong>
+              </div>
+              <div className="compact-session-pill">
+                <span>Scope</span>
+                <strong>{session.liveWebEnabled ? "KB + web" : "KB only"}</strong>
+              </div>
+              <div className="compact-session-pill">
+                <span>Help</span>
+                <strong>{HELP_MODES.find((item) => item.value === helpMode)?.label || "Coach me"}</strong>
+              </div>
+            </div>
+            <p className="muted-copy">Use chat to work through the problem. Switch to evidence when you want sources, concepts, and analysis.</p>
+          </section>
+
           <div className="expert-control-row">
             <div className="expert-toggle-group">
               {HELP_MODES.map((option) => (
@@ -456,12 +498,31 @@ export function ExpertScreen({
 
           {mobilePane === "chat" ? (
             <div className="chat-panel expert-chat-panel">
-              <ChatMessageList
-                history={session.history}
-                streamingAssistant={streamingAssistant}
-                assistantLabel="Expert"
-                sessionId={session.sessionId}
-              />
+              <div className="expert-conversation-stack">
+                {showStarterCard ? (
+                  <section className="expert-panel-card expert-starter-card">
+                    <div className="expert-panel-head">
+                      <span className="rail-label">Best first move</span>
+                      <strong>Start with something concrete.</strong>
+                    </div>
+                    <p className="muted-copy">This works best when you ask about a term, compare options, or upload material to analyze. Start broad only if you want the platform to lead.</p>
+                    <div className="expert-starter-grid">
+                      {STARTER_PROMPTS.map((item) => (
+                        <button key={item.title} type="button" className="expert-starter-tile" onClick={() => void submit(item.prompt)} disabled={pending}>
+                          <strong>{item.title}</strong>
+                          <span>{item.prompt}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+                <ChatMessageList
+                  history={session.history}
+                  streamingAssistant={streamingAssistant}
+                  assistantLabel="Expert"
+                  sessionId={session.sessionId}
+                />
+              </div>
               <div className="expert-quick-actions">
                 {quickActions.map((chip) => (
                   <button key={chip} type="button" className="chip-button" onClick={() => void submit(chip)} disabled={pending}>

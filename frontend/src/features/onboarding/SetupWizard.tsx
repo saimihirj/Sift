@@ -1,4 +1,4 @@
-import { useMemo, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import type { HelpMode, Provider, ProviderOption, SetupDraft } from "../../app/types";
 
@@ -81,6 +81,24 @@ const helpModeOptions: Array<{ value: HelpMode; label: string; note: string }> =
   { value: "explain_directly", label: "Explain directly", note: "Give the straight answer first." },
 ];
 
+const workflowGuides: Record<SetupDraft["sessionType"], { label: string; title: string; body: string }> = {
+  mentor: {
+    label: "Ideate flow",
+    title: "Open-ended shaping",
+    body: "Best when the idea is still rough and you want a sharper back-and-forth on the problem, wedge, customer, and pitch story.",
+  },
+  evaluator: {
+    label: "Evaluate flow",
+    title: "Structured pressure test",
+    body: "Best when you want the platform to interview the idea, stop when it has enough evidence, and produce a report with fixes.",
+  },
+  expert: {
+    label: "Expert flow",
+    title: "Domain discussion and analysis",
+    body: "Best when you want concept explanations, comparisons, pre-screening, or evidence-backed discussion over startup, VC, finance, or regulation.",
+  },
+};
+
 function stepTitle(step: number) {
   if (step === 0) return "Pick a model";
   if (step === 1) return "Set your context";
@@ -113,6 +131,8 @@ function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
 }
 
 export function SetupWizard({ providerOptions, loading, error, canStart, step, draft, onStepChange, onDraftChange, onBack, onStart }: Props) {
+  const [optionalContextOpen, setOptionalContextOpen] = useState(false);
+  const [advancedControlsOpen, setAdvancedControlsOpen] = useState(false);
   const filteredProviders = useMemo(
     () => (draft.runtimeKind === "local" ? providerOptions.filter((item) => item.key === "ollama") : providerOptions.filter((item) => item.key !== "ollama")),
     [providerOptions, draft.runtimeKind],
@@ -131,6 +151,8 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
       : providerMeta?.defaultBalancedModel || providerMeta?.defaultSpeedModel)
     || "";
   const canAdvanceRuntime = Boolean(resolvedModel) && (draft.runtimeKind === "local" || draft.apiKey.trim());
+  const workflowGuide = workflowGuides[draft.sessionType];
+  const showAdvancedControls = draft.sessionType === "expert" || advancedControlsOpen;
 
   return (
     <section className="onboarding-shell">
@@ -300,40 +322,56 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
             </div>
 
             <div className="drawer-card">
-              <div className="field-grid">
-                <div className="identity-field field-span">
-                  <span className="rail-label">Geography</span>
-                  <div className="chip-grid" onKeyDown={handleArrowSelection}>
-                    {geographyOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={draft.geography === option.value ? "chip-card active" : "chip-card"}
-                        onClick={() => onDraftChange((current) => ({ ...current, geography: option.value }))}
-                      >
-                        <span>{option.label}</span>
-                      </button>
-                    ))}
-                  </div>
+              <div className="identity-field field-span">
+                <span className="rail-label">Geography</span>
+                <div className="chip-grid" onKeyDown={handleArrowSelection}>
+                  {geographyOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={draft.geography === option.value ? "chip-card active" : "chip-card"}
+                      onClick={() => onDraftChange((current) => ({ ...current, geography: option.value }))}
+                    >
+                      <span>{option.label}</span>
+                    </button>
+                  ))}
                 </div>
-                <label className="identity-field field-span">
-                  <span className="rail-label">Website URL</span>
-                  <input
-                    value={draft.websiteUrl}
-                    onChange={(event) => onDraftChange((current) => ({ ...current, websiteUrl: event.target.value }))}
-                    placeholder="https://yourproduct.com"
-                  />
-                </label>
-                <label className="identity-field field-span">
-                  <span className="rail-label">Anything important?</span>
-                  <textarea
-                    value={draft.setupContext}
-                    onChange={(event) => onDraftChange((current) => ({ ...current, setupContext: event.target.value }))}
-                    placeholder="Idea summary, current users, deck notes, or anything else useful."
-                    rows={5}
-                  />
-                </label>
               </div>
+            </div>
+
+            <div className="drawer-card">
+              <div className="setup-section-head">
+                <div>
+                  <span className="rail-label">Optional context</span>
+                  <strong>Add a website or notes only if it helps.</strong>
+                </div>
+                <button type="button" className="ghost-button compact" onClick={() => setOptionalContextOpen((current) => !current)}>
+                  {optionalContextOpen ? "Hide" : "Add context"}
+                </button>
+              </div>
+              {optionalContextOpen ? (
+                <div className="field-grid">
+                  <label className="identity-field field-span">
+                    <span className="rail-label">Website URL</span>
+                    <input
+                      value={draft.websiteUrl}
+                      onChange={(event) => onDraftChange((current) => ({ ...current, websiteUrl: event.target.value }))}
+                      placeholder="https://yourproduct.com"
+                    />
+                  </label>
+                  <label className="identity-field field-span">
+                    <span className="rail-label">Anything important?</span>
+                    <textarea
+                      value={draft.setupContext}
+                      onChange={(event) => onDraftChange((current) => ({ ...current, setupContext: event.target.value }))}
+                      placeholder="Idea summary, current users, deck notes, or anything else useful."
+                      rows={5}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <p className="muted-copy">You can skip this and add detail later inside the session.</p>
+              )}
             </div>
           </>
         ) : null}
@@ -355,6 +393,14 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
             </div>
 
             <div className="drawer-card">
+              <span className="rail-label">{workflowGuide.label}</span>
+              <div className="focus-card">
+                <strong>{workflowGuide.title}</strong>
+                <p>{workflowGuide.body}</p>
+              </div>
+            </div>
+
+            <div className="drawer-card">
               <span className="rail-label">Conversation style</span>
               <div className="workflow-row" onKeyDown={handleArrowSelection}>
                 {modeOptions.map((option) => (
@@ -371,64 +417,71 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
               </div>
             </div>
 
-            <div className="drawer-card">
-              <span className="rail-label">Mode of help</span>
-              <div className="workflow-row" onKeyDown={handleArrowSelection}>
-                {helpModeOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className={draft.helpMode === option.value ? "choice-card active" : "choice-card"}
-                    onClick={() => onDraftChange((current) => ({ ...current, helpMode: option.value }))}
-                  >
-                    <span>{option.label}</span>
-                    <small>{option.note}</small>
+            {showAdvancedControls ? (
+              <>
+                <div className="drawer-card">
+                  <div className="setup-section-head">
+                    <div>
+                      <span className="rail-label">Mode of help</span>
+                      {draft.sessionType !== "expert" ? <strong>Advanced control</strong> : null}
+                    </div>
+                    {draft.sessionType !== "expert" ? (
+                      <button type="button" className="ghost-button compact" onClick={() => setAdvancedControlsOpen(false)}>
+                        Hide
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="workflow-row" onKeyDown={handleArrowSelection}>
+                    {helpModeOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={draft.helpMode === option.value ? "choice-card active" : "choice-card"}
+                        onClick={() => onDraftChange((current) => ({ ...current, helpMode: option.value }))}
+                      >
+                        <span>{option.label}</span>
+                        <small>{option.note}</small>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="drawer-card">
+                  <span className="rail-label">Knowledge behavior</span>
+                  <div className="workflow-row" onKeyDown={handleArrowSelection}>
+                    <button
+                      type="button"
+                      className={!draft.liveWebEnabled ? "choice-card active" : "choice-card"}
+                      onClick={() => onDraftChange((current) => ({ ...current, liveWebEnabled: false }))}
+                    >
+                      <span>Local corpus first</span>
+                      <small>Stay on the curated knowledge base unless the corpus is thin.</small>
+                    </button>
+                    <button
+                      type="button"
+                      className={draft.liveWebEnabled ? "choice-card active" : "choice-card"}
+                      onClick={() => onDraftChange((current) => ({ ...current, liveWebEnabled: true }))}
+                    >
+                      <span>Allow live web fallback</span>
+                      <small>Use labeled live web results for freshness or KB gaps.</small>
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="drawer-card">
+                <div className="setup-section-head">
+                  <div>
+                    <span className="rail-label">Advanced controls</span>
+                    <strong>Help mode and live-web fallback</strong>
+                  </div>
+                  <button type="button" className="ghost-button compact" onClick={() => setAdvancedControlsOpen(true)}>
+                    Show
                   </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="drawer-card">
-              <span className="rail-label">Knowledge behavior</span>
-              <div className="workflow-row" onKeyDown={handleArrowSelection}>
-                <button
-                  type="button"
-                  className={!draft.liveWebEnabled ? "choice-card active" : "choice-card"}
-                  onClick={() => onDraftChange((current) => ({ ...current, liveWebEnabled: false }))}
-                >
-                  <span>Local corpus first</span>
-                  <small>Stay on the curated knowledge base unless the corpus is thin.</small>
-                </button>
-                <button
-                  type="button"
-                  className={draft.liveWebEnabled ? "choice-card active" : "choice-card"}
-                  onClick={() => onDraftChange((current) => ({ ...current, liveWebEnabled: true }))}
-                >
-                  <span>Allow live web fallback</span>
-                  <small>Use labeled live web results for freshness or KB gaps.</small>
-                </button>
-              </div>
-            </div>
-
-            {draft.sessionType === "evaluator" ? (
-              <div className="drawer-card">
-                <span className="rail-label">Evaluate mode</span>
-                <div className="focus-card">
-                  <strong>Confidence-driven</strong>
-                  <p>Paste the pitch, deck notes, or URL. It will stop as soon as the report is ready.</p>
                 </div>
+                <p className="muted-copy">Defaults are safe for Ideate and Evaluate. Expert keeps these controls visible because they change behavior more directly.</p>
               </div>
-            ) : null}
-
-            {draft.sessionType === "expert" ? (
-              <div className="drawer-card">
-                <span className="rail-label">Expert workbench</span>
-                <div className="focus-card">
-                  <strong>Two-way by default</strong>
-                  <p>Use Expert to explain concepts, compare choices, analyze uploaded decks, and pre-screen ideas without collapsing into generic tutoring.</p>
-                </div>
-              </div>
-            ) : null}
+            )}
           </>
         ) : null}
 
