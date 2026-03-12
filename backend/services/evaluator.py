@@ -10,6 +10,7 @@ from typing import Any
 from state import ConversationState
 
 from backend.services.model_router import default_model_for_provider, generate_provider_text, normalize_provider
+from backend.services.deck_review import normalize_evaluator_mode, present_deck_review_report
 from backend.services.refinement import (
     detect_evidence_balance,
     empty_answer_record,
@@ -1167,8 +1168,10 @@ def initial_evaluation_metadata(
     stage: str = "unknown",
     mode: str = "think_it_through",
     geography: str = "unspecified",
+    evaluator_mode: str = "idea_review",
 ) -> dict[str, Any]:
     return {
+        "evaluatorMode": normalize_evaluator_mode(evaluator_mode),
         "questionBudget": normalize_budget(question_budget),
         "maxQuestionsHidden": normalize_budget(question_budget),
         "provider": provider,
@@ -2918,6 +2921,25 @@ def build_evaluation_report(metadata: dict[str, Any]) -> dict[str, Any]:
 
 
 def public_progress(metadata: dict[str, Any], state: "ConversationState | None" = None) -> dict[str, Any]:
+    if normalize_evaluator_mode(metadata.get("evaluatorMode")) == "deck_review":
+        report = present_deck_review_report(metadata)
+        completed = bool(metadata.get("completed"))
+        processed = int(metadata.get("deckReviewRuns", 0) or 0)
+        return {
+            "questionBudget": 1,
+            "answeredQuestions": processed,
+            "questionsAsked": processed,
+            "maxQuestions": 1,
+            "completed": completed,
+            "partial": not completed,
+            "currentQuestion": None,
+            "currentScore": float(report.get("overallScore", 0.0) or 0.0) if completed else 0.0,
+            "dimensionScores": [],
+            "website": metadata.get("website", {}),
+            "lastFeedback": metadata.get("deckReviewSummary", ""),
+            "stopReason": metadata.get("stopReason", ""),
+            "canGoDeeper": False,
+        }
     answers = metadata.get("answers", [])
     report = build_evaluation_report(metadata)
     completed = bool(metadata.get("completed"))

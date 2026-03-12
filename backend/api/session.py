@@ -20,6 +20,7 @@ from backend.schemas import (
     StartSessionRequest,
     StartSessionResponse,
 )
+from backend.services.deck_review import normalize_evaluator_mode, present_deck_review_report
 from backend.services.expert_agent import build_expert_opening, get_expert_quick_actions
 from backend.services.evaluator import (
     build_evaluation_report,
@@ -37,7 +38,7 @@ from backend.services.evaluator import (
     public_progress,
     select_next_question,
 )
-from backend.services.model_router import default_model_for_provider, normalize_provider, provider_catalog
+from backend.services.model_router import default_model_for_provider, model_supports_vision, normalize_provider, provider_catalog
 from backend.services.prompting import DEFAULT_RESPONSE_PROFILE, build_personalized_opening, get_chip_suggestions
 from backend.services.refinement import empty_answer_record, refine_founder_input, update_answer_record
 from backend.services.retrieval import infer_retrieval_needs
@@ -157,14 +158,16 @@ def _session_profile(turns: list[dict]) -> str:
 
 
 def _session_summary(row: dict) -> dict:
+    metadata = _session_metadata(row)
+    evaluator_mode = normalize_evaluator_mode(metadata.get("evaluatorMode"))
     title = row.get("company_name") or f"{row.get('sector', 'unknown').upper()} · {row.get('stage', 'unknown')}"
     if row.get("session_type") == "evaluator" and not row.get("company_name"):
-        title = f"Evaluate · {row.get('sector', 'unknown').upper()}"
+        title = f"{'Deck review' if evaluator_mode == 'deck_review' else 'Evaluate'} · {row.get('sector', 'unknown').upper()}"
     if row.get("session_type") == "expert" and not row.get("company_name"):
         title = f"Expert · {row.get('sector', 'unknown').upper()}"
     workflow_label = "ideate"
     if row.get("session_type") == "evaluator":
-        workflow_label = "evaluate"
+        workflow_label = "deck review" if evaluator_mode == "deck_review" else "evaluate"
     elif row.get("session_type") == "expert":
         workflow_label = "expert"
     subtitle_bits = [
@@ -231,6 +234,7 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
         website_result = await fetch_website_context(payload.websiteUrl)
 
     if session_type == "evaluator":
+        evaluator_mode = normalize_evaluator_mode(payload.evaluatorMode)
         metadata = initial_evaluation_metadata(
             question_budget=question_budget,
             provider=provider,
@@ -242,9 +246,13 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
             stage=payload.stage,
             mode=payload.mode,
             geography=state.geography,
+            evaluator_mode=evaluator_mode,
         )
         has_starting_context = bool((payload.setupContext or "").strip() or website_result.get("text", "").strip())
-        if has_starting_context:
+        if evaluator_mode == "deck_review":
+            opening = "Upload the deck. I’ll review it against the template, flag what is missing, and avoid guessing."
+            metadata["stopReason"] = "Upload a deck to start the review."
+        elif has_starting_context:
             metadata["intakeComplete"] = True
             _refresh_intake_state(metadata)
             ready, stop_reason = _report_readiness(metadata)
@@ -345,6 +353,7 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
             "responseProfile": DEFAULT_RESPONSE_PROFILE,
             "state_snapshot": state.to_dict(),
             "sessionType": session_type,
+            "evaluatorMode": normalize_evaluator_mode(metadata.get("evaluatorMode")),
         },
     )
     memory.track_event(
@@ -363,6 +372,7 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
             "provider": provider,
             "model": model,
             "questionBudget": question_budget if session_type == "evaluator" else None,
+            "evaluatorMode": normalize_evaluator_mode(metadata.get("evaluatorMode")) if session_type == "evaluator" else None,
             "helpMode": payload.helpMode,
             "liveWebEnabled": bool(payload.liveWebEnabled),
         },
@@ -378,6 +388,7 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
                 "provider": provider,
                 "model": model,
                 "questionBudget": question_budget,
+                "evaluatorMode": normalize_evaluator_mode(metadata.get("evaluatorMode")),
             },
         )
         if website_result and not website_result.get("ok"):
@@ -400,17 +411,21 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
         )
 
     evaluation_report = None
+    deck_evaluation_report = None
     if session_type == "evaluator":
-        evaluation_report = build_evaluation_report(metadata)
-        if metadata.get("completed"):
-            evaluation_report = await naturalize_evaluation_report(
-                report=evaluation_report,
-                metadata=metadata,
-                state=state,
-                provider=provider,
-                model=model,
-                api_key=payload.apiKey or None,
-            )
+        if normalize_evaluator_mode(metadata.get("evaluatorMode")) == "deck_review":
+            deck_evaluation_report = present_deck_review_report(metadata)
+        else:
+            evaluation_report = build_evaluation_report(metadata)
+            if metadata.get("completed"):
+                evaluation_report = await naturalize_evaluation_report(
+                    report=evaluation_report,
+                    metadata=metadata,
+                    state=state,
+                    provider=provider,
+                    model=model,
+                    api_key=payload.apiKey or None,
+                )
     return StartSessionResponse(
         sessionId=session_id,
         openingMessage=opening,
@@ -425,13 +440,16 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
         nextGap=next_gap(state),
         activeUploads=[],
         sessionType=session_type,
+        evaluatorMode=normalize_evaluator_mode(metadata.get("evaluatorMode")),
         provider=provider,
         model=model,
+        supportsVision=model_supports_vision(provider, model),
         questionBudget=question_budget if session_type == "evaluator" else None,
         websiteUrl=(payload.websiteUrl or "").strip(),
         **_response_extensions(metadata),
         evaluationProgress=public_progress(metadata, state) if session_type == "evaluator" else None,
         evaluationReport=evaluation_report,
+        deckEvaluationReport=deck_evaluation_report,
     )
 
 
@@ -456,8 +474,12 @@ async def get_session(session_id: str) -> SessionResponse:
         if turn["role"] in ("user", "assistant")
     ]
     evaluation_report = None
+    deck_evaluation_report = None
     if session_type == "evaluator":
-        evaluation_report = present_evaluation_report(metadata)
+        if normalize_evaluator_mode(metadata.get("evaluatorMode")) == "deck_review":
+            deck_evaluation_report = present_deck_review_report(metadata)
+        else:
+            evaluation_report = present_evaluation_report(metadata)
     return SessionResponse(
         sessionId=session_id,
         history=history,
@@ -472,13 +494,16 @@ async def get_session(session_id: str) -> SessionResponse:
         nextGap=next_gap(state),
         activeUploads=list_active_uploads(session_id),
         sessionType=session_type,
+        evaluatorMode=normalize_evaluator_mode(metadata.get("evaluatorMode")),
         provider=session_row.get("provider", "ollama"),
         model=session_row.get("model", ""),
+        supportsVision=model_supports_vision(session_row.get("provider", "ollama"), session_row.get("model", "")),
         questionBudget=session_row.get("question_budget"),
         websiteUrl=session_row.get("website_url", ""),
         **_response_extensions(metadata),
         evaluationProgress=public_progress(metadata, state) if session_type == "evaluator" else None,
         evaluationReport=evaluation_report,
+        deckEvaluationReport=deck_evaluation_report,
     )
 
 
@@ -499,4 +524,9 @@ async def update_runtime(session_id: str, payload: SessionRuntimeUpdateRequest) 
         pathname="/",
         metadata={"provider": provider, "model": model},
     )
-    return SessionRuntimeResponse(sessionId=session_id, provider=provider, model=model)
+    return SessionRuntimeResponse(
+        sessionId=session_id,
+        provider=provider,
+        model=model,
+        supportsVision=model_supports_vision(provider, model),
+    )

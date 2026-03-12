@@ -53,9 +53,10 @@ SignalX will auto-start Ollama if it is installed and not already running.
 - refined pitch generation from the conversation
 
 ### Evaluate
-- adaptive interview instead of fixed forms
-- hidden scoring during the conversation
-- structured final report with verdict, evidence gaps, and next steps
+- `Idea review` for adaptive pressure-testing of a startup idea
+- `Deck review` for direct `.pdf` and `.pptx` pitch-deck assessment inside Evaluate
+- structured reports with verdict, evidence gaps, weak claims, and next steps
+- slide/page-aware feedback instead of a generic one-shot chatbot answer
 
 ### Expert
 - concept explanations and comparisons
@@ -114,6 +115,29 @@ export GROQ_API_KEY=...
 npm run mvp:api
 ```
 
+## Deck Review
+
+`Evaluate` now has two modes:
+- `Idea review`
+- `Deck review`
+
+`Deck review` is meant for serious pitch-deck feedback, not a prompt hack inside chat.
+
+What it does:
+- reads uploaded `.pdf` and `.pptx` decks into an ordered slide/page artifact
+- evaluates the deck against the built-in rubric inside `Evaluate`
+- reports what is working, what is weak, what is unproven, and what is still missing
+- cites slide/page references where possible
+- marks missing material as `not shown`, `unclear`, or `unverified` instead of guessing
+
+Important runtime behavior:
+- if the active model supports vision and the deck has renderable slide/page images, the review can assess slides more directly
+- if the active model is text-only, SignalX runs a bounded transcript review from extracted deck text and explicitly avoids fake visual claims
+- `Qwen2.5-VL` is the recommended local Ollama path for stronger deck review
+- `Gemma 3` is a lighter local fallback when you want multimodal support on a smaller setup
+
+If you update the deck or improve the review pipeline, re-run `Deck review` to generate a fresh report. Existing saved reports do not automatically rewrite themselves.
+
 ## Bundled Knowledge
 
 The Expert workbench ships with a bundled JSON corpus under `knowledge_base/expert/`.
@@ -165,6 +189,8 @@ npm run knowledge:vc
 - both open-source and API-key runtime paths are supported
 - the Expert corpus is bundled in the repo
 - local API-key mode works without Ollama
+- `Evaluate` supports both `Idea review` and structured `Deck review`
+- long analytical answers auto-continue once when providers stop on length
 - session history, uploads, and reports persist locally
 
 ## Docs

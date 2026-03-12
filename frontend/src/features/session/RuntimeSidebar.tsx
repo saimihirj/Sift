@@ -103,6 +103,9 @@ export function RuntimeSidebar({
             placeholder={selectedProvider?.defaultSpeedModel || "Enter a model id"}
           />
           {isCustomModel ? <small className="muted-copy">Custom model</small> : null}
+          {selectedProvider?.recommendedDeckModel ? (
+            <small className="muted-copy">Deck review recommendation: {selectedProvider.recommendedDeckModel}</small>
+          ) : null}
         </label>
 
         <div className="runtime-chip-row">

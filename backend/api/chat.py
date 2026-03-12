@@ -153,6 +153,16 @@ def _normalize_assistant_output(text: str) -> str:
     return value.strip()
 
 
+def _stream_limits(session_type: str, *, has_upload: bool = False) -> tuple[int, float]:
+    if session_type == "expert":
+        if has_upload:
+            return 1200, 85.0
+        return 900, 70.0
+    if has_upload:
+        return 680, 60.0
+    return 520, 45.0
+
+
 @router.post("")
 async def chat(
     sessionId: str = Form(...),
@@ -404,6 +414,7 @@ async def chat(
 
             assistant_chunks: list[str] = []
             completion_payload = None
+            max_output_tokens, output_timeout = _stream_limits(session_type, has_upload=upload_entry is not None)
             async for event, payload in stream_chat_completion(
                 system=system_prompt,
                 messages=[*history_window, {"role": "user", "content": user_message}],
@@ -411,6 +422,10 @@ async def chat(
                 provider_override=chosen_provider,
                 model_override=chosen_model,
                 api_key=api_key,
+                max_tokens_override=max_output_tokens,
+                timeout_seconds_override=output_timeout,
+                allow_continuation=session_type == "expert" or upload_entry is not None,
+                continuation_limit=1,
             ):
                 if event == "meta":
                     payload["activeUploads"] = active_uploads
@@ -461,6 +476,9 @@ async def chat(
                 "knowledgeLane": session_metadata.get("knowledgeLane", "general"),
                 "helpMode": session_metadata.get("helpMode", "coach_me"),
                 "usedLiveWeb": session_metadata.get("usedLiveWeb", False),
+                "finishReason": completion_payload.get("finishReason", "stop"),
+                "continuedAfterLengthLimit": completion_payload.get("continuedAfterLengthLimit", False),
+                "continuationCount": completion_payload.get("continuationCount", 0),
             }
             assistant_metadata = {
                 "responseProfile": completion_payload["responseProfile"],
@@ -472,6 +490,9 @@ async def chat(
                     **completion_payload["timings"],
                     "totalBackendSeconds": total_seconds,
                 },
+                "finishReason": completion_payload.get("finishReason", "stop"),
+                "continuedAfterLengthLimit": completion_payload.get("continuedAfterLengthLimit", False),
+                "continuationCount": completion_payload.get("continuationCount", 0),
                 "activeUploads": active_uploads,
                 "researchSources": retrieval.get("researchSources", []),
                 "historyChars": history_chars,
@@ -541,6 +562,9 @@ async def chat(
                     "sessionType": session_type,
                     "knowledgeLane": session_metadata.get("knowledgeLane", "general"),
                     "usedLiveWeb": session_metadata.get("usedLiveWeb", False),
+                    "finishReason": completion_payload.get("finishReason", "stop"),
+                    "continuedAfterLengthLimit": completion_payload.get("continuedAfterLengthLimit", False),
+                    "continuationCount": completion_payload.get("continuationCount", 0),
                 },
             )
 
@@ -557,6 +581,9 @@ async def chat(
                     "model": completion_payload["model"],
                     "timings": assistant_metadata["timings"],
                     "fallbackUsed": completion_payload.get("fallbackUsed", False),
+                    "finishReason": completion_payload.get("finishReason", "stop"),
+                    "continuedAfterLengthLimit": completion_payload.get("continuedAfterLengthLimit", False),
+                    "continuationCount": completion_payload.get("continuationCount", 0),
                     "activeUploads": active_uploads,
                     "historyChars": history_chars,
                     "systemPromptChars": system_prompt_chars,

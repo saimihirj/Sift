@@ -190,6 +190,7 @@ export async function getOutline(sessionId: string): Promise<OutlinePayload> {
 export async function answerEvaluator(args: {
   sessionId: string;
   answer: string;
+  evaluatorMode?: string;
   provider?: string;
   model?: string;
   apiKey?: string;
@@ -198,6 +199,9 @@ export async function answerEvaluator(args: {
   const form = new FormData();
   form.set("sessionId", args.sessionId);
   form.set("answer", args.answer);
+  if (args.evaluatorMode) {
+    form.set("evaluatorMode", args.evaluatorMode);
+  }
   if (args.provider) {
     form.set("provider", args.provider);
   }

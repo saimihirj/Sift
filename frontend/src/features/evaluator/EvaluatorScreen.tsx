@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import type { ProviderOption, ResponseProfile, SessionPayload, SessionSummary, ThemeMode } from "../../app/types";
+import type { EvaluatorMode, ProviderOption, ResponseProfile, SessionPayload, SessionSummary, ThemeMode } from "../../app/types";
 import { ThemePicker } from "../../app/ThemePicker";
 import { answerEvaluator, updateSessionRuntime } from "../../lib/api/client";
 import { loadSessionCredential, saveSessionCredential } from "../../lib/sessionCredentials";
@@ -61,11 +61,13 @@ export function EvaluatorScreen({
   const [runtimeProvider, setRuntimeProvider] = useState<SessionPayload["provider"]>(session.provider);
   const [runtimeModel, setRuntimeModel] = useState(session.model);
   const [runtimeApiKey, setRuntimeApiKey] = useState(() => loadSessionCredential(session.sessionId)?.apiKey ?? "");
+  const [evaluatorMode, setEvaluatorMode] = useState<EvaluatorMode>(session.evaluatorMode ?? "idea_review");
 
   useEffect(() => {
     setRuntimeProvider(session.provider);
     setRuntimeModel(session.model);
     setRuntimeApiKey(loadSessionCredential(session.sessionId)?.apiKey ?? "");
+    setEvaluatorMode(session.evaluatorMode ?? "idea_review");
     setSessionsOpen(false);
     setRuntimeOpen(false);
     setProgressOpen(false);
@@ -82,15 +84,50 @@ export function EvaluatorScreen({
 
   const progress = session.evaluationProgress;
   const report = session.evaluationReport;
+  const deckReport = session.deckEvaluationReport;
   const currentQuestion = progress?.currentQuestion ?? null;
-  const showIntroCard = !progress?.completed && session.history.length <= 1;
+  const showIntroCard = session.history.length <= 1;
+  const canSwitchMode = session.history.length <= 1 && session.activeUploads.length === 0 && !progress?.completed;
+  const runtimeSupportsVision = Boolean(session.supportsVision);
   const reportHighlights = useMemo(
     () => (progress?.completed ? (report?.nextExperiments ?? report?.suggestions ?? []).slice(0, 3) : []),
     [progress?.completed, report],
   );
 
+  const selectedFileIsPdf = selectedFile?.name.toLowerCase().endsWith(".pdf") ?? false;
+  const selectedFileIsPptx = selectedFile?.name.toLowerCase().endsWith(".pptx") ?? false;
+  const deckReviewCapability = useMemo(() => {
+    if (evaluatorMode !== "deck_review") {
+      return null;
+    }
+    if (!runtimeSupportsVision) {
+      return {
+        label: "Text transcript review",
+        note: "This model can review extracted deck text only. It will not pretend it saw layout or visuals.",
+      };
+    }
+    if (selectedFileIsPptx) {
+      return {
+        label: "Text-first PPTX review",
+        note: "This environment extracts slide text from PPTX. Export to PDF if you want the strongest slide-image review.",
+      };
+    }
+    if (selectedFileIsPdf || session.activeUploads.some((item) => item.docType === "pitch deck" && item.hasRenderableSlides)) {
+      return {
+        label: "Vision-ready review",
+        note: "This runtime can review PDF deck pages slide by slide and still call out anything missing or unverified.",
+      };
+    }
+    return {
+      label: "Vision-ready runtime",
+      note: "PDF decks can be reviewed with slide-image evidence. PPTX decks may still fall back to extracted text.",
+    };
+  }, [evaluatorMode, runtimeSupportsVision, selectedFileIsPdf, selectedFileIsPptx, session.activeUploads]);
+
   const applyEvaluatorResponse = (response: Awaited<ReturnType<typeof answerEvaluator>>) => {
-    const assistantMessage = response.evaluationProgress.completed
+    const assistantMessage = response.evaluatorMode === "deck_review"
+      ? response.reciprocal
+      : response.evaluationProgress.completed
       ? `${response.reciprocal}\n\nI have enough. I’m building the report now.`
       : response.question
         ? `${response.reciprocal}\n\n${response.question.text}`
@@ -100,14 +137,22 @@ export function EvaluatorScreen({
       ...previous,
       history: [...previous.history, { role: "assistant", content: assistantMessage }],
       activeUploads: response.activeUploads,
+      evaluatorMode: response.evaluatorMode,
       evaluationProgress: response.evaluationProgress,
-      evaluationReport: response.evaluationReport,
+      evaluationReport: response.evaluationReport ?? undefined,
+      deckEvaluationReport: response.deckEvaluationReport ?? undefined,
       provider: runtimeProvider as SessionPayload["provider"],
       model: effectiveModel,
+      supportsVision: response.supportsVision,
     }));
-    setStatusLine(response.warning || (response.evaluationProgress.completed ? "Evaluation complete." : "Ready for the next step."));
+    setStatusLine(
+      response.warning
+        || (response.evaluatorMode === "deck_review"
+          ? (response.deckEvaluationReport?.reviewMode === "multimodal" ? "Deck review ready." : "Deck transcript review ready.")
+          : (response.evaluationProgress.completed ? "Evaluation complete." : "Ready for the next step.")),
+    );
     onSessionActivity();
-    if (response.evaluationProgress.completed) {
+    if (response.evaluationProgress.completed && response.evaluatorMode !== "deck_review") {
       setCompletionOpen(true);
     }
   };
@@ -141,6 +186,7 @@ export function EvaluatorScreen({
         ...previous,
         provider: response.provider as SessionPayload["provider"],
         model: response.model,
+        supportsVision: response.supportsVision,
       }));
       setStatusLine(`${selectedProvider?.label || response.provider} · ${response.model}`);
       setRuntimeOpen(false);
@@ -154,8 +200,10 @@ export function EvaluatorScreen({
 
   const submit = async () => {
     if (progress?.completed) {
-      setCompletionOpen(true);
-      return;
+      if (evaluatorMode !== "deck_review") {
+        setCompletionOpen(true);
+        return;
+      }
     }
     if ((!draft.trim() && !selectedFile) || pending) {
       return;
@@ -188,6 +236,7 @@ export function EvaluatorScreen({
       const response = await answerEvaluator({
         sessionId: session.sessionId,
         answer: submittedDraft,
+        evaluatorMode,
         provider: runtimeProvider,
         model: effectiveModel,
         apiKey: runtimeApiKey.trim(),
@@ -257,17 +306,45 @@ export function EvaluatorScreen({
             <small>
               {progress?.website?.warning
                 ? String(progress.website.warning)
-                : statusLine || (progress?.completed ? "Report ready" : `${progress?.questionsAsked ?? 0} questions asked`)}
+                : statusLine || (progress?.completed ? "Report ready" : evaluatorMode === "deck_review" ? "Waiting for the deck." : `${progress?.questionsAsked ?? 0} questions asked`)}
             </small>
           </div>
         </header>
 
         <div className="chat-panel evaluator-panel">
+          <div className="evaluator-mode-row">
+            <div className="segmented runtime-segmented">
+              {([
+                { key: "idea_review", label: "Idea review" },
+                { key: "deck_review", label: "Deck review" },
+              ] as Array<{ key: EvaluatorMode; label: string }>).map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={evaluatorMode === option.key ? "segment active" : "segment"}
+                  onClick={() => {
+                    if (canSwitchMode) {
+                      setEvaluatorMode(option.key);
+                    }
+                  }}
+                  disabled={!canSwitchMode && evaluatorMode !== option.key}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {!canSwitchMode ? <small className="muted-copy">Mode locks after the first real submission to keep the report consistent.</small> : null}
+          </div>
+
           {showIntroCard ? (
             <div className="evaluator-question-card evaluator-focus-card">
               <span className="rail-label">Evaluate</span>
-              <strong>Start with the pitch.</strong>
-              <p>Paste the pitch, notes, or URL. I’ll only ask what is still missing.</p>
+              <strong>{evaluatorMode === "deck_review" ? "Start with the deck." : "Start with the pitch."}</strong>
+              <p>
+                {evaluatorMode === "deck_review"
+                  ? "Upload the deck and I’ll judge it against the template, call out what is missing, and avoid guesswork."
+                  : "Paste the pitch, notes, or URL. I’ll only ask what is still missing."}
+              </p>
             </div>
           ) : null}
 
@@ -278,7 +355,7 @@ export function EvaluatorScreen({
             sessionId={session.sessionId}
           />
 
-          {progress?.completed ? (
+          {progress?.completed && evaluatorMode !== "deck_review" ? (
             <div className="evaluator-complete-banner">
               <div className="evaluator-complete-copy">
                 <span className="rail-label">Complete</span>
@@ -293,12 +370,18 @@ export function EvaluatorScreen({
             </div>
           ) : null}
 
-          {!progress?.completed ? (
+          {(!progress?.completed || evaluatorMode === "deck_review") ? (
             <div className="composer-shell">
+              {deckReviewCapability ? (
+                <div className="focus-card evaluator-capability-card">
+                  <span className="rail-label">{deckReviewCapability.label}</span>
+                  <p>{deckReviewCapability.note}</p>
+                </div>
+              ) : null}
               <div className="attachment-row">
                 <div className="attachment-meta">
                   <span className="rail-label">Context</span>
-                  <small>Optional deck, notes, or PDF</small>
+                  <small>{evaluatorMode === "deck_review" ? "Upload the deck you want reviewed" : "Optional deck, notes, or PDF"}</small>
                 </div>
                 <div className="attachment-actions">
                   <button type="button" className="ghost-button compact" onClick={() => inputRef.current?.click()}>
@@ -323,12 +406,18 @@ export function EvaluatorScreen({
                 <textarea
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
-                  placeholder={currentQuestion ? "Answer naturally. Specifics help." : "Tell me what you are building, who it is for, and why it matters."}
+                  placeholder={
+                    evaluatorMode === "deck_review"
+                      ? (progress?.completed
+                        ? "Ask about a slide, claim, rewrite, or what to fix next."
+                        : "Optional focus for the review. Example: be ruthless on story flow and proof.")
+                      : (currentQuestion ? "Answer naturally. Specifics help." : "Tell me what you are building, who it is for, and why it matters.")
+                  }
                   rows={4}
                   disabled={pending}
                 />
                 <button type="button" className="solid-button composer-send" onClick={() => void submit()} disabled={pending}>
-                  Submit
+                  {evaluatorMode === "deck_review" && !progress?.completed ? "Review deck" : evaluatorMode === "deck_review" ? "Ask" : "Submit"}
                 </button>
               </div>
             </div>
@@ -388,10 +477,18 @@ export function EvaluatorScreen({
             <div className="drawer-card">
               <span className="rail-label">Assessment</span>
               <div className="focus-card">
-                <strong>Adaptive flow</strong>
-                <p>Evaluate asks only what is still missing, then stops as soon as the report is justified.</p>
+                <strong>{evaluatorMode === "deck_review" ? "Deck review" : "Adaptive flow"}</strong>
+                <p>
+                  {evaluatorMode === "deck_review"
+                    ? "Deck review uses the uploaded deck as the primary evidence source and marks missing sections instead of guessing."
+                    : "Evaluate asks only what is still missing, then stops as soon as the report is justified."}
+                </p>
               </div>
-              <small className="muted-copy">{progress?.questionsAsked ?? progress?.answeredQuestions ?? 0} questions asked</small>
+              <small className="muted-copy">
+                {evaluatorMode === "deck_review"
+                  ? (deckReport?.reviewMode === "multimodal" ? "Slide-image review active" : "Transcript review active")
+                  : `${progress?.questionsAsked ?? progress?.answeredQuestions ?? 0} questions asked`}
+              </small>
               {progress?.stopReason ? <small className="muted-copy">{progress.stopReason}</small> : null}
             </div>
             <div className="drawer-card">
@@ -404,6 +501,10 @@ export function EvaluatorScreen({
                 <div>
                   <dt>Model</dt>
                   <dd>{session.model}</dd>
+                </div>
+                <div>
+                  <dt>Review</dt>
+                  <dd>{evaluatorMode === "deck_review" ? (deckReport?.reviewMode === "multimodal" || runtimeSupportsVision ? "Deck review" : "Deck transcript review") : "Idea review"}</dd>
                 </div>
                 <div>
                   <dt>Stage</dt>
@@ -422,7 +523,11 @@ export function EvaluatorScreen({
             <div className="drawer-card">
               <span className="rail-label">What matters</span>
               {reportHighlights.length === 0 ? (
-                <p className="muted-copy">Stay concrete on the pitch, user pain, proof, and why this matters now.</p>
+                <p className="muted-copy">
+                  {evaluatorMode === "deck_review"
+                    ? "The best deck reviews stay concrete on missing evidence, weak claims, story flow, and what each slide still needs to prove."
+                    : "Stay concrete on the pitch, user pain, proof, and why this matters now."}
+                </p>
               ) : (
                 <ul className="upload-list">
                   {reportHighlights.map((item) => (

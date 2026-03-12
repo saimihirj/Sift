@@ -443,7 +443,9 @@ a {
 }
 
 .workflow-row {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 260px));
+  justify-content: start;
+  grid-auto-rows: 1fr;
 }
 
 .landing-resume {
@@ -644,7 +646,9 @@ a {
 
 .runtime-provider-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(136px, 172px));
+  justify-content: start;
+  grid-auto-rows: 1fr;
   gap: 10px;
 }
 
@@ -714,7 +718,9 @@ a {
 }
 
 .chip-grid {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 188px));
+  justify-content: start;
+  grid-auto-rows: 1fr;
 }
 
 .choice-card,
@@ -745,9 +751,31 @@ a {
 .choice-card,
 .chip-card {
   text-align: left;
-  min-height: 60px;
+  height: 100%;
   display: grid;
   gap: 4px;
+}
+
+.choice-card {
+  min-height: 76px;
+  align-content: start;
+}
+
+.chip-card {
+  min-height: 50px;
+  align-content: center;
+}
+
+.choice-card span,
+.chip-card span {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.choice-card small,
+.chip-card small {
+  display: block;
+  line-height: 1.3;
 }
 
 .starter-preview {
@@ -1086,7 +1114,9 @@ a:focus-visible,
 
 .segmented {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(140px, 180px));
+  justify-content: start;
+  grid-auto-rows: 1fr;
   gap: 8px;
 }
 
@@ -1096,7 +1126,13 @@ a:focus-visible,
 
 .segment {
   border-radius: 18px;
-  padding: 12px;
+  min-height: 44px;
+  height: 100%;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .meta-list {
@@ -1196,6 +1232,16 @@ a:focus-visible,
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
+.evaluator-mode-row {
+  display: grid;
+  gap: 8px;
+}
+
+.evaluator-mode-row .segmented {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .evaluator-question-card {
   display: grid;
   gap: 6px;
@@ -1243,6 +1289,15 @@ a:focus-visible,
 }
 
 .evaluator-complete-copy p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.evaluator-capability-card {
+  margin-bottom: 2px;
+}
+
+.evaluator-capability-card p {
   margin: 0;
   color: var(--ink-soft);
 }
@@ -1903,6 +1958,16 @@ a:focus-visible,
   margin: 0;
   color: var(--ink-soft);
   line-height: 1.5;
+}
+
+.report-doc-sublist {
+  display: grid;
+  gap: 6px;
+}
+
+.report-doc-sublist .report-doc-bullets {
+  gap: 6px;
+  margin-top: -2px;
 }
 
 .report-doc-item-head {

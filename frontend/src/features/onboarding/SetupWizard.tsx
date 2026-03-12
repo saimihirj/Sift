@@ -14,6 +14,7 @@ type Props = {
   onBack: () => void;
   onStart: (payload: {
     sessionType: SetupDraft["sessionType"];
+    evaluatorMode: SetupDraft["evaluatorMode"];
     founderType: SetupDraft["founderType"];
     sector: SetupDraft["sector"];
     stage: SetupDraft["stage"];
@@ -503,6 +504,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
               onClick={() =>
                 void onStart({
                   sessionType: draft.sessionType,
+                  evaluatorMode: draft.evaluatorMode,
                   founderType: draft.founderType,
                   sector: draft.sector,
                   stage: draft.stage,

@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 from fastapi import UploadFile
 
@@ -27,6 +28,12 @@ def _session_dir(session_id: str) -> Path:
 
 def _manifest_path(session_id: str) -> Path:
     return _session_dir(session_id) / "manifest.json"
+
+
+def _artifact_dir(session_id: str, stored_name: str) -> Path:
+    path = _session_dir(session_id) / f"{stored_name}.artifacts"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def _load_manifest(session_id: str) -> list[dict]:
@@ -86,6 +93,108 @@ def _parse_pptx(path: Path) -> str:
     return "\n\n".join(slides)
 
 
+def _slide_summary(text: str, limit: int = 240) -> str:
+    cleaned = re.sub(r"\s+", " ", (text or "").strip())
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[: limit - 3].rstrip() + "..."
+
+
+def _render_pdf_page_images(path: Path, output_dir: Path) -> list[str]:
+    renderer = shutil.which("pdftoppm")
+    if not renderer:
+        return []
+    prefix = output_dir / "page"
+    try:
+        subprocess.run(
+            [renderer, "-png", "-r", "110", str(path), str(prefix)],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return []
+    pages = sorted(output_dir.glob("page-*.png"), key=lambda item: int(re.search(r"-(\d+)\.png$", item.name).group(1)) if re.search(r"-(\d+)\.png$", item.name) else 0)
+    return [str(page) for page in pages]
+
+
+def _build_pdf_deck_artifact(path: Path, session_id: str, stored_name: str) -> dict:
+    import pdfplumber
+
+    asset_dir = _artifact_dir(session_id, stored_name)
+    image_paths = _render_pdf_page_images(path, asset_dir)
+    slides = []
+    with pdfplumber.open(path) as pdf:
+        for index, page in enumerate(pdf.pages):
+            text = (page.extract_text() or "").strip()
+            image_path = image_paths[index] if index < len(image_paths) else ""
+            slides.append(
+                {
+                    "index": index + 1,
+                    "label": f"Page {index + 1}",
+                    "extractedText": text,
+                    "summary": _slide_summary(text or f"Page {index + 1}"),
+                    "imagePath": image_path,
+                }
+            )
+    limitations = []
+    if not any(slide.get("imagePath") for slide in slides):
+        limitations.append("Page images were not rendered in this environment, so review falls back to extracted text.")
+    return {
+        "artifactType": "deck",
+        "format": "pdf",
+        "storedName": stored_name,
+        "slideCount": len(slides),
+        "hasRenderableSlides": any(slide.get("imagePath") for slide in slides),
+        "limitations": limitations,
+        "slides": slides,
+    }
+
+
+def _build_pptx_deck_artifact(path: Path, stored_name: str) -> dict:
+    from pptx import Presentation
+
+    prs = Presentation(path)
+    slides = []
+    for index, slide in enumerate(prs.slides):
+        slide_text = []
+        for shape in slide.shapes:
+            if hasattr(shape, "text") and shape.text.strip():
+                slide_text.append(shape.text.strip())
+        text = "\n".join(slide_text).strip()
+        slides.append(
+            {
+                "index": index + 1,
+                "label": f"Slide {index + 1}",
+                "extractedText": text,
+                "summary": _slide_summary(text or f"Slide {index + 1}"),
+                "imagePath": "",
+            }
+        )
+    return {
+        "artifactType": "deck",
+        "format": "pptx",
+        "storedName": stored_name,
+        "slideCount": len(slides),
+        "hasRenderableSlides": False,
+        "limitations": [
+            "This environment extracted slide text from the PPTX but did not render slide images, so visual design claims should be treated as unverified.",
+        ],
+        "slides": slides,
+    }
+
+
+def _build_upload_artifact(path: Path, session_id: str, stored_name: str, doc_type: str) -> dict | None:
+    ext = path.suffix.lower()
+    if doc_type != "pitch deck":
+        return None
+    if ext == ".pdf":
+        return _build_pdf_deck_artifact(path, session_id, stored_name)
+    if ext == ".pptx":
+        return _build_pptx_deck_artifact(path, stored_name)
+    return None
+
+
 def parse_uploaded_path(path: Path) -> tuple[str, str]:
     ext = path.suffix.lower()
     if ext == ".txt":
@@ -132,6 +241,11 @@ async def ingest_upload(session_id: str, upload: UploadFile) -> dict:
     chunks = _chunk_text(text, filename, doc_type)
     chunks_path = session_dir / f"{stored_name}.chunks.json"
     chunks_path.write_text(json.dumps(chunks, indent=2))
+    artifact = _build_upload_artifact(stored_path, session_id, stored_name, doc_type)
+    artifact_path = None
+    if artifact is not None:
+        artifact_path = session_dir / f"{stored_name}.artifact.json"
+        artifact_path.write_text(json.dumps(artifact, indent=2))
 
     manifest = _load_manifest(session_id)
     entry = {
@@ -143,17 +257,43 @@ async def ingest_upload(session_id: str, upload: UploadFile) -> dict:
         "uploadedAt": datetime.now(timezone.utc).isoformat(),
         "chunksFile": chunks_path.name,
     }
+    if artifact_path is not None:
+        entry["artifactFile"] = artifact_path.name
+        entry["slideCount"] = int(artifact.get("slideCount", 0) or 0)
+        entry["hasRenderableSlides"] = bool(artifact.get("hasRenderableSlides", False))
     manifest.append(entry)
     _save_manifest(session_id, manifest)
     return entry
 
 
 def list_active_uploads(session_id: str) -> list[dict]:
-    public_fields = ("name", "docType", "chunkCount", "chars", "uploadedAt")
+    public_fields = ("name", "docType", "chunkCount", "chars", "uploadedAt", "slideCount", "hasRenderableSlides")
     return [
         {field: entry[field] for field in public_fields if field in entry}
         for entry in _load_manifest(session_id)
     ]
+
+
+def load_deck_artifact(session_id: str, *, latest_only: bool = True) -> dict | None:
+    manifest = _load_manifest(session_id)
+    if not manifest:
+        return None
+    candidates = [entry for entry in manifest if entry.get("docType") == "pitch deck" and entry.get("artifactFile")]
+    if not candidates:
+        return None
+    entries = [candidates[-1]] if latest_only else list(reversed(candidates))
+    for entry in entries:
+        path = _session_dir(session_id) / entry["artifactFile"]
+        if not path.exists():
+            continue
+        try:
+            artifact = json.loads(path.read_text())
+        except json.JSONDecodeError:
+            continue
+        artifact["name"] = entry.get("name", artifact.get("storedName", "deck"))
+        artifact["uploadedAt"] = entry.get("uploadedAt", "")
+        return artifact
+    return None
 
 
 def _tokenize(text: str) -> set[str]:

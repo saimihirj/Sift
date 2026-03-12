@@ -35,13 +35,13 @@ const DEFAULT_AUTH_PROVIDERS: AuthProviderOption[] = [
   { key: "apple", label: "Apple", configured: false },
 ];
 const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
-  { key: "ollama", label: "Ollama", requiresApiKey: false, defaultSpeedModel: "llama3.2:latest", defaultBalancedModel: "qwen3:8b" },
-  { key: "groq", label: "Groq", requiresApiKey: true, defaultSpeedModel: "llama-3.1-8b-instant", defaultBalancedModel: "llama-3.3-70b-versatile" },
-  { key: "cerebras", label: "Cerebras", requiresApiKey: true, defaultSpeedModel: "llama3.1-8b", defaultBalancedModel: "gpt-oss-120b" },
-  { key: "openai", label: "OpenAI", requiresApiKey: true, defaultSpeedModel: "gpt-4o-mini", defaultBalancedModel: "gpt-4.1" },
-  { key: "openrouter", label: "OpenRouter", requiresApiKey: true, defaultSpeedModel: "openai/gpt-4o-mini", defaultBalancedModel: "anthropic/claude-3.5-sonnet" },
-  { key: "anthropic", label: "Anthropic", requiresApiKey: true, defaultSpeedModel: "claude-3-5-haiku-latest", defaultBalancedModel: "claude-3-7-sonnet-latest" },
-  { key: "gemini", label: "Gemini", requiresApiKey: true, defaultSpeedModel: "gemini-2.0-flash", defaultBalancedModel: "gemini-1.5-pro" },
+  { key: "ollama", label: "Ollama", requiresApiKey: false, defaultSpeedModel: "llama3.2:latest", defaultBalancedModel: "qwen3:8b", supportsVisionModels: true, recommendedDeckModel: "qwen2.5vl:7b" },
+  { key: "groq", label: "Groq", requiresApiKey: true, defaultSpeedModel: "llama-3.1-8b-instant", defaultBalancedModel: "llama-3.3-70b-versatile", supportsVisionModels: true, recommendedDeckModel: "" },
+  { key: "cerebras", label: "Cerebras", requiresApiKey: true, defaultSpeedModel: "llama3.1-8b", defaultBalancedModel: "gpt-oss-120b", supportsVisionModels: false, recommendedDeckModel: "" },
+  { key: "openai", label: "OpenAI", requiresApiKey: true, defaultSpeedModel: "gpt-4o-mini", defaultBalancedModel: "gpt-4.1", supportsVisionModels: true, recommendedDeckModel: "gpt-4o" },
+  { key: "openrouter", label: "OpenRouter", requiresApiKey: true, defaultSpeedModel: "openai/gpt-4o-mini", defaultBalancedModel: "anthropic/claude-3.5-sonnet", supportsVisionModels: true, recommendedDeckModel: "anthropic/claude-3.5-sonnet" },
+  { key: "anthropic", label: "Anthropic", requiresApiKey: true, defaultSpeedModel: "claude-3-5-haiku-latest", defaultBalancedModel: "claude-3-7-sonnet-latest", supportsVisionModels: true, recommendedDeckModel: "claude-3-7-sonnet-latest" },
+  { key: "gemini", label: "Gemini", requiresApiKey: true, defaultSpeedModel: "gemini-2.0-flash", defaultBalancedModel: "gemini-1.5-pro", supportsVisionModels: true, recommendedDeckModel: "gemini-1.5-pro" },
 ];
 const DEFAULT_SETUP_DRAFT: SetupDraft = {
   runtimeKind: "local",
@@ -55,6 +55,7 @@ const DEFAULT_SETUP_DRAFT: SetupDraft = {
   websiteUrl: "",
   setupContext: "",
   sessionType: "mentor",
+  evaluatorMode: "idea_review",
   mode: "think_it_through",
   helpMode: "coach_me",
   liveWebEnabled: true,
@@ -274,8 +275,10 @@ function AppBody() {
       nextGap: payload.nextGap,
       activeUploads: payload.activeUploads,
       sessionType: payload.sessionType,
+      evaluatorMode: payload.evaluatorMode,
       provider: payload.provider,
       model: payload.model,
+      supportsVision: payload.supportsVision,
       questionBudget: payload.questionBudget,
       websiteUrl: payload.websiteUrl,
       sources: payload.sources,
@@ -288,6 +291,7 @@ function AppBody() {
       analysisSnapshot: payload.analysisSnapshot,
       evaluationProgress: payload.evaluationProgress,
       evaluationReport: payload.evaluationReport,
+      deckEvaluationReport: payload.deckEvaluationReport,
     };
     setStoredSessionId(payload.sessionId);
     setSession(next);
@@ -328,6 +332,7 @@ function AppBody() {
 
   const handleStartSession = async (payload: {
     sessionType: "mentor" | "evaluator" | "expert";
+    evaluatorMode?: "idea_review" | "deck_review";
     founderType: string;
     sector: string;
     stage: string;
@@ -355,6 +360,7 @@ function AppBody() {
         mode: payload.mode,
         geography: payload.geography,
         sessionType: payload.sessionType,
+        evaluatorMode: payload.evaluatorMode || "idea_review",
         helpMode: payload.helpMode,
         liveWebEnabled: payload.liveWebEnabled,
         provider: payload.provider,
