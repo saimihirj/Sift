@@ -306,13 +306,14 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
             setup_context=payload.setupContext,
             website=website_result,
         )
+        auto_research_enabled = session_type == "expert" or bool(payload.liveWebEnabled)
         metadata.update(
             {
                 "userRole": user_role,
                 "geographyMode": (payload.geography or "auto").strip().lower() or "auto",
                 "knowledgeLane": metadata.get("knowledgeLane", "startup"),
                 "helpMode": payload.helpMode,
-                "liveWebEnabled": bool(payload.liveWebEnabled),
+                "liveWebEnabled": auto_research_enabled,
                 "sources": [],
                 "confidence": 0.0,
                 "usedLiveWeb": False,

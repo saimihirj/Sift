@@ -35,90 +35,125 @@ export function LandingScreen({
   const google = providerState("google", authProviders);
   const apple = providerState("apple", authProviders);
   const canContinue = Boolean(displayName.trim() || authUser);
+  const providerLabel = authUser?.provider === "google" ? "Google" : authUser?.provider === "apple" ? "Apple" : "";
   const authNote = authError
     || (authUser
-      ? `Signed in with ${authUser.provider}.`
-      : "Use your name or sign in to continue.");
+      ? `Connected with ${providerLabel}. You can still change the display name below.`
+      : "Use a local profile or connect an account. Runtime and provider come next.");
 
   return (
-    <section className="landing-shell minimal-entry-shell">
-      <div className="landing-panel minimal-entry-panel">
-        <div className="landing-topbar">
-          <div className="plain-header-block">
-            <span className="eyebrow">Start</span>
-            <strong>SignalX</strong>
-          </div>
-          <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
-            Themes
-          </button>
-        </div>
-
-        <div className="landing-hero">
-          <h1>Hi.</h1>
-          <p>Enter your name, pick a runtime, and open the workbench.</p>
-        </div>
-
-        {authUser ? (
-          <div className="auth-summary-card">
-            <div>
-              <strong>Signed in</strong>
-              <p>{authUser.provider === "google" ? "Google account connected" : "Apple account connected"}</p>
+    <section className="landing-shell professional-entry-shell">
+      <div className="landing-panel entry-frame">
+        <section className="entry-brand-panel">
+          <div className="landing-topbar">
+            <div className="plain-header-block">
+              <span className="eyebrow">SignalX</span>
+              <strong>Startup and finance workbench</strong>
             </div>
-            <button type="button" className="ghost-button compact" onClick={() => void onSignOut()}>
-              Sign out
+            <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
+              Themes
             </button>
           </div>
-        ) : null}
 
-        <label className="identity-field">
-          <span className="rail-label">Name</span>
-          <input
-            type="text"
-            value={displayName}
-            onChange={(event) => onDisplayNameChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && canContinue) {
-                event.preventDefault();
-                onContinue();
-              }
-            }}
-            placeholder="Your name"
-            aria-required="true"
-          />
-        </label>
+          <div className="entry-hero-copy">
+            <h1>Research, evaluate, decide.</h1>
+            <p>One workspace for idea shaping, structured evaluation, and expert analysis. Built for local models or API-key runtimes.</p>
+          </div>
 
-        <div className="social-row">
-          <a
-            className={google.configured ? "ghost-button social-button" : "ghost-button social-button disabled-link"}
-            href={google.configured ? authLoginUrl("google", "/") : undefined}
-            aria-disabled={!google.configured}
-            onClick={(event) => {
-              if (!google.configured) {
-                event.preventDefault();
-              }
-            }}
-          >
-            Continue with Google
-          </a>
-          <a
-            className={apple.configured ? "ghost-button social-button" : "ghost-button social-button disabled-link"}
-            href={apple.configured ? authLoginUrl("apple", "/") : undefined}
-            aria-disabled={!apple.configured}
-            onClick={(event) => {
-              if (!apple.configured) {
-                event.preventDefault();
-              }
-            }}
-          >
-            Continue with Apple
-          </a>
-        </div>
+          <div className="entry-feature-grid">
+            <article className="entry-feature-card">
+              <span className="eyebrow">Workflows</span>
+              <strong>Ideate, Evaluate, Expert</strong>
+              <p>Move from rough thinking to pressure tests and source-backed domain analysis without switching tools.</p>
+            </article>
+            <article className="entry-feature-card">
+              <span className="eyebrow">Runtime</span>
+              <strong>Open source or API</strong>
+              <p>Use Ollama locally, or connect providers like Groq, Cerebras, OpenAI, OpenRouter, Anthropic, and Gemini.</p>
+            </article>
+            <article className="entry-feature-card">
+              <span className="eyebrow">Evidence</span>
+              <strong>Local corpus first, web when needed</strong>
+              <p>SignalX uses the bundled knowledge base and can pull fresher web context when the local evidence is thin.</p>
+            </article>
+          </div>
 
-        <small className="muted-copy">{authNote}</small>
+          <div className="entry-runtime-row">
+            <span className="landing-badge">Local models</span>
+            <span className="landing-badge">API keys</span>
+            <span className="landing-badge">Source-backed answers</span>
+          </div>
+        </section>
 
-        <button type="button" className="solid-button" onClick={onContinue} disabled={!canContinue}>
-          Continue
-        </button>
+        <section className="entry-access-panel">
+          <div className="entry-access-head">
+            <span className="eyebrow">Open workspace</span>
+            <h2>{authUser ? `Continue as ${authUser.displayName}` : "Access your workspace"}</h2>
+            <p>Start with a local profile or sign in. You will choose the workflow and runtime in the next step.</p>
+          </div>
+
+          {authUser ? (
+            <div className="auth-summary-card">
+              <div>
+                <strong>{providerLabel} account connected</strong>
+                <p>{authUser.email || authUser.displayName}</p>
+              </div>
+              <button type="button" className="ghost-button compact" onClick={() => void onSignOut()}>
+                Sign out
+              </button>
+            </div>
+          ) : null}
+
+          <label className="identity-field">
+            <span className="rail-label">Display name</span>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(event) => onDisplayNameChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && canContinue) {
+                  event.preventDefault();
+                  onContinue();
+                }
+              }}
+              placeholder={authUser?.displayName || "How should SignalX address you?"}
+              aria-required="true"
+            />
+          </label>
+
+          <div className="social-row entry-social-row">
+            <a
+              className={google.configured ? "ghost-button social-button" : "ghost-button social-button disabled-link"}
+              href={google.configured ? authLoginUrl("google", "/") : undefined}
+              aria-disabled={!google.configured}
+              onClick={(event) => {
+                if (!google.configured) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              Continue with Google
+            </a>
+            <a
+              className={apple.configured ? "ghost-button social-button" : "ghost-button social-button disabled-link"}
+              href={apple.configured ? authLoginUrl("apple", "/") : undefined}
+              aria-disabled={!apple.configured}
+              onClick={(event) => {
+                if (!apple.configured) {
+                  event.preventDefault();
+                }
+              }}
+            >
+              Continue with Apple
+            </a>
+          </div>
+
+          <small className="muted-copy entry-auth-note">{authNote}</small>
+
+          <button type="button" className="solid-button entry-continue" onClick={onContinue} disabled={!canContinue}>
+            Continue to setup
+          </button>
+        </section>
       </div>
 
       <div className={themeOpen ? "floating-panel is-open align-right" : "floating-panel align-right"} aria-hidden={!themeOpen}>

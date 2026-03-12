@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 from typing import AsyncIterator
 
@@ -40,6 +41,9 @@ MAX_HISTORY_MESSAGE_CHARS = 320
 MAX_HISTORY_TOTAL_CHARS = 1100
 STABLE_WORKFLOW_TOTAL_CHARS = 4800
 STABLE_WORKFLOW_PROMPT_CHARS = 3800
+MARKDOWN_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s*", re.MULTILINE)
+MARKDOWN_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+MARKDOWN_UNDERLINE_RE = re.compile(r"__(.+?)__")
 
 
 def _sse(event: str, data: dict) -> str:
@@ -140,6 +144,15 @@ def _empty_analysis_snapshot() -> dict:
     }
 
 
+def _normalize_assistant_output(text: str) -> str:
+    value = (text or "").strip()
+    value = MARKDOWN_HEADING_RE.sub("", value)
+    value = MARKDOWN_BOLD_RE.sub(r"\1", value)
+    value = MARKDOWN_UNDERLINE_RE.sub(r"\1", value)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    return value.strip()
+
+
 @router.post("")
 async def chat(
     sessionId: str = Form(...),
@@ -165,12 +178,12 @@ async def chat(
     session_metadata["answerRecord"] = session_metadata.get("answerRecord") or empty_answer_record()
     session_metadata["assumptionsToVerify"] = list(session_metadata.get("assumptionsToVerify", []))
     session_metadata["domainFocus"] = list(session_metadata.get("domainFocus", []))
+    session_type = session_row.get("session_type", "mentor")
     session_metadata["helpMode"] = (helpMode or session_metadata.get("helpMode", "coach_me") or "coach_me").strip() or "coach_me"
-    session_metadata["liveWebEnabled"] = bool(liveWebEnabled)
+    session_metadata["liveWebEnabled"] = True if session_type == "expert" else bool(liveWebEnabled)
     chosen_provider = normalize_provider(provider or session_row.get("provider", "ollama"))
     chosen_model = (model or session_row.get("model", "")).strip() or default_model_for_provider(chosen_provider, responseProfile)
     api_key = (apiKey or "").strip() or None
-    session_type = session_row.get("session_type", "mentor")
 
     if chosen_provider != session_row.get("provider", "ollama") or chosen_model != (session_row.get("model", "") or ""):
         memory.update_session_runtime(sessionId, chosen_provider, chosen_model)
@@ -220,7 +233,7 @@ async def chat(
                     query,
                     route=route,
                     geography=session_metadata.get("geographyMode", current_state.geography or "auto"),
-                    live_web_enabled=bool(session_metadata.get("liveWebEnabled", False)),
+                    live_web_enabled=True,
                 )
                 analysis_snapshot = build_analysis_snapshot(
                     query=query,
@@ -424,7 +437,7 @@ async def chat(
             if completion_payload is None:
                 raise RuntimeError("Model did not produce a completion")
 
-            assistant_message = completion_payload["message"].strip()
+            assistant_message = _normalize_assistant_output(completion_payload["message"])
             current_state = update_state_from_turn(current_state, user_message, assistant_message=assistant_message)
             total_seconds = round(time.perf_counter() - started_at, 3)
 

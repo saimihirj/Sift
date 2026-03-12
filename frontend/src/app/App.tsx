@@ -57,7 +57,7 @@ const DEFAULT_SETUP_DRAFT: SetupDraft = {
   sessionType: "mentor",
   mode: "think_it_through",
   helpMode: "coach_me",
-  liveWebEnabled: false,
+  liveWebEnabled: true,
 };
 const LAST_SETUP_STEP = 2;
 

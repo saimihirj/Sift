@@ -180,6 +180,12 @@ a {
   align-content: center;
 }
 
+.professional-entry-shell {
+  grid-template-columns: minmax(0, 1080px);
+  justify-content: center;
+  align-content: center;
+}
+
 .landing-panel,
 .landing-card {
   background: var(--panel);
@@ -203,6 +209,106 @@ a {
   min-height: min(520px, calc(100dvh - 24px));
   margin: 0 auto;
   align-content: start;
+}
+
+.entry-frame {
+  width: min(1080px, 100%);
+  min-height: min(640px, calc(100dvh - 24px));
+  margin: 0 auto;
+  padding: clamp(16px, 2vw, 24px);
+  gap: clamp(16px, 1.6vw, 22px);
+  grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
+  align-content: stretch;
+}
+
+.entry-brand-panel,
+.entry-access-panel {
+  min-height: 0;
+  border-radius: 28px;
+  border: 1px solid var(--line);
+  padding: clamp(18px, 2vw, 24px);
+}
+
+.entry-brand-panel {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 18px;
+  background:
+    linear-gradient(145deg, var(--panel-muted), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at top right, var(--glow-a) 0%, transparent 44%);
+}
+
+.entry-access-panel {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  background: var(--panel);
+}
+
+.entry-hero-copy,
+.entry-access-head {
+  display: grid;
+  gap: 10px;
+}
+
+.entry-hero-copy h1,
+.entry-access-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  letter-spacing: -0.06em;
+}
+
+.entry-hero-copy h1 {
+  font-size: clamp(3rem, 5vw, 4.8rem);
+  line-height: 0.9;
+  max-width: 8ch;
+}
+
+.entry-access-head h2 {
+  font-size: clamp(1.7rem, 2.4vw, 2.4rem);
+  line-height: 0.96;
+}
+
+.entry-hero-copy p,
+.entry-access-head p {
+  margin: 0;
+  color: var(--ink-soft);
+  max-width: 50ch;
+}
+
+.entry-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.entry-feature-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.entry-feature-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+.entry-runtime-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.entry-auth-note {
+  display: block;
+}
+
+.entry-continue {
+  justify-content: center;
 }
 
 .landing-card {
@@ -1213,27 +1319,51 @@ a:focus-visible,
   max-width: 78%;
 }
 
-.message p {
-  margin: 0;
-  white-space: pre-wrap;
-  line-height: 1.5;
+.message-body {
+  display: grid;
+  gap: 10px;
   padding: 12px 14px;
   border-radius: 22px;
   border: 1px solid var(--line);
   background: var(--panel);
 }
 
+.message-paragraph,
+.message-list-block {
+  margin: 0;
+  line-height: 1.56;
+}
+
+.message-paragraph {
+  white-space: pre-wrap;
+}
+
+.message-section-label {
+  font-family: var(--font-ui);
+  letter-spacing: -0.02em;
+}
+
+.message-list-block {
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.message-list-block.numbered {
+  padding-left: 22px;
+}
+
 .message.user {
   justify-self: end;
 }
 
-.message.user p {
+.message.user .message-body {
   background: var(--accent);
   color: var(--bg);
   border-color: var(--accent);
 }
 
-.message.assistant.streaming p {
+.message.assistant.streaming .message-body {
   animation: pulse 0.9s ease-in-out infinite alternate;
 }
 
@@ -2001,8 +2131,17 @@ a:focus-visible,
     grid-template-columns: 1fr;
   }
 
+  .entry-frame {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
   .landing-highlight-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .entry-feature-grid {
+    grid-template-columns: 1fr;
   }
 
   .app-shell {
@@ -2137,6 +2276,10 @@ a:focus-visible,
     max-height: none;
   }
 
+  .entry-frame {
+    padding: 14px;
+  }
+
   .report-doc-card {
     padding: 16px;
   }
@@ -2189,7 +2332,7 @@ a:focus-visible,
     padding: 10px;
   }
 
-  .message p {
+  .message-body {
     padding: 12px 14px;
   }
 
@@ -2272,6 +2415,15 @@ a:focus-visible,
   border: 1px solid var(--line);
   border-radius: 20px;
   padding: 10px 12px;
+}
+
+.expert-research-note {
+  max-width: 320px;
+}
+
+.expert-research-note strong,
+.expert-research-note small {
+  display: block;
 }
 
 .expert-toggle-group,

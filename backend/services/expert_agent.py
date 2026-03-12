@@ -20,12 +20,12 @@ from backend.services.uploads import retrieve_upload_context
 
 
 EXPERT_QUICK_ACTIONS = [
-    "Explain this clearly",
-    "Compare two options",
-    "Pre-screen this idea",
-    "Analyze my deck",
-    "Run a market check",
-    "Break down the terms",
+    "Break down a term",
+    "Compare structures",
+    "Pre-screen an idea",
+    "Review a deck",
+    "Check market context",
+    "Map key risks",
     "Pressure-test unit economics",
 ]
 
@@ -44,6 +44,43 @@ COMPARE_CUES = (" vs ", "versus", "compare", "difference between", "better than"
 PRE_SCREEN_CUES = ("pre-screen", "prescreen", "screen this", "assess this", "evaluate this", "should i invest")
 FRESHNESS_CUES = ("latest", "current", "today", "recent", "new", "updated", "as of")
 EXPLAIN_CUES = ("what is", "explain", "define", "meaning of", "term", "break down")
+MARKET_CUES = (
+    "market",
+    "landscape",
+    "space",
+    "ecosystem",
+    "trend",
+    "adoption",
+    "who is building",
+    "who are the players",
+    "competition",
+    "competitive",
+)
+LIVE_WEB_STOPWORDS = {
+    "about",
+    "after",
+    "around",
+    "because",
+    "between",
+    "does",
+    "from",
+    "have",
+    "into",
+    "space",
+    "than",
+    "that",
+    "their",
+    "there",
+    "these",
+    "this",
+    "what",
+    "when",
+    "where",
+    "which",
+    "while",
+    "with",
+    "would",
+}
 
 ROLE_STYLE = {
     "student": "Keep it practical, plain, and confidence-building without doing the reasoning for them.",
@@ -72,12 +109,11 @@ ACTION_NEEDS = {
 
 
 def build_expert_opening(user_role: str, geography: str) -> str:
-    role_text = user_role.replace("_", " ") if user_role else "builder"
     geography_text = geography if geography and geography != "auto" else "global"
     return (
-        f"Hi. Use this like a sharp workbench, not a generic chatbot. "
-        f"Ask about startup, VC, finance, market, regulation, or upload a deck and I’ll work through it with you. "
-        f"I’ll stay two-way, keep geography in mind ({geography_text}), and tell you when the knowledge base is thin."
+        "Expert mode is ready. Ask a concrete question, compare structures, or upload material for review. "
+        f"I will use the local corpus first, pull in live web context when the local evidence is thin or stale, "
+        f"keep geography in view ({geography_text}), and tell you directly when the evidence is weak."
     )
 
 
@@ -156,6 +192,54 @@ def _live_web_context(query: str, geography: str, max_chars: int = 420) -> dict[
         return {"text": "", "sources": []}
 
 
+def _coverage_tokens(text: str) -> set[str]:
+    return {
+        token.lower()
+        for token in re.findall(r"[a-z0-9][a-z0-9+.-]{1,}", text or "", flags=re.IGNORECASE)
+        if token.lower() not in LIVE_WEB_STOPWORDS
+    }
+
+
+def should_use_live_web(
+    query: str,
+    *,
+    route: dict[str, Any],
+    cards: list[dict[str, Any]],
+    upload_snippets: list[dict[str, Any]],
+) -> bool:
+    if upload_snippets:
+        return False
+    lowered = (query or "").strip().lower()
+    action = route.get("action", "open_discussion")
+    top_score = cards[0]["score"] if cards else 0
+    query_tokens = _coverage_tokens(query)
+    evidence_tokens = _coverage_tokens(
+        " ".join(
+            " ".join(
+                [
+                    str(card.get("title", "")),
+                    str(card.get("body", "")),
+                    " ".join(card.get("tags", [])),
+                    " ".join(card.get("relatedTerms", [])),
+                ]
+            )
+            for card in cards[:3]
+        )
+    )
+    token_coverage = len(query_tokens & evidence_tokens) / max(len(query_tokens), 1)
+    if action == "freshness_query":
+        return True
+    if not cards:
+        return True
+    if top_score < 10:
+        return True
+    if top_score < 14 and token_coverage < 0.6:
+        return True
+    if any(cue in lowered for cue in MARKET_CUES) and token_coverage < 0.58:
+        return True
+    return False
+
+
 def build_expert_retrieval_context(
     session_id: str,
     query: str,
@@ -173,9 +257,10 @@ def build_expert_retrieval_context(
     )
     live_web = {"text": "", "sources": []}
     retrieval_gap = ""
-    if not cards and not upload_snippets:
+    top_score = cards[0]["score"] if cards else 0
+    if not upload_snippets and (not cards or top_score < 10):
         retrieval_gap = "The local expert corpus does not have a strong direct hit for this question yet."
-    if live_web_enabled and (route.get("action") == "freshness_query" or retrieval_gap):
+    if live_web_enabled and should_use_live_web(query, route=route, cards=cards, upload_snippets=upload_snippets):
         live_web = _live_web_context(query, geography)
     concepts = [card["title"] for card in cards[:5]]
     sources = source_citations(cards)
@@ -200,7 +285,6 @@ def build_expert_retrieval_context(
     if retrieval_gap and not live_web["text"]:
         parts.append("Knowledge gap:\n" + retrieval_gap)
 
-    top_score = cards[0]["score"] if cards else 0
     confidence = 0.22
     if top_score >= 24:
         confidence = 0.88
@@ -314,7 +398,9 @@ def build_expert_system_prompt(
     role_style = ROLE_STYLE.get(state.founder_type, ROLE_STYLE["unknown"])
     prompt_parts = [
         "You are SignalX Expert, a domain workbench for startup, VC, finance, regulation, and market questions.",
-        "Use only the supplied context and sources. If the corpus is thin or geographically mismatched, say so directly instead of guessing.",
+        "Use only the supplied context and sources. If coverage is thin, stale, or geographically mismatched, say that directly instead of filling gaps from unstated memory.",
+        "Never invent market facts, company activity, regulatory detail, or current-state claims that are not supported by the supplied context.",
+        "Lead with the answer in one or two direct sentences, then support it with the strongest evidence and the next implication.",
         "Do not sound generic. Be sharp, natural, and useful.",
         HELP_MODE_STYLE.get(help_mode, HELP_MODE_STYLE["coach_me"]),
         role_style,
@@ -325,7 +411,7 @@ def build_expert_system_prompt(
         f"Follow-up mode: {route.get('followUpMode', 'answer_then_probe')}.",
         "When the action is pre-screen or upload analysis, organize the answer operationally around strengths, risks, missing evidence, contradictions, and next actions.",
         "Mention geography when it materially changes the answer.",
-        "Prefer short prose. Bullets are allowed only when they make the analysis clearer.",
+        "Prefer short prose or short labeled sections. Do not use markdown syntax like **bold**, # headings, or decorative bullet spam.",
     ]
     if analysis_snapshot.get("missingEvidence"):
         prompt_parts.append("Current missing evidence: " + "; ".join(analysis_snapshot["missingEvidence"][:3]))

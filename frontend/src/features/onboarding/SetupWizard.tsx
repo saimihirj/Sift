@@ -447,24 +447,10 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                 </div>
 
                 <div className="drawer-card">
-                  <span className="rail-label">Knowledge behavior</span>
-                  <div className="workflow-row" onKeyDown={handleArrowSelection}>
-                    <button
-                      type="button"
-                      className={!draft.liveWebEnabled ? "choice-card active" : "choice-card"}
-                      onClick={() => onDraftChange((current) => ({ ...current, liveWebEnabled: false }))}
-                    >
-                      <span>Local corpus first</span>
-                      <small>Stay on the curated knowledge base unless the corpus is thin.</small>
-                    </button>
-                    <button
-                      type="button"
-                      className={draft.liveWebEnabled ? "choice-card active" : "choice-card"}
-                      onClick={() => onDraftChange((current) => ({ ...current, liveWebEnabled: true }))}
-                    >
-                      <span>Allow live web fallback</span>
-                      <small>Use labeled live web results for freshness or KB gaps.</small>
-                    </button>
+                  <span className="rail-label">Research behavior</span>
+                  <div className="focus-card">
+                    <strong>Automatic in Expert</strong>
+                    <p>SignalX uses the local corpus first and pulls in labeled live-web context when the local evidence is weak or stale. This is no longer a user toggle.</p>
                   </div>
                 </div>
               </>
@@ -473,13 +459,13 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                 <div className="setup-section-head">
                   <div>
                     <span className="rail-label">Advanced controls</span>
-                    <strong>Help mode and live-web fallback</strong>
+                    <strong>Help mode</strong>
                   </div>
                   <button type="button" className="ghost-button compact" onClick={() => setAdvancedControlsOpen(true)}>
                     Show
                   </button>
                 </div>
-                <p className="muted-copy">Defaults are safe for Ideate and Evaluate. Expert keeps these controls visible because they change behavior more directly.</p>
+                <p className="muted-copy">Defaults are safe for Ideate and Evaluate. Expert handles research automatically and keeps help style visible because it changes the conversation directly.</p>
               </div>
             )}
           </>
@@ -528,7 +514,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                   websiteUrl: draft.websiteUrl,
                   setupContext: draft.setupContext,
                   helpMode: draft.helpMode,
-                  liveWebEnabled: draft.liveWebEnabled,
+                  liveWebEnabled: draft.sessionType === "expert" ? true : draft.liveWebEnabled,
                 })
               }
             >

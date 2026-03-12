@@ -37,26 +37,26 @@ type Props = {
 type MobilePane = "chat" | "evidence";
 
 const DEFAULT_QUICK_ACTIONS = [
-  "Explain this clearly",
-  "Compare two options",
-  "Pre-screen this idea",
-  "Analyze my deck",
-  "Run a market check",
-  "Break down the terms",
+  "Break down a term",
+  "Compare structures",
+  "Pre-screen an idea",
+  "Review my deck",
+  "Check market context",
+  "Map key risks",
   "Pressure-test unit economics",
 ];
 
 const STARTER_PROMPTS = [
   {
-    title: "Explain a concept",
+    title: "Break down a term",
     prompt: "Explain liquidation preference like I am seeing it for the first time.",
   },
   {
-    title: "Compare options",
+    title: "Compare structures",
     prompt: "Compare SAFE vs convertible note for an early-stage startup.",
   },
   {
-    title: "Analyze a deck",
+    title: "Pre-screen a deck",
     prompt: "Pre-screen this startup idea and tell me the biggest missing evidence.",
   },
 ];
@@ -162,19 +162,17 @@ export function ExpertScreen({
   const [runtimeModel, setRuntimeModel] = useState(session.model);
   const [runtimeApiKey, setRuntimeApiKey] = useState(() => loadSessionCredential(session.sessionId)?.apiKey ?? "");
   const [helpMode, setHelpMode] = useState<HelpMode>(session.helpMode);
-  const [liveWebEnabled, setLiveWebEnabled] = useState(session.liveWebEnabled);
 
   useEffect(() => {
     setRuntimeProvider(session.provider);
     setRuntimeModel(session.model);
     setRuntimeApiKey(loadSessionCredential(session.sessionId)?.apiKey ?? "");
     setHelpMode(session.helpMode);
-    setLiveWebEnabled(session.liveWebEnabled);
     setSessionsOpen(false);
     setRuntimeOpen(false);
     setThemeOpen(false);
     setFilesOpen(false);
-  }, [session.sessionId, session.provider, session.model, session.helpMode, session.liveWebEnabled]);
+  }, [session.sessionId, session.provider, session.model, session.helpMode]);
 
   const selectedProvider = useMemo(
     () => providerOptions.find((item) => item.key === runtimeProvider) ?? providerOptions[0] ?? null,
@@ -249,7 +247,7 @@ export function ExpertScreen({
       ...previous,
       history: [...previous.history, optimisticUserTurn],
       helpMode,
-      liveWebEnabled,
+      liveWebEnabled: true,
     }));
 
     setDraft("");
@@ -265,7 +263,7 @@ export function ExpertScreen({
         model: effectiveModel,
         apiKey: runtimeApiKey.trim() || undefined,
         helpMode,
-        liveWebEnabled,
+        liveWebEnabled: true,
         file: selectedFile,
         handlers: {
           onMeta: (data) => {
@@ -313,7 +311,7 @@ export function ExpertScreen({
               usedLiveWeb: Boolean(data.usedLiveWeb),
               followUpMode: (data.followUpMode as string) ?? previous.followUpMode,
               helpMode: (data.helpMode as HelpMode) ?? helpMode,
-              liveWebEnabled: Boolean(data.liveWebEnabled),
+              liveWebEnabled: true,
               analysisSnapshot: (data.analysisSnapshot as SessionPayload["analysisSnapshot"]) ?? previous.analysisSnapshot,
             }));
             if (runtimeApiKey.trim()) {
@@ -368,8 +366,8 @@ export function ExpertScreen({
                 <strong>{confidenceText}</strong>
               </div>
               <div className="compact-session-pill">
-                <span>Scope</span>
-                <strong>{session.liveWebEnabled ? "KB + web" : "KB only"}</strong>
+                <span>Research</span>
+                <strong>Automatic</strong>
               </div>
               <div className="compact-session-pill">
                 <span>Help</span>
@@ -412,7 +410,7 @@ export function ExpertScreen({
               <span className="eyebrow">Expert</span>
               <h2>{session.state.company_name || "Expert Workbench"}</h2>
               <small className="expert-header-subline">
-                {laneLabel(session.knowledgeLane)} · {session.sources.length} source{session.sources.length === 1 ? "" : "s"} · {session.usedLiveWeb ? "live web used" : "local corpus"}
+                {laneLabel(session.knowledgeLane)} · {session.sources.length} source{session.sources.length === 1 ? "" : "s"} · {session.usedLiveWeb ? "web + local evidence" : "local corpus led this turn"}
               </small>
             </div>
             <div className="status-stack">
@@ -457,8 +455,8 @@ export function ExpertScreen({
                 <strong>{session.activeUploads.length}</strong>
               </div>
               <div className="compact-session-pill">
-                <span>Scope</span>
-                <strong>{session.liveWebEnabled ? "KB + web" : "KB only"}</strong>
+                <span>Research</span>
+                <strong>Automatic</strong>
               </div>
               <div className="compact-session-pill">
                 <span>Help</span>
@@ -484,16 +482,10 @@ export function ExpertScreen({
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              className={liveWebEnabled ? "chip-button active" : "chip-button"}
-              onClick={() => {
-                setLiveWebEnabled((current) => !current);
-                setSession((previous) => ({ ...previous, liveWebEnabled: !previous.liveWebEnabled }));
-              }}
-            >
-              {liveWebEnabled ? "Live web fallback on" : "Local corpus only"}
-            </button>
+            <div className="interaction-hint expert-research-note">
+              <strong>Auto research</strong>
+              <small>{session.usedLiveWeb ? "This answer used live web because local coverage was weak or stale." : "SignalX will pull in live web only when it improves answer quality."}</small>
+            </div>
           </div>
 
           {mobilePane === "chat" ? (
@@ -502,10 +494,10 @@ export function ExpertScreen({
                 {showStarterCard ? (
                   <section className="expert-panel-card expert-starter-card">
                     <div className="expert-panel-head">
-                      <span className="rail-label">Best first move</span>
-                      <strong>Start with something concrete.</strong>
+                      <span className="rail-label">Good first prompt</span>
+                      <strong>Start with a real decision or claim.</strong>
                     </div>
-                    <p className="muted-copy">This works best when you ask about a term, compare options, or upload material to analyze. Start broad only if you want the platform to lead.</p>
+                    <p className="muted-copy">This workbench is strongest when you ask about a specific term, compare structures, or upload material for review. Keep it concrete when you can.</p>
                     <div className="expert-starter-grid">
                       {STARTER_PROMPTS.map((item) => (
                         <button key={item.title} type="button" className="expert-starter-tile" onClick={() => void submit(item.prompt)} disabled={pending}>

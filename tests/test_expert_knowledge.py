@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from backend.main import app
-from backend.services.expert_agent import build_analysis_snapshot, classify_expert_turn
+from backend.services.expert_agent import build_analysis_snapshot, classify_expert_turn, should_use_live_web
 from backend.services.expert_knowledge import expert_card_count, expert_data_dir, retrieve_expert_cards, suggest_knowledge_lane
 
 
@@ -53,6 +53,11 @@ class ExpertKnowledgeTests(unittest.TestCase):
         payload = response.json()
         self.assertGreater(payload.get("expertCardCount", 0), 50)
         self.assertTrue(payload.get("expertDataDir"))
+
+    def test_market_query_uses_live_web_when_local_coverage_is_weak(self) -> None:
+        route = {"action": "open_discussion", "knowledgeLane": "startup"}
+        cards = retrieve_expert_cards("How is the market for RL agents in trading space?", lane="startup", geography="global", top_k=3)
+        self.assertTrue(should_use_live_web("How is the market for RL agents in trading space?", route=route, cards=cards, upload_snippets=[]))
 
 
 if __name__ == "__main__":
