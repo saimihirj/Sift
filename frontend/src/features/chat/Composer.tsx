@@ -7,6 +7,10 @@ type Props = {
   pending: boolean;
   selectedFile: File | null;
   onFileSelected: (file: File | null) => void;
+  placeholder?: string;
+  attachmentHint?: string;
+  uploadLabel?: string;
+  submitLabel?: string;
 };
 
 export function Composer({
@@ -16,6 +20,10 @@ export function Composer({
   pending,
   selectedFile,
   onFileSelected,
+  placeholder = "Type your answer or add context...",
+  attachmentHint = "Notes or deck",
+  uploadLabel = "Upload notes or deck",
+  submitLabel = "Send",
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -24,11 +32,11 @@ export function Composer({
       <div className="attachment-row">
         <div className="attachment-meta">
           <span className="rail-label">Context</span>
-          <small>Notes or deck</small>
+          <small>{attachmentHint}</small>
         </div>
         <div className="attachment-actions">
           <button type="button" className="ghost-button compact" onClick={() => inputRef.current?.click()}>
-            {selectedFile ? "Change file" : "Upload notes or deck"}
+            {selectedFile ? "Change file" : uploadLabel}
           </button>
           {selectedFile && <span className="attachment-pill">{selectedFile.name}</span>}
           {selectedFile && (
@@ -48,7 +56,7 @@ export function Composer({
       <div className="composer-row">
         <textarea
           value={value}
-          placeholder="Type your answer or add context..."
+          placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
             if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && !pending) {
@@ -60,7 +68,7 @@ export function Composer({
           disabled={pending}
         />
         <button type="button" className="solid-button composer-send" onClick={onSubmit} disabled={pending}>
-          {pending ? "Thinking..." : "Send"}
+          {pending ? "Thinking..." : submitLabel}
         </button>
       </div>
     </div>

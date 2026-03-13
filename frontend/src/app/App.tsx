@@ -16,6 +16,7 @@ import { AdminScreen } from "../features/admin/AdminScreen";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { EvaluatorReportScreen } from "../features/evaluator/EvaluatorReportScreen";
 import { EvaluatorScreen } from "../features/evaluator/EvaluatorScreen";
+import { ExpertScreen } from "../features/expert/ExpertScreen";
 import { LandingScreen } from "../features/onboarding/LandingScreen";
 import { SetupWizard } from "../features/onboarding/SetupWizard";
 import { OutlineScreen } from "../features/outline/OutlineScreen";
@@ -34,13 +35,13 @@ const DEFAULT_AUTH_PROVIDERS: AuthProviderOption[] = [
   { key: "apple", label: "Apple", configured: false },
 ];
 const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
-  { key: "ollama", label: "Ollama", requiresApiKey: false, defaultSpeedModel: "llama3.2:latest", defaultBalancedModel: "qwen3:8b" },
-  { key: "cerebras", label: "Cerebras", requiresApiKey: true, defaultSpeedModel: "llama3.1-8b", defaultBalancedModel: "gpt-oss-120b" },
-  { key: "groq", label: "Groq", requiresApiKey: true, defaultSpeedModel: "llama-3.1-8b-instant", defaultBalancedModel: "llama-3.3-70b-versatile" },
-  { key: "openai", label: "OpenAI", requiresApiKey: true, defaultSpeedModel: "gpt-4o-mini", defaultBalancedModel: "gpt-4.1" },
-  { key: "openrouter", label: "OpenRouter", requiresApiKey: true, defaultSpeedModel: "openai/gpt-4o-mini", defaultBalancedModel: "anthropic/claude-3.5-sonnet" },
-  { key: "anthropic", label: "Anthropic", requiresApiKey: true, defaultSpeedModel: "claude-3-5-haiku-latest", defaultBalancedModel: "claude-3-7-sonnet-latest" },
-  { key: "gemini", label: "Gemini", requiresApiKey: true, defaultSpeedModel: "gemini-2.0-flash", defaultBalancedModel: "gemini-1.5-pro" },
+  { key: "ollama", label: "Ollama", requiresApiKey: false, defaultSpeedModel: "llama3.2:latest", defaultBalancedModel: "qwen3:8b", supportsVisionModels: true, recommendedDeckModel: "qwen2.5vl:7b" },
+  { key: "groq", label: "Groq", requiresApiKey: true, defaultSpeedModel: "llama-3.1-8b-instant", defaultBalancedModel: "llama-3.3-70b-versatile", supportsVisionModels: true, recommendedDeckModel: "" },
+  { key: "cerebras", label: "Cerebras", requiresApiKey: true, defaultSpeedModel: "llama3.1-8b", defaultBalancedModel: "gpt-oss-120b", supportsVisionModels: false, recommendedDeckModel: "" },
+  { key: "openai", label: "OpenAI", requiresApiKey: true, defaultSpeedModel: "gpt-4o-mini", defaultBalancedModel: "gpt-4.1", supportsVisionModels: true, recommendedDeckModel: "gpt-4o" },
+  { key: "openrouter", label: "OpenRouter", requiresApiKey: true, defaultSpeedModel: "openai/gpt-4o-mini", defaultBalancedModel: "anthropic/claude-3.5-sonnet", supportsVisionModels: true, recommendedDeckModel: "anthropic/claude-3.5-sonnet" },
+  { key: "anthropic", label: "Anthropic", requiresApiKey: true, defaultSpeedModel: "claude-3-5-haiku-latest", defaultBalancedModel: "claude-3-7-sonnet-latest", supportsVisionModels: true, recommendedDeckModel: "claude-3-7-sonnet-latest" },
+  { key: "gemini", label: "Gemini", requiresApiKey: true, defaultSpeedModel: "gemini-2.0-flash", defaultBalancedModel: "gemini-1.5-pro", supportsVisionModels: true, recommendedDeckModel: "gemini-1.5-pro" },
 ];
 const DEFAULT_SETUP_DRAFT: SetupDraft = {
   runtimeKind: "local",
@@ -50,11 +51,14 @@ const DEFAULT_SETUP_DRAFT: SetupDraft = {
   founderType: "founder",
   sector: "saas",
   stage: "idea",
-  geography: "unspecified",
+  geography: "auto",
   websiteUrl: "",
   setupContext: "",
   sessionType: "mentor",
+  evaluatorMode: "idea_review",
   mode: "think_it_through",
+  helpMode: "coach_me",
+  liveWebEnabled: true,
 };
 const LAST_SETUP_STEP = 2;
 
@@ -122,6 +126,7 @@ function AppBody() {
   const [session, setSession] = useState<SessionPayload | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [setupError, setSetupError] = useState("");
   const [entryScreen, setEntryScreen] = useState<"landing" | "setup">("landing");
   const [setupStep, setSetupStep] = useState(0);
   const [setupDraft, setSetupDraft] = useState<SetupDraft>(DEFAULT_SETUP_DRAFT);
@@ -138,12 +143,14 @@ function AppBody() {
   const [authError, setAuthError] = useState("");
   const [adminEnabled, setAdminEnabled] = useState(false);
   const effectiveClientId = authUser?.clientId || anonymousClientId;
+  const effectiveDisplayName = (displayName || authUser?.displayName || "").trim();
 
   useEffect(() => {
     const resetApplied = applyBuildResetIfNeeded();
     if (resetApplied) {
       setSession(null);
       setLoadingSession(false);
+      setSetupError("");
       if (location.pathname !== "/admin") {
         navigate("/", { replace: true });
       }
@@ -252,10 +259,10 @@ function AppBody() {
     void postAnalyticsEvent({
       eventType: "page_view",
       clientId: effectiveClientId,
-      displayName: displayName || authUser?.displayName || "",
+      displayName: effectiveDisplayName,
       pathname: location.pathname,
     }).catch(() => undefined);
-  }, [effectiveClientId, displayName, authUser, location.pathname]);
+  }, [effectiveClientId, effectiveDisplayName, location.pathname]);
 
   const hydrateStartedSession = (payload: StartSessionPayload) => {
     const next: SessionPayload = {
@@ -268,12 +275,23 @@ function AppBody() {
       nextGap: payload.nextGap,
       activeUploads: payload.activeUploads,
       sessionType: payload.sessionType,
+      evaluatorMode: payload.evaluatorMode,
       provider: payload.provider,
       model: payload.model,
+      supportsVision: payload.supportsVision,
       questionBudget: payload.questionBudget,
       websiteUrl: payload.websiteUrl,
+      sources: payload.sources,
+      confidence: payload.confidence,
+      knowledgeLane: payload.knowledgeLane,
+      usedLiveWeb: payload.usedLiveWeb,
+      followUpMode: payload.followUpMode,
+      helpMode: payload.helpMode,
+      liveWebEnabled: payload.liveWebEnabled,
+      analysisSnapshot: payload.analysisSnapshot,
       evaluationProgress: payload.evaluationProgress,
       evaluationReport: payload.evaluationReport,
+      deckEvaluationReport: payload.deckEvaluationReport,
     };
     setStoredSessionId(payload.sessionId);
     setSession(next);
@@ -313,7 +331,8 @@ function AppBody() {
   };
 
   const handleStartSession = async (payload: {
-    sessionType: "mentor" | "evaluator";
+    sessionType: "mentor" | "evaluator" | "expert";
+    evaluatorMode?: "idea_review" | "deck_review";
     founderType: string;
     sector: string;
     stage: string;
@@ -324,10 +343,14 @@ function AppBody() {
     apiKey: string;
     websiteUrl: string;
     setupContext: string;
+    helpMode: "coach_me" | "challenge_me" | "explain_directly";
+    liveWebEnabled: boolean;
   }) => {
-    if (!(displayName || authUser?.displayName || "").trim()) {
+    if (!effectiveDisplayName) {
+      setSetupError("Name missing. Go back and enter your name on the first screen before starting a session.");
       return;
     }
+    setSetupError("");
     setStarting(true);
     try {
       const response = await startSession({
@@ -337,13 +360,16 @@ function AppBody() {
         mode: payload.mode,
         geography: payload.geography,
         sessionType: payload.sessionType,
+        evaluatorMode: payload.evaluatorMode || "idea_review",
+        helpMode: payload.helpMode,
+        liveWebEnabled: payload.liveWebEnabled,
         provider: payload.provider,
         model: payload.model,
         apiKey: payload.apiKey.trim(),
         websiteUrl: payload.websiteUrl,
         setupContext: payload.setupContext,
         clientId: effectiveClientId,
-        displayName: (displayName || authUser?.displayName || "").trim(),
+        displayName: effectiveDisplayName,
       });
       if (payload.apiKey.trim()) {
         saveSessionCredential(response.sessionId, {
@@ -353,6 +379,8 @@ function AppBody() {
         });
       }
       hydrateStartedSession(response);
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : "Failed to start session");
     } finally {
       setStarting(false);
     }
@@ -361,6 +389,7 @@ function AppBody() {
   const handleExitSession = () => {
     clearStoredSessionId();
     setSession(null);
+    setSetupError("");
     setEntryScreen("setup");
     setSetupStep(LAST_SETUP_STEP);
     void refreshSessions();
@@ -370,6 +399,7 @@ function AppBody() {
   const handleNewSession = () => {
     clearStoredSessionId();
     setSession(null);
+    setSetupError("");
     setEntryScreen("setup");
     setSetupStep(LAST_SETUP_STEP);
     void refreshSessions();
@@ -415,6 +445,21 @@ function AppBody() {
                 theme={theme}
                 onThemeChange={setTheme}
               />
+            ) : session.sessionType === "expert" ? (
+              <ExpertScreen
+                session={session}
+                setSession={(updater) => setSession((previous) => (previous ? updater(previous) : previous))}
+                onNewSession={handleNewSession}
+                onExitSession={handleExitSession}
+                onOpenSession={handleOpenSession}
+                onSessionActivity={() => void refreshSessions()}
+                onClearHistory={handleClearHistory}
+                clearingHistory={clearingHistory}
+                recentSessions={recentSessions}
+                providerOptions={providerOptions}
+                theme={theme}
+                onThemeChange={setTheme}
+              />
             ) : (
               <ChatScreen
                 session={session}
@@ -437,6 +482,7 @@ function AppBody() {
                 displayName={displayName}
                 onDisplayNameChange={setDisplayName}
                 onContinue={() => {
+                  setSetupError("");
                   setEntryScreen("setup");
                   setSetupStep(0);
                 }}
@@ -451,12 +497,20 @@ function AppBody() {
               <SetupWizard
                 providerOptions={providerOptions}
                 loading={starting}
+                error={setupError}
+                canStart={Boolean(effectiveDisplayName)}
                 step={setupStep}
                 draft={setupDraft}
-                onStepChange={setSetupStep}
-                onDraftChange={setSetupDraft}
+                onStepChange={(nextStep) => {
+                  setSetupError("");
+                  setSetupStep(nextStep);
+                }}
+                onDraftChange={(updater) => {
+                  setSetupError("");
+                  setSetupDraft(updater);
+                }}
                 onBack={() => {
-                  setDisplayName("");
+                  setSetupError("");
                   setEntryScreen("landing");
                   setSetupStep(0);
                 }}

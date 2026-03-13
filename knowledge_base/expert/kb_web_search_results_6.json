@@ -1,0 +1,35 @@
+{
+  "India_Fintech_Infrastructure_Web": {
+    "sources": [
+      "https://ocen.dev/",
+      "https://sahamati.org.in/ondc-financial-services-ocen-protocol-account-aggregators-will-change-digital-lending-in-india/",
+      "https://www.prove.com/blog/indias-open-credit-enablement-network-ocen"
+    ],
+    "terms": {
+      "UPI": "Unified Payments Interface \u2014 real-time payment system developed by NPCI (National Payments Corporation of India). Launched 2016. Enables instant bank-to-bank transfers via mobile using VPA (Virtual Payment Address). Processed 18+ billion transactions/month by 2025. Foundation of India's digital payments revolution. Integrated with 350+ banks.",
+      "OCEN": "Open Credit Enablement Network \u2014 framework of APIs launched July 2020 enabling interactions between lenders, Loan Service Providers (LSPs \u2014 fintechs, e-commerce), and Account Aggregators. Does for credit what UPI did for payments. Focuses on small-ticket, high-volume credit for MSMEs \u2014 a segment underserved by traditional banks.",
+      "Account_Aggregator": "RBI-licensed intermediary (NBFC-AA) enabling secure, consent-based sharing of financial data between financial information providers (FIPs: banks, insurers) and financial information users (FIUs: lenders, wealth managers). Standardized by RBI in 2019. Enables instant loan assessment without physical document submission.",
+      "ONDC": "Open Network for Digital Commerce \u2014 Indian government's open protocol for e-commerce (like UPI for shopping). Aims to create interoperable, decentralized digital commerce network breaking dominance of Amazon/Flipkart. Allows any app to connect buyers and sellers on the network. ONDC Financial Services extends this to credit.",
+      "BBPS": "Bharat Bill Payment System \u2014 NPCI-operated platform for recurring bill payments (electricity, gas, water, telecom, insurance, EMIs). Interoperable across all banks and payment apps. Enables any-time, anywhere bill payment. 2+ billion transactions annually.",
+      "AEPS": "Aadhaar-Enabled Payment System \u2014 allows Aadhaar biometric authentication (fingerprint) to perform banking transactions. Enables banking at doorstep via Business Correspondents in rural areas without smartphone. Critical for financial inclusion (Jan Dhan accounts).",
+      "DigiLocker": "India's national digital document storage and sharing system. Allows citizens to store and share official documents (Aadhaar, PAN, driving license, degree certificates) digitally. Issued documents treated as original. Used by banks, employers for KYC. 150M+ users.",
+      "India_Venture_Debt": "Market reached $1.2B in 2023 (50% YoY growth). Key players: Stride Ventures (New Delhi, $314M raised, 100+ investments), Innoven Capital ($800M+ deployed, 200+ startups, 35 unicorns in portfolio), BlackSoil (sector agnostic, INR 5-20 Cr tickets, Series B/C focus). Serves startups between equity rounds without dilution."
+    }
+  },
+  "PLG_GTM_Web": {
+    "sources": [
+      "https://www.productled.org/foundations/what-is-product-led-growth",
+      "https://upgrowth.in/plg-vs-sales-led-vs-hybrid-gtm-which-model-fits-your-business/",
+      "https://www.ptengine.com/blog/business-strategy/figma-product-led-growth-how-a-design-tool-took-over-the-world/"
+    ],
+    "terms": {
+      "Product_Led_Growth": "Business methodology where user acquisition, expansion, conversion, and retention are driven primarily by the product itself. Freemium, free trials, self-serve onboarding are hallmarks. Product creates 'aha moment' without sales intervention. Examples: Slack (viral team invites), Figma ($20B acquisition), Notion (10M+ users before sales team). Best for B2B SaaS with short sales cycles and wide user base.",
+      "PLG": "Abbreviation for Product-Led Growth. Same as Product_Led_Growth. Used interchangeably. Key metrics: Product Qualified Leads (PQLs), time-to-value, activation rate, expansion MRR from self-serve.",
+      "Sales_Led_Growth": "GTM motion where salespeople are central to customer acquisition. Enterprise customers ($50K+ ACV) typically require personal attention, customization, and implementation support. Higher CAC but larger ACV. Required when product complexity demands consultative selling. Examples: Salesforce, Workday, ServiceNow.",
+      "Hybrid_GTM": "Combines PLG and SLG. Start PLG to drive bottoms-up adoption, then enterprise sales team converts high-usage accounts to larger contracts. Example: Slack (PLG to land teams \u2192 enterprise sales to expand). Also called 'product-led sales' \u2014 sales-assist on top of PLG motion.",
+      "Land_And_Expand": "Sales strategy: land a small deal within an organization, then expand usage and upsell over time. Relies on product stickiness and demonstrable ROI. Net Dollar Retention > 100% enables land-and-expand without new customer acquisition. Common in SaaS (Snowflake, Datadog, Twilio).",
+      "Viral_Coefficient": "K-factor = Invites sent per user \u00d7 Conversion rate. K > 1 means product grows exponentially without external marketing spend. K = 0.5 means each user invites half a new user on average (still meaningful). Slack's invite mechanism and Figma's collaboration drove K-factor above 1.",
+      "Magic_Number": "SaaS efficiency metric = Net New ARR \u00d7 4 / Previous Quarter's S&M Spend. Magic Number > 0.75 = invest heavily in sales/marketing. 0.5-0.75 = optimize. < 0.5 = fundamental efficiency problem. Measures how much ARR you generate per dollar of S&M spend."
+    }
+  }
+}

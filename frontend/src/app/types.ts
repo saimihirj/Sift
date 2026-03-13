@@ -1,10 +1,12 @@
 export type ResponseProfile = "speed" | "balanced";
-export type SessionType = "mentor" | "evaluator";
+export type SessionType = "mentor" | "evaluator" | "expert";
 export type Provider = "ollama" | "cerebras" | "groq" | "openai" | "openrouter" | "anthropic" | "gemini";
 export type ThemeMode = "light" | "dark" | "dusk" | "neon";
 export type OAuthProvider = "google" | "apple";
+export type HelpMode = "coach_me" | "challenge_me" | "explain_directly";
+export type EvaluatorMode = "idea_review" | "deck_review";
 
-export type FounderType = "student" | "professional" | "founder" | "serial" | "unknown";
+export type FounderType = "student" | "operator" | "founder" | "investor" | "professional" | "other" | "serial" | "unknown";
 export type Sector =
   | "saas"
   | "d2c"
@@ -30,7 +32,10 @@ export type SetupDraft = {
   websiteUrl: string;
   setupContext: string;
   sessionType: SessionType;
+  evaluatorMode: EvaluatorMode;
   mode: Mode;
+  helpMode: HelpMode;
+  liveWebEnabled: boolean;
 };
 
 export type ChatTurn = {
@@ -44,6 +49,26 @@ export type CoverageItem = {
   section: string;
   score: number;
   label: string;
+};
+
+export type SourceCitation = {
+  title: string;
+  url: string;
+  label: string;
+  sourceType: string;
+  geographyScope: string;
+  confidence: string;
+  domain: string;
+};
+
+export type ExpertAnalysisSnapshot = {
+  strengths: string[];
+  risks: string[];
+  missingEvidence: string[];
+  contradictions: string[];
+  nextQuestions: string[];
+  recommendedNextActions: string[];
+  concepts: string[];
 };
 
 export type SessionState = {
@@ -72,6 +97,8 @@ export type UploadSummary = {
   chunkCount: number;
   chars: number;
   uploadedAt: string;
+  slideCount?: number;
+  hasRenderableSlides?: boolean;
 };
 
 export type EvaluationQuestion = {
@@ -144,12 +171,69 @@ export type EvaluationReport = {
   nextExperiments: string[];
 };
 
+export type DeckCoverageItem = {
+  section: string;
+  status: string;
+  note: string;
+  refs: string[];
+  evidence: string[];
+  missingItems: string[];
+};
+
+export type DeckConstraintCheck = {
+  key: string;
+  label: string;
+  status: string;
+  note: string;
+  refs: string[];
+};
+
+export type DeckFocusedAssessment = {
+  key: string;
+  label: string;
+  status: string;
+  assessment: string;
+  refs: string[];
+};
+
+export type DeckSlideReview = {
+  index: number;
+  label: string;
+  summary: string;
+  whatWorks: string[];
+  issues: string[];
+  suggestions: string[];
+  refs: string[];
+};
+
+export type DeckEvaluationReport = {
+  overallScore: number;
+  confidence: number;
+  reviewMode: string;
+  reviewLimitations: string[];
+  verdict: string;
+  summary: string;
+  whatWorks: string[];
+  weakPoints: string[];
+  unprovenClaims: string[];
+  storyFlow: string;
+  templateCoverage: DeckCoverageItem[];
+  constraintChecks: DeckConstraintCheck[];
+  focusedAssessments: DeckFocusedAssessment[];
+  slideReviews: DeckSlideReview[];
+  topFixes: string[];
+  londonWhaleAssessment: string;
+  stopReason: string;
+};
+
 export type ProviderOption = {
   key: Provider;
   label: string;
   requiresApiKey: boolean;
   defaultSpeedModel: string;
   defaultBalancedModel: string;
+  supportsVisionModels?: boolean;
+  recommendedDeckModel?: string;
 };
 
 export type AuthProviderOption = {
@@ -184,12 +268,23 @@ export type SessionPayload = {
   nextGap: string;
   activeUploads: UploadSummary[];
   sessionType: SessionType;
+  evaluatorMode?: EvaluatorMode;
   provider: Provider;
   model: string;
+  supportsVision?: boolean;
   questionBudget?: number | null;
   websiteUrl: string;
+  sources: SourceCitation[];
+  confidence: number;
+  knowledgeLane: string;
+  usedLiveWeb: boolean;
+  followUpMode: string;
+  helpMode: HelpMode;
+  liveWebEnabled: boolean;
+  analysisSnapshot: ExpertAnalysisSnapshot;
   evaluationProgress?: EvaluationProgress | null;
   evaluationReport?: EvaluationReport | null;
+  deckEvaluationReport?: DeckEvaluationReport | null;
 };
 
 export type SessionSummary = {
@@ -218,12 +313,23 @@ export type StartSessionPayload = {
   nextGap: string;
   activeUploads: UploadSummary[];
   sessionType: SessionType;
+  evaluatorMode?: EvaluatorMode;
   provider: Provider;
   model: string;
+  supportsVision?: boolean;
   questionBudget?: number | null;
   websiteUrl: string;
+  sources: SourceCitation[];
+  confidence: number;
+  knowledgeLane: string;
+  usedLiveWeb: boolean;
+  followUpMode: string;
+  helpMode: HelpMode;
+  liveWebEnabled: boolean;
+  analysisSnapshot: ExpertAnalysisSnapshot;
   evaluationProgress?: EvaluationProgress | null;
   evaluationReport?: EvaluationReport | null;
+  deckEvaluationReport?: DeckEvaluationReport | null;
 };
 
 export type SessionListPayload = {
@@ -234,6 +340,7 @@ export type SessionRuntimePayload = {
   sessionId: string;
   provider: string;
   model: string;
+  supportsVision?: boolean;
 };
 
 export type OutlinePayload = {
@@ -248,21 +355,27 @@ export type ProviderCatalogPayload = {
 
 export type EvaluatorAnswerPayload = {
   sessionId: string;
+  evaluatorMode: EvaluatorMode;
   evaluationProgress: EvaluationProgress;
-  evaluationReport: EvaluationReport;
+  evaluationReport?: EvaluationReport | null;
+  deckEvaluationReport?: DeckEvaluationReport | null;
   reciprocal: string;
   question: EvaluationQuestion | null;
   questionLabel: string;
   activeUploads: UploadSummary[];
   warning: string;
+  supportsVision: boolean;
 };
 
 export type EvaluatorReportPayload = {
   sessionId: string;
-  evaluationReport: EvaluationReport;
+  evaluatorMode: EvaluatorMode;
+  evaluationReport?: EvaluationReport | null;
+  deckEvaluationReport?: DeckEvaluationReport | null;
   evaluationProgress: EvaluationProgress;
   provider: string;
   model: string;
+  supportsVision: boolean;
   websiteUrl: string;
 };
 

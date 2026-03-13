@@ -5,12 +5,17 @@ This document is the accurate runbook for the current SignalX app.
 It covers:
 - local setup
 - local app mode
+- local API-key mode
 - LAN sharing
 - development mode
 - Docker deployment
 - Render deployment
 - runtime behavior
 - troubleshooting
+
+SignalX supports two normal local paths:
+- open-source local runtime through `Ollama`
+- API-key runtime through providers like `Groq`, `Cerebras`, `OpenAI`, `OpenRouter`, `Anthropic`, and `Gemini`
 
 If you want open-source-only with no paid services, use the local and LAN modes below and keep:
 
@@ -24,7 +29,9 @@ Required:
 - Python `3.11+`
 - Node.js `18+`
 - npm
-- [Ollama](https://ollama.com)
+
+Optional:
+- [Ollama](https://ollama.com) for fully local open-source runtime
 
 Recommended local models:
 
@@ -55,6 +62,7 @@ Default runtime values live in `.env.example`.
 Current keys:
 
 ```env
+SIGNALX_EXPERT_DATA_DIR=knowledge_base/expert
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL_SPEED=llama3.2:latest
 OLLAMA_MODEL_BALANCED=qwen3:8b
@@ -63,10 +71,27 @@ OLLAMA_MODEL_BALANCED=qwen3:8b
 Notes:
 - `speed` is the default chat profile
 - `balanced` is optional and falls back to `speed` if it errors
+- the bundled Expert corpus lives under `knowledge_base/expert`
 - the rebuilt app uses Ollama over HTTP
 - legacy Gradio config in `.env.example` is for the old prototype only
 
 ## 4. Run Modes
+
+### Fastest paths
+
+Use one of these after setup:
+
+```bash
+npm run mvp
+```
+
+For fully local open-source mode.
+
+```bash
+npm run mvp:api
+```
+
+For API-key mode without Ollama.
 
 ### A. Local App Mode
 
@@ -104,7 +129,7 @@ python3 signalx_app.py --build --idle-timeout 90
 
 ### B. LAN Test Mode
 
-Use this to let a co-founder test on the same Wi‑Fi network.
+Use this to let another person test on the same Wi-Fi network.
 
 ```bash
 python3 signalx_app.py --host 0.0.0.0 --port 7860 --build
@@ -123,7 +148,40 @@ Notes:
 - this is local-network sharing only
 - there is no auth in this pass
 
-### C. Development Mode
+### C. Local API-Key Mode
+
+Use this when you want people to clone the repo and run it without installing Ollama.
+
+```bash
+npm run mvp:api
+```
+
+What it does:
+- builds the frontend if needed
+- serves frontend and backend on one port
+- does not try to start local Ollama
+
+How to use it:
+- start the app with `npm run mvp:api`
+- choose `Use API key` in the setup flow
+- either paste a provider key in the UI or export one in your shell before launch
+
+Example:
+
+```bash
+export GROQ_API_KEY=...
+npm run mvp:api
+```
+
+Supported external providers:
+- `groq`
+- `cerebras`
+- `openai`
+- `openrouter`
+- `anthropic`
+- `gemini`
+
+### D. Development Mode
 
 Use this when you are editing code.
 
@@ -149,7 +207,7 @@ Important:
 - `npm run dev` is a normal dev workflow
 - it does not auto-stop when you close the browser
 
-### D. Docker
+### E. Docker
 
 For container-style deployment:
 
@@ -164,7 +222,7 @@ App URL:
 http://127.0.0.1:8000
 ```
 
-### E. Render
+### F. Render
 
 The repo includes:
 
@@ -177,12 +235,14 @@ Recommended deploy path:
 1. Create a new Render service from the repo
 2. Use the included `render.yaml`
 3. Set `GROQ_API_KEY`
-4. Set `VK_ADMIN_TOKEN`
-5. Deploy
+4. Set `VK_SESSION_SECRET`
+5. Set `VK_ADMIN_TOKEN`
+6. Deploy
 
 Important:
 - the current blueprint uses a persistent disk
 - app data is written under `/var/data/signalx`
+- the bundled Expert corpus is read from `/app/knowledge_base/expert`
 - admin monitoring is available at `/admin`
 
 If you want zero paid dependencies, skip this section and stay on local / LAN mode.

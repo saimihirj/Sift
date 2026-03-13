@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 import memory
 from state import ConversationState
 
 from backend.schemas import EvaluatorAnswerResponse, EvaluatorReportResponse
+from backend.services.deck_review import (
+    answer_deck_follow_up,
+    normalize_evaluator_mode,
+    present_deck_review_report,
+    review_deck_session,
+)
 from backend.services.evaluator import (
     build_evaluation_report,
     continue_evaluation_deeper,
@@ -17,7 +25,7 @@ from backend.services.evaluator import (
     present_evaluation_report,
     public_progress,
 )
-from backend.services.model_router import default_model_for_provider, normalize_provider
+from backend.services.model_router import default_model_for_provider, model_supports_vision, normalize_provider
 from backend.services.retrieval import build_retrieval_context
 from backend.services.state_engine import update_state_from_turn
 from backend.services.uploads import ingest_upload, list_active_uploads, retrieve_upload_context
@@ -49,6 +57,7 @@ def _restore_state(session_row: dict, turns: list[dict]) -> ConversationState:
 async def answer_question(
     sessionId: str = Form(...),
     answer: str = Form(""),
+    evaluatorMode: str = Form(""),
     provider: str = Form(""),
     model: str = Form(""),
     apiKey: str = Form(""),
@@ -61,8 +70,14 @@ async def answer_question(
         raise HTTPException(status_code=400, detail="This session is not an evaluator session")
 
     metadata = memory.get_session_metadata(session_row)
-    if metadata.get("completed"):
-        raise HTTPException(status_code=400, detail="This evaluator is already complete")
+    active_mode = normalize_evaluator_mode(evaluatorMode or metadata.get("evaluatorMode"))
+    current_mode = normalize_evaluator_mode(metadata.get("evaluatorMode"))
+    metadata["evaluatorMode"] = active_mode
+    if active_mode != current_mode:
+        if metadata.get("answers") or list_active_uploads(sessionId):
+            raise HTTPException(status_code=400, detail="Start a new Evaluate session to switch review modes after work has started")
+        metadata["evaluatorMode"] = active_mode
+        metadata["stopReason"] = "Upload a deck to start the review." if active_mode == "deck_review" else "Gathering evidence."
 
     chosen_provider = normalize_provider(provider or session_row.get("provider", "ollama"))
     chosen_model = (model or session_row.get("model", "")).strip() or default_model_for_provider(chosen_provider)
@@ -77,10 +92,163 @@ async def answer_question(
 
     turns = memory.get_session_turns(sessionId)
     state = _restore_state(session_row, turns)
-    if not answer.strip() and upload_entry is None:
-        raise HTTPException(status_code=400, detail="Answer or file is required")
+    supports_vision = model_supports_vision(chosen_provider, chosen_model)
 
     answer_text = answer.strip()
+    if active_mode == "deck_review":
+        if upload_entry is None and not list_active_uploads(sessionId):
+            raise HTTPException(status_code=400, detail="Upload a PDF or PPTX deck to start deck review")
+
+        if upload_entry is not None or not metadata.get("completed"):
+            context_bits = [answer_text]
+            if upload_entry is not None:
+                context_bits.append(f"Uploaded deck: {upload_entry['name']}.")
+            review_report = await review_deck_session(
+                session_id=sessionId,
+                provider=chosen_provider,
+                model=chosen_model,
+                api_key=apiKey or None,
+                user_context="\n\n".join(bit for bit in context_bits if bit),
+            )
+            metadata["evaluatorMode"] = "deck_review"
+            metadata["completed"] = True
+            metadata["partial"] = False
+            metadata["completedAt"] = datetime.now(timezone.utc).isoformat()
+            metadata["currentQuestionId"] = ""
+            metadata["stopReason"] = review_report.get("stopReason", "Deck review complete.")
+            metadata["deckReviewRuns"] = int(metadata.get("deckReviewRuns", 0) or 0) + 1
+            metadata["deckReviewSummary"] = review_report.get("summary", "")
+            metadata["deckReviewReport"] = review_report
+            updated_state = update_state_from_turn(
+                state,
+                answer_text or (f"I uploaded {upload_entry['name']}." if upload_entry else ""),
+                assistant_message=review_report.get("summary") or review_report.get("verdict") or "Deck review complete.",
+            )
+            user_content = answer_text if upload_entry is None else f"{answer_text}\n\n[Attached {upload_entry['name']}]".strip()
+            if not user_content:
+                user_content = f"[Attached {upload_entry['name']}]" if upload_entry else "[Deck review requested]"
+            assistant_content = review_report.get("summary") or review_report.get("verdict") or "Deck review complete."
+            memory.update_session(sessionId, updated_state)
+            memory.update_session_metadata(sessionId, metadata)
+            memory.store_turn(
+                sessionId,
+                "user",
+                user_content,
+                metadata={
+                    "sessionType": "evaluator",
+                    "evaluatorMode": "deck_review",
+                    "upload": upload_entry,
+                },
+            )
+            memory.store_turn(
+                sessionId,
+                "assistant",
+                assistant_content,
+                metadata={
+                    "sessionType": "evaluator",
+                    "evaluatorMode": "deck_review",
+                    "responseProfile": "balanced",
+                    "state_snapshot": updated_state.to_dict(),
+                    "reviewMode": review_report.get("reviewMode", "text_transcript"),
+                    "reviewLimitations": review_report.get("reviewLimitations", []),
+                    "supportsVision": supports_vision,
+                },
+            )
+            if upload_entry is not None:
+                memory.track_event(
+                    event_type="file_uploaded",
+                    client_id=session_row.get("user_identifier", ""),
+                    session_id=sessionId,
+                    display_name=session_row.get("display_name", ""),
+                    pathname="/",
+                    metadata={
+                        "name": upload_entry.get("name"),
+                        "docType": upload_entry.get("docType"),
+                        "chunkCount": upload_entry.get("chunkCount"),
+                        "chars": upload_entry.get("chars"),
+                        "sessionType": "evaluator",
+                    },
+                )
+            memory.track_event(
+                event_type="evaluator_completed",
+                client_id=session_row.get("user_identifier", ""),
+                session_id=sessionId,
+                display_name=session_row.get("display_name", ""),
+                pathname="/",
+                metadata={
+                    "provider": chosen_provider,
+                    "model": chosen_model,
+                    "overallScore": review_report.get("overallScore", 0),
+                    "confidence": review_report.get("confidence", 0),
+                    "stopReason": review_report.get("stopReason", ""),
+                    "evaluatorMode": "deck_review",
+                    "reviewMode": review_report.get("reviewMode", "text_transcript"),
+                },
+            )
+            return EvaluatorAnswerResponse(
+                sessionId=sessionId,
+                evaluatorMode="deck_review",
+                evaluationProgress=public_progress(metadata, updated_state),
+                evaluationReport=None,
+                deckEvaluationReport=review_report,
+                reciprocal=assistant_content,
+                question=None,
+                questionLabel="",
+                activeUploads=list_active_uploads(sessionId),
+                warning=metadata.get("website", {}).get("warning", ""),
+                supportsVision=supports_vision,
+            )
+
+        follow_up = await answer_deck_follow_up(
+            session_id=sessionId,
+            report=present_deck_review_report(metadata),
+            question=answer_text,
+            provider=chosen_provider,
+            model=chosen_model,
+            api_key=apiKey or None,
+        )
+        updated_state = update_state_from_turn(state, answer_text, assistant_message=follow_up)
+        memory.update_session(sessionId, updated_state)
+        memory.update_session_metadata(sessionId, metadata)
+        memory.store_turn(
+            sessionId,
+            "user",
+            answer_text,
+            metadata={"sessionType": "evaluator", "evaluatorMode": "deck_review"},
+        )
+        memory.store_turn(
+            sessionId,
+            "assistant",
+            follow_up,
+            metadata={
+                "sessionType": "evaluator",
+                "evaluatorMode": "deck_review",
+                "responseProfile": "balanced",
+                "state_snapshot": updated_state.to_dict(),
+                "reviewMode": metadata.get("deckReviewReport", {}).get("reviewMode", "text_transcript"),
+                "reviewLimitations": metadata.get("deckReviewReport", {}).get("reviewLimitations", []),
+                "supportsVision": supports_vision,
+            },
+        )
+        return EvaluatorAnswerResponse(
+            sessionId=sessionId,
+            evaluatorMode="deck_review",
+            evaluationProgress=public_progress(metadata, updated_state),
+            evaluationReport=None,
+            deckEvaluationReport=present_deck_review_report(metadata),
+            reciprocal=follow_up,
+            question=None,
+            questionLabel="",
+            activeUploads=list_active_uploads(sessionId),
+            warning=metadata.get("website", {}).get("warning", ""),
+            supportsVision=supports_vision,
+        )
+
+    if metadata.get("completed"):
+        raise HTTPException(status_code=400, detail="This evaluator is already complete")
+
+    if not answer_text and upload_entry is None:
+        raise HTTPException(status_code=400, detail="Answer or file is required")
     if not answer_text and upload_entry is not None:
         answer_text = f"I uploaded {upload_entry['name']}. Use it to assess my answer quality."
 
@@ -232,13 +400,16 @@ async def answer_question(
 
     return EvaluatorAnswerResponse(
         sessionId=sessionId,
+        evaluatorMode="idea_review",
         evaluationProgress=progress,
         evaluationReport=report,
+        deckEvaluationReport=None,
         reciprocal=answered.get("reciprocal", "Assessment updated."),
         question=None if updated_metadata.get("completed") else result.get("question"),
         questionLabel="",
         activeUploads=list_active_uploads(sessionId),
         warning=updated_metadata.get("website", {}).get("warning", ""),
+        supportsVision=supports_vision,
     )
 
 
@@ -251,6 +422,8 @@ async def continue_deeper(session_id: str) -> EvaluatorAnswerResponse:
         raise HTTPException(status_code=400, detail="This session is not an evaluator session")
 
     metadata = memory.get_session_metadata(session_row)
+    if normalize_evaluator_mode(metadata.get("evaluatorMode")) == "deck_review":
+        raise HTTPException(status_code=400, detail="Deck review does not use deeper question rounds")
     turns = memory.get_session_turns(session_id)
     state = _restore_state(session_row, turns)
     recent_user_context = " ".join(
@@ -332,13 +505,16 @@ async def continue_deeper(session_id: str) -> EvaluatorAnswerResponse:
     )
     return EvaluatorAnswerResponse(
         sessionId=session_id,
+        evaluatorMode="idea_review",
         evaluationProgress=progress,
         evaluationReport=report,
+        deckEvaluationReport=None,
         reciprocal=answered.get("reciprocal", "Let's keep going."),
         question=question,
         questionLabel="",
         activeUploads=list_active_uploads(session_id),
         warning=updated_metadata.get("website", {}).get("warning", ""),
+        supportsVision=model_supports_vision(session_row.get("provider", "ollama"), session_row.get("model", "")),
     )
 
 
@@ -353,17 +529,23 @@ async def get_report(session_id: str) -> EvaluatorReportResponse:
     metadata = memory.get_session_metadata(session_row)
     turns = memory.get_session_turns(session_id)
     state = _restore_state(session_row, turns)
-    report = present_evaluation_report(metadata)
-    if metadata.get("completed") and not has_cached_presentable_report(metadata, report):
-        report = await naturalize_evaluation_report(
-            report=report,
-            metadata=metadata,
-            state=state,
-            provider=session_row.get("provider", "ollama"),
-            model=session_row.get("model", ""),
-            api_key=None,
-        )
-        memory.update_session_metadata(session_id, metadata)
+    evaluator_mode = normalize_evaluator_mode(metadata.get("evaluatorMode"))
+    report = None
+    deck_report = None
+    if evaluator_mode == "deck_review":
+        deck_report = present_deck_review_report(metadata)
+    else:
+        report = present_evaluation_report(metadata)
+        if metadata.get("completed") and not has_cached_presentable_report(metadata, report):
+            report = await naturalize_evaluation_report(
+                report=report,
+                metadata=metadata,
+                state=state,
+                provider=session_row.get("provider", "ollama"),
+                model=session_row.get("model", ""),
+                api_key=None,
+            )
+            memory.update_session_metadata(session_id, metadata)
     progress = public_progress(metadata, state)
     memory.track_event(
         event_type="evaluator_report_viewed",
@@ -374,14 +556,18 @@ async def get_report(session_id: str) -> EvaluatorReportResponse:
         metadata={
             "provider": session_row.get("provider", "ollama"),
             "model": session_row.get("model", ""),
-            "overallScore": report["overallScore"],
+            "overallScore": (deck_report or report or {}).get("overallScore", 0),
+            "evaluatorMode": evaluator_mode,
         },
     )
     return EvaluatorReportResponse(
         sessionId=session_id,
+        evaluatorMode=evaluator_mode,
         evaluationReport=report,
+        deckEvaluationReport=deck_report,
         evaluationProgress=progress,
         provider=session_row.get("provider", "ollama"),
         model=session_row.get("model", ""),
+        supportsVision=model_supports_vision(session_row.get("provider", "ollama"), session_row.get("model", "")),
         websiteUrl=session_row.get("website_url", ""),
     )

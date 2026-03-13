@@ -11,40 +11,45 @@ It explains:
 - the key routes and ports
 - the exact commands to configure and run it
 
-This document is written for founder, product, and technical review.
+This document is written for product, technical, and operator review.
 
 ## 1. What SignalX Is
 
-SignalX is a founder copilot with two working modes:
-- `Ideate` for open-ended, two-way pitch refinement
+SignalX is a startup and finance workbench with three workflows:
+- `Ideate` for open-ended, two-way idea shaping
 - `Evaluate` for sharper, evidence-driven assessment
+- `Expert` for domain discussion, concept learning, pre-screening, and deck analysis
 
 It is not meant to behave like a generic chatbot.
 
-Its job is to help a founder or student innovator:
+Its job is to help a student, founder, operator, investor, or professional:
 - clarify the real problem
 - test assumptions
 - think in terms of customer evidence, not just opinions
 - explain the business in simple language when needed
-- turn a messy idea into a sharper pitch or evaluation report
+- turn a messy idea into a sharper pitch, evaluation report, or expert analysis
 
 ## 2. Current MVP Scope
 
-The current MVP is fully open-source-only and local-first.
+The current MVP is local-first, but not open-source-only.
 
 It uses:
 - `React` frontend
 - `FastAPI` backend
-- `Ollama` for model inference
+- `Ollama` for local model inference
+- API-key providers for hosted inference
 - `SQLite` for sessions and analytics
 - local disk for uploaded files
+- a bundled Expert knowledge corpus under `knowledge_base/expert/`
 
 It already includes:
 - onboarding
+- role-aware setup
 - persistent sessions
 - streamed mentor responses
 - uploaded file parsing and retrieval
 - refined pitch generation
+- Expert workbench with evidence panels
 - starter chips
 - a clean one-screen chat UI
 - an internal admin route for usage monitoring
@@ -75,6 +80,12 @@ It does not yet include:
 ### Model Layer
 
 - `Ollama`
+- `Groq`
+- `Cerebras`
+- `OpenAI`
+- `OpenRouter`
+- `Anthropic`
+- `Gemini`
 - default speed model: `llama3.2:latest`
 - optional balanced model: `qwen3:8b`
 
@@ -85,7 +96,7 @@ It does not yet include:
 
 ## 4. Product Use Cases
 
-### Student innovator
+### Student
 
 The mentor should:
 - use simple language
@@ -93,7 +104,7 @@ The mentor should:
 - ask narrower, less intimidating questions
 - focus on problem clarity and early validation
 
-### Working professional
+### Professional / operator
 
 The mentor should:
 - translate domain knowledge into startup language
@@ -114,7 +125,15 @@ The mentor should:
 - challenge assumptions faster
 - focus on what is different and why it matters
 
-### Co-founder / friend testing
+### Investor / analyst
+
+The expert workbench should:
+- explain domain concepts without becoming generic
+- compare frameworks and terms cleanly
+- cite its reasoning and surface gaps
+- pre-screen decks and opportunities
+
+### Friend / local tester
 
 The app should:
 - run locally with one command
@@ -130,7 +149,7 @@ flowchart LR
     UI --> API["FastAPI API"]
     API --> PROMPT["Prompt + State Engine"]
     API --> RET["Retrieval Layer"]
-    API --> MODEL["Ollama"]
+    API --> MODEL["Ollama or API Provider"]
     API --> DB["SQLite"]
     API --> FILES["Local Upload Storage"]
     API --> ADMIN["Admin Metrics"]
@@ -145,9 +164,10 @@ flowchart LR
     B["Browser"] --> APP["signalx_app.py single-port app"]
     APP --> FAST["FastAPI"]
     FAST --> DIST["Built React frontend"]
-    FAST --> OLL["Ollama"]
+    FAST --> MODEL["Ollama or API Provider"]
     FAST --> SQL["data/sessions.db"]
     FAST --> UPL["data/session_uploads/"]
+    FAST --> KB["knowledge_base/expert/"]
 ```
 
 This is the main mode for demoing the MVP.
@@ -182,7 +202,7 @@ sequenceDiagram
     API-->>UI: opening message + chips + state
 ```
 
-### Ideate / chat
+### Ideate / Expert chat
 
 ```mermaid
 sequenceDiagram
@@ -200,6 +220,23 @@ sequenceDiagram
     MODEL-->>API: token stream
     API-->>UI: SSE events
     API->>DB: store turns + timings + metadata
+```
+
+### Expert analysis
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant API
+    participant RET
+    participant MODEL
+
+    User->>UI: ask for concept compare / pre-screen / deck review
+    UI->>API: POST /api/chat
+    API->>RET: route turn + retrieve expert cards
+    API->>MODEL: generate answer with sources and analysis
+    API-->>UI: chat + evidence + analysis snapshot
 ```
 
 ### Upload
@@ -267,7 +304,7 @@ sequenceDiagram
 
 - `frontend/src/features/onboarding/SetupWizard.tsx`
   - runtime selection
-  - founder profile selection
+  - user role selection
   - mode selection
 
 - `frontend/src/features/chat/ChatScreen.tsx`
@@ -287,6 +324,11 @@ sequenceDiagram
 
 - `frontend/src/features/evaluator/EvaluatorReportScreen.tsx`
   - document-style evaluation report
+
+- `frontend/src/features/expert/ExpertScreen.tsx`
+  - Expert workbench
+  - evidence rail
+  - source and analysis panels
 
 - `frontend/src/features/admin/AdminScreen.tsx`
   - visitor/session metrics
@@ -327,11 +369,21 @@ sequenceDiagram
 - `backend/services/prompting.py`
   - Ideate behavior
   - Evaluate phrasing rules
-  - founder adaptation
+  - role-aware adaptation
   - simple-language logic
 
 - `backend/services/retrieval.py`
   - KB-grounded prompt context assembly
+
+- `backend/services/expert_knowledge.py`
+  - expert corpus loading
+  - hybrid retrieval helpers
+  - taxonomy-aware routing hints
+
+- `backend/services/expert_agent.py`
+  - Expert workflow orchestration
+  - analysis snapshots
+  - source-backed expert responses
 
 - `backend/services/external_sources.py`
   - compact investor-style questioning lenses
@@ -457,7 +509,7 @@ Examples:
 
 ## 13. Open-Source-Only Configuration
 
-Use this in `.env`:
+Use this in `.env` for fully local open-source mode:
 
 ```env
 VK_MODEL_PROVIDER=ollama
@@ -466,6 +518,13 @@ OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL_SPEED=llama3.2:latest
 OLLAMA_MODEL_BALANCED=qwen3:8b
 VK_ADMIN_TOKEN=
+```
+
+For API-key mode, use:
+
+```env
+VK_MODEL_PROVIDER=groq
+SIGNALX_EXPERT_DATA_DIR=knowledge_base/expert
 ```
 
 If you want admin protected locally or on LAN, set:
@@ -490,7 +549,7 @@ cp .env.example .env
 
 The local launcher auto-starts Ollama when needed.
 
-If needed, pull the local models:
+If using open-source local mode, pull the local models:
 
 ```bash
 ollama pull llama3.2:latest

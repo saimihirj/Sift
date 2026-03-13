@@ -1,0 +1,57 @@
+{
+  "VC_Term_Sheet_Web": {
+    "sources": [
+      "https://carta.com/learn/startups/fundraising/term-sheets/",
+      "https://www.wallstreetprep.com/knowledge/liquidation-preference-how-it-works-and-how-it-is-used-in-the-vc-term-sheet/",
+      "https://growthequityinterviewguide.com/venture-capital/venture-capital-term-sheets",
+      "https://www.goingvc.com/post/term-sheet-provisions-vcs-must-pay-attention-to"
+    ],
+    "terms": {
+      "SAFE_Note": "Simple Agreement for Future Equity \u2014 gives investor the right to convert investment into company shares in the future once valuation is known. Not a priced round. No interest, no maturity date (standard YC SAFE). Investor must model dilution via cap table simulator before signing multiple SAFEs.",
+      "Liquidation_Preference": "Right allowing preferred stockholders to receive proceeds of original investment before common stockholders in a sale, bankruptcy, or liquidation. 1x non-participating = most common in early-stage; participating = investor gets 1x back PLUS participates pro-rata in remaining proceeds. Critical in downside and mid-sized exits.",
+      "Non_Participating_Pref": "Most common setup in early-stage VC. Investors get their money back (1x original investment) before common shareholders receive anything. After that, remaining proceeds go entirely to common shareholders. Also called 'straight preferred'.",
+      "Participating_Preferred": "Investors first receive 1x liquidation preference, then ALSO participate pro-rata in remaining proceeds as if they held common stock. Most founder-unfriendly. Capped participating preferred limits the 'double dip' to a specific return multiple.",
+      "Pro_Rata": "Pro-rata rights (participation rights / pre-emptive rights) = right to invest in a future round to maintain ownership percentage. Valuable for top VCs to double down on winners. Founders negotiate pro-rata as leverage.",
+      "Cap_Table": "Capitalization table outlining ownership percentages for each shareholder class. Exit waterfall analysis shows distribution of exit proceeds. Must be modeled with each new round to understand dilution.",
+      "Term_Sheet": "Non-binding document outlining terms and conditions of investment. Key sections: economic terms (valuation, option pool, liquidation pref), governance terms (board seats, protective provisions), other terms (drag-along, pro-rata, ROFR).",
+      "Anti_Dilution": "Protection mechanism for investors against down rounds. Full Ratchet: adjusts conversion price to new lower price (most investor-friendly). Weighted Average: adjusts based on number of shares issued at lower price (most common). Broad-based weighted average uses fully diluted shares (more founder-friendly).",
+      "Pro_Rata_Rights": "Right for existing investors to maintain their ownership percentage in subsequent financing rounds by purchasing their pro-rata share of new shares. Key term for VCs wanting follow-on capacity in winners."
+    }
+  },
+  "PE_Fund_Metrics_Web": {
+    "sources": [
+      "https://breakingintowallstreet.com/kb/financial-sponsors/private-equity-fund-performance-metrics/",
+      "https://carta.com/learn/private-funds/management/fund-performance/moic/",
+      "https://www.wellington.com/en/insights/understanding-private-equity-performance",
+      "https://ilpa.org/resources-tools/private-equity-101/private-equity-glossary/"
+    ],
+    "terms": {
+      "IRR": "Internal Rate of Return \u2014 discount rate that makes NPV of all cash flows equal to zero. Accounts for both magnitude AND timing of returns. Key VC/PE performance metric. Formula: \u03a3 [CFt / (1+IRR)^t] = 0. Limitations: sensitive to timing, can be manipulated via early distributions.",
+      "MOIC": "Multiple on Invested Capital = (Realized Value + Unrealized Value) / Invested Capital. Shows how many times you've returned the invested capital. MOIC of 3x means $3 returned for every $1 invested. Does not account for time (unlike IRR). Combined with IRR for complete picture.",
+      "TVPI": "Total Value to Paid-In Capital = (Distributions + Residual Value) / Paid-In Capital. Holistic measure of total fund performance at any point in lifecycle. Combines DPI (realized) + RVPI (unrealized). Also called Total Value Multiple (TVM).",
+      "DPI": "Distributed to Paid-In Capital = Distributions / Called Capital. Measures actual cash returned to LPs as proportion of invested capital. Key indicator of liquidity. DPI of 1.0x means LPs have received back their invested capital. Most reliable metric for realized performance.",
+      "RVPI": "Residual Value to Paid-In Capital = Unrealized Portfolio Value / Paid-In Capital. Measures current market value of remaining portfolio relative to capital called. TVPI = DPI + RVPI.",
+      "J_Curve": "Shape of PE fund returns over time \u2014 initially negative (early years: management fees paid, investments at cost, no exits), then rising steeply as exits occur and distributions flow. Common practice of paying management fees from first drawdown causes initial negative book value. Most PE funds post negative returns in years 1-3.",
+      "LBO": "Leveraged Buyout \u2014 acquisition using combination of equity and substantial borrowed funds, with target's assets as collateral. Debt repaid from acquired company's cash flows. Post-LBO, financial sponsor operates company for 5-7 years to pay down debt and create value before exit.",
+      "MBO": "Management Buyout \u2014 management team uses LBO vehicle to acquire company, often converting it from public to private. Management gains significant equity stake. Motivation: management believes they can run company better without public market pressures."
+    }
+  },
+  "India_Regulation_Web": {
+    "sources": [
+      "https://www.legal500.com/developments/thought-leadership/abolition-of-angel-tax-in-india-a-boost-for-the-startup-ecosystem/",
+      "https://treelife.in/taxation/tax-exemption-for-startups-in-india/",
+      "https://taxguru.in/sebi/sebi-alternative-investment-funds-second-amendment-regulations-2025.html"
+    ],
+    "terms": {
+      "Angel_Tax": "Tax under Section 56(2)(viib) of Indian Income Tax Act levied on unlisted companies that raised funds via share issuance at value exceeding fair market value. ABOLISHED effective April 1, 2025 (FY 2024-25). Was a major barrier for India's startup ecosystem.",
+      "Section_56_2_VIIB": "Section 56(2)(viib) of Indian Income Tax Act \u2014 the 'Angel Tax' provision. Made inapplicable from April 1, 2025. Previously taxed 'excess' premium over FMV in startup fundraising as 'income from other sources'.",
+      "AIF_Regulations": "SEBI Alternative Investment Fund Regulations. Category I and II AIFs: close-ended, minimum 3-year tenure, pass-through tax treatment (not taxed at fund level). Category III AIFs: may be open or close-ended. Angel Funds re-categorized under Category I AIFs in 2025, restricted to accredited investors.",
+      "Category_I_AIF": "SEBI AIF category including infrastructure funds, social venture funds, SME funds, venture capital funds. Tax pass-through status. Close-ended, minimum 3-year tenure. Angel Funds migrated here in 2025.",
+      "Category_II_AIF": "SEBI AIF category including private equity funds, debt funds, fund of funds not in Categories I or III. Pass-through tax status. Close-ended, minimum 3-year tenure. Most India PE/VC funds register here.",
+      "Category_III_AIF": "SEBI AIF category including hedge funds and funds using complex/diverse trading strategies. May be open or close-ended. No pass-through tax treatment \u2014 taxed at fund level.",
+      "80_IAC_6": "Section 80-IAC of Indian Income Tax Act \u2014 three-year income tax holiday for eligible DPIIT-recognized startups within first ten years (extended to 12 years from incorporation). Startups must be incorporated between April 1, 2016 and March 31, 2025 (extended).",
+      "DPIIT": "Department for Promotion of Industry and Internal Trade \u2014 India government body under Ministry of Commerce that recognizes startups under Startup India initiative. DPIIT recognition is prerequisite for Section 80-IAC tax holiday and other startup benefits.",
+      "Startup_India": "Government of India initiative launched January 2016 to build strong ecosystem for startups. Provides tax exemptions (80-IAC), IPR fast-tracking, self-certification compliance, funding support through SIDBI Fund of Funds. DPIIT is nodal agency."
+    }
+  }
+}

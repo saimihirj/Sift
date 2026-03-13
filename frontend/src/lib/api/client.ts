@@ -84,7 +84,7 @@ export async function startSession(payload: Record<string, unknown>): Promise<St
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    throw new Error("Failed to start session");
+    throw new Error(await readApiError(response, "Failed to start session"));
   }
   return response.json();
 }
@@ -190,6 +190,7 @@ export async function getOutline(sessionId: string): Promise<OutlinePayload> {
 export async function answerEvaluator(args: {
   sessionId: string;
   answer: string;
+  evaluatorMode?: string;
   provider?: string;
   model?: string;
   apiKey?: string;
@@ -198,6 +199,9 @@ export async function answerEvaluator(args: {
   const form = new FormData();
   form.set("sessionId", args.sessionId);
   form.set("answer", args.answer);
+  if (args.evaluatorMode) {
+    form.set("evaluatorMode", args.evaluatorMode);
+  }
   if (args.provider) {
     form.set("provider", args.provider);
   }
@@ -268,6 +272,8 @@ export async function streamChat(args: {
   provider?: string;
   model?: string;
   apiKey?: string;
+  helpMode?: string;
+  liveWebEnabled?: boolean;
   file?: File | null;
   handlers: StreamHandlers;
 }): Promise<void> {
@@ -283,6 +289,12 @@ export async function streamChat(args: {
   }
   if (args.apiKey) {
     form.set("apiKey", args.apiKey);
+  }
+  if (args.helpMode) {
+    form.set("helpMode", args.helpMode);
+  }
+  if (typeof args.liveWebEnabled === "boolean") {
+    form.set("liveWebEnabled", String(args.liveWebEnabled));
   }
   if (args.file) {
     form.set("file", args.file);

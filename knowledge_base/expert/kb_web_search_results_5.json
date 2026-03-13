@@ -1,0 +1,44 @@
+{
+  "Accelerators_Web": {
+    "sources": [
+      "https://www.ycombinator.com/about",
+      "https://en.wikipedia.org/wiki/Y_Combinator",
+      "https://www.freecodecamp.org/news/startup-accelerator-comparison-y-combinator-vs-techstars-b4080d0c93c8/"
+    ],
+    "terms": {
+      "Y_Combinator": "World's most prestigious startup accelerator (since 2005). Invests $500K for 7% equity via SAFE ($125K on 7% post-money SAFE + $375K uncapped MFN SAFE). Runs 4 batches/year (Winter, Spring, Summer, Fall). Acceptance rate <1.5%. ~200-300 startups per batch. Alumni include Airbnb, Stripe, Dropbox, Coinbase, Reddit. Demo Day connects to top VCs. Located in San Francisco Bay Area.",
+      "Techstars": "Global network of accelerators operating 50+ programs worldwide with corporate partners (Amazon, Disney, etc.). Invests $100K-$150K for 6% equity. 12-week program. Sector-specific and geography-specific variants. Weaker brand than YC but more accessible globally. Strong mentor network.",
+      "500_Global": "Formerly 500 Startups. Takes 6% equity. Global focus with programs in 75+ countries. Invests $100K-$150K. Known for emerging market presence. Portfolio includes Canva, Credit Karma, GitLab. Strong in Southeast Asia, MENA, LATAM.",
+      "Accelerator": "Fixed-duration program (typically 3-6 months) providing startups with funding, mentorship, workspace, and investor network in exchange for small equity stake (5-10%). Ends with Demo Day presentation to investors. Creates shared batch learning environment. Distinction from incubator: accelerators focus on speed/growth, incubators on nurturing.",
+      "Demo_Day": "Culminating event of an accelerator program where startups pitch to room of investors, press, and potential partners. YC Demo Day is most prestigious startup event. Creates concentrated investor attention and FOMO-driven urgency. Often leads to oversubscribed seed rounds.",
+      "Incubator": "Organization providing longer-term support (1-3 years) to early-stage startups with workspace, resources, and mentorship. Less structured than accelerators. May or may not take equity. Often university-affiliated. Focus on nurturing rather than rapid scaling. Examples: MIT Deshpande, NASSCOM 10,000 Startups."
+    }
+  },
+  "SWF_Web": {
+    "sources": [
+      "https://en.wikipedia.org/wiki/Temasek_Holdings",
+      "https://en.wikipedia.org/wiki/GIC_(sovereign_wealth_fund)",
+      "https://mergersandinquisitions.com/sovereign-wealth-funds/"
+    ],
+    "terms": {
+      "Sovereign_Wealth_Fund": "State-owned investment fund investing in financial assets on behalf of a nation. Types: (1) Stabilisation funds (smooth commodity revenue), (2) Savings/intergenerational funds, (3) Strategic/development funds. Top SWFs: PIF (Saudi, ~$1.15T), ADIA (Abu Dhabi, ~$1.11T), GIC (Singapore, ~$936B), Temasek (Singapore, ~$320B).",
+      "Temasek": "Singapore state-owned investment company, not a traditional SWF. AUM ~$320B (2024). Invests in financial services, telecom, tech, transport, healthcare. Major LP in Asian VC funds. Direct investments in startups (Grab, Gojek, Paytm, Byju's). Long-term, commercial mandate. Wholly-owned by Singapore Ministry of Finance.",
+      "GIC": "Government of Singapore Investment Corporation. AUM ~$936B. Long-term mandate to preserve and enhance Singapore's foreign reserves above global inflation over 20-year horizon. Invested more than any other SWF into European startups in 2024. Increasing private market exposure. Invests across global asset classes.",
+      "Mubadala": "Abu Dhabi sovereign wealth fund. AUM ~$280B. Most active SWF dealmaker in 2024 ($29B deployed). Focuses on tech, healthcare, renewable energy, financial services. Direct ownership and structured minority positions. Partners with top global PE/VC firms as LP and co-investor.",
+      "PIF": "Public Investment Fund \u2014 Saudi Arabia's SWF and primary vehicle for Vision 2030 economic diversification. AUM ~$1.15T (fastest growing large fund, +34% YoY). Intends to deploy ~$70B annually. Invests in SoftBank Vision Fund, gaming (Embracer, Capcom), sports, real estate, infrastructure."
+    }
+  },
+  "Unicorn_Decacorn_Web": {
+    "sources": [
+      "https://inc42.com/features/indias-unicorn-club-the-comprehensive-list-of-unicorns-in-india/",
+      "https://pitchbook.com/news/articles/unicorn-startups-list-trends",
+      "https://www.cbinsights.com/research-unicorn-companies"
+    ],
+    "terms": {
+      "Unicorn": "Privately held startup valued at $1 billion or more. Coined by Aileen Lee (Cowboy Ventures) in 2013. Global count: ~1,590 unicorns as of Jan 2026. US leads: 853 unicorns (53.6% of global total). India: 118 cumulative unicorns (56 active as of 2026, ranked 3rd globally). India added 6 new unicorns in 2024, 5 in 2025 (Juspay, Netradyne, Porter, Drools, Jumbotail). India's first GenAI unicorn: Krutrim (Bhavish Aggarwal).",
+      "Decacorn": "Startup valued at $10 billion or more. India's first fintech decacorn: PhonePe ($12.6B). Global decacorns include ByteDance, SpaceX, Stripe, Revolut, Databricks. Subset of unicorns representing elite tier.",
+      "India_Unicorn_Stats": "India's 118 cumulative unicorns have collectively raised over $100B in funding. Top sectors: Fintech (24 fintech unicorns), Edtech, Ecommerce, SaaS, Logistics. 2024 additions included Ather Energy (EV), Rapido (mobility), Krutrim (AI). Peak year: 2021 (44 new unicorns in one year during funding boom).",
+      "Anti_Portfolio": "Companies a VC firm declined to invest in that later became highly successful. Famous examples: Bessemer Venture Partners publicly shares their 'anti-portfolio' including Google, Apple, eBay, Facebook, PayPal. Used as a marketing/humility device. Illustrates difficulty of early-stage pattern recognition."
+    }
+  }
+}

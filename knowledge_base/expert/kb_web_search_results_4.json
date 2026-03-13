@@ -1,0 +1,40 @@
+{
+  "ESOP_Governance_Web": {
+    "sources": [
+      "https://carta.com/learn/startups/equity-management/esop/",
+      "https://www.qapita.com/in/blog/basic-guide-to-esops-in-india",
+      "https://naraway.com/Blogs/esop-guide-indian-startups-2026-complete.html",
+      "https://www.airtree.vc/open-source-vc/crafting-your-esop-key-terms-and-best-practice"
+    ],
+    "terms": {
+      "ESOP": "Employee Stock Option Plan \u2014 grants employees the right to purchase company shares at a predetermined exercise price (strike price) after meeting vesting conditions. In India, governed by Companies Act 2013 and SEBI guidelines. Requires board + shareholder approval of ESOP pool.",
+      "ESOP_Pool": "Portion of company equity reserved for current and future employee grants. Typically 10-15% of fully-diluted shares. Created at incorporation or before each funding round. Investors often require ESOP pool expansion (pre-money) before investing, increasing founder dilution.",
+      "Vesting_Schedule": "Timeline over which employees earn the right to exercise options. Standard in India: 4-year vesting with 1-year cliff. Example: 25% vests after year 1 (cliff), then 6.25%/quarter for remaining 3 years. Encourages retention.",
+      "Cliffs": "Minimum continuous service period before any vesting occurs. Standard: 1 year (mandated by Indian regulations). Employee leaving before cliff = all options lapse. Cliff protects company from very early departures with equity.",
+      "Acceleration": "Vesting speedup triggered by specific events. Single Trigger: acceleration on acquisition/IPO alone (rare, founder-friendly). Double Trigger: acceleration if acquired AND employee terminated (more common, balanced). Protects employees from being fired post-acquisition.",
+      "Good_Leaver": "Employee leaving under acceptable circumstances (retirement, redundancy, illness, not a bad leaver). Retains vested options, may retain unvested options at fair value. Typically has standard exercise window (90 days to 12 months) post-departure.",
+      "Bad_Leaver": "Employee terminated for cause (gross misconduct, fraud, breach of contract, competition). Forfeits all unvested options. May be required to sell vested shares at lower of cost or FMV. Protects company from misconduct.",
+      "RSU": "Restricted Stock Unit \u2014 promise to deliver shares (or cash equivalent) upon meeting vesting conditions (time or performance). Simpler than options (no exercise price, no decision needed). More common in late-stage and public companies. Taxed as ordinary income upon vesting in most jurisdictions.",
+      "Phantom_Stock": "Cash-based incentive plan that mimics equity ownership without actual share issuance. Employee receives cash equal to appreciation in company value over period. No dilution, no cap table impact. Common in India where ESOP structuring is complex.",
+      "Stock_Option": "Right but not obligation to purchase company shares at predetermined price (exercise/strike price) within specified period. In-the-money if FMV > strike price. Value = (FMV - Strike Price) \u00d7 Number of Options."
+    }
+  },
+  "DCF_Valuation_Web": {
+    "sources": [
+      "https://corporatefinanceinstitute.com/resources/valuation/dcf-formula-guide/",
+      "https://online.hbs.edu/blog/post/discounted-cash-flow",
+      "https://www.wallstreetprep.com/knowledge/terminal-value/"
+    ],
+    "terms": {
+      "DCF": "Discounted Cash Flow \u2014 valuation method projecting future free cash flows and discounting to present value using WACC as discount rate. DCF = \u03a3 [FCFt / (1+WACC)^t] + Terminal Value / (1+WACC)^n. Intrinsic value approach. Sensitive to assumptions (growth rate, WACC, terminal value).",
+      "Free_Cash_Flow": "FCF = EBIT \u00d7 (1-Tax Rate) + D&A - CapEx - Change in Working Capital. Cash available to all capital providers (debt + equity) after operating expenses and reinvestment. Unlevered FCF (UFCF) used in DCF. Levered FCF subtracts interest payments.",
+      "WACC": "Weighted Average Cost of Capital = (E/V \u00d7 Ke) + (D/V \u00d7 Kd \u00d7 (1-T)). Where E = equity value, D = debt value, V = E+D, Ke = cost of equity (from CAPM), Kd = cost of debt, T = tax rate. Discount rate for DCF. Higher WACC \u2192 lower DCF value.",
+      "CAPM": "Capital Asset Pricing Model: Ke = Rf + \u03b2 \u00d7 (Rm - Rf). Rf = risk-free rate (10Y government bond yield), \u03b2 = beta (systematic risk), (Rm - Rf) = equity risk premium (~5-7% historically). Used to calculate cost of equity for WACC.",
+      "Terminal_Value": "Captures all cash flows beyond explicit forecast period. Two methods: Gordon Growth Model (TV = FCF_n \u00d7 (1+g) / (WACC-g), where g = perpetual growth ~2-3%) or Exit Multiple (TV = EBITDA_n \u00d7 EV/EBITDA multiple). Typically represents 60-80% of total DCF value \u2014 highly sensitive to assumptions.",
+      "Discount_Rate": "Rate used to discount future cash flows to present value. Reflects time value of money and risk. For DCF: typically WACC. For VC investments: opportunity cost/hurdle rate (20-30%+ for early stage). Higher discount rate = lower present value.",
+      "NPV": "Net Present Value = PV of all future cash flows - Initial Investment. Positive NPV = value-creating investment. NPV = \u03a3 [CFt / (1+r)^t] - C0. DCF is the process; NPV is the numeric result. Foundation of investment decision-making.",
+      "IRR": "Internal Rate of Return = discount rate making NPV = 0. \u03a3 [CFt / (1+IRR)^t] = 0. Compare IRR to hurdle rate/WACC: if IRR > WACC \u2192 invest. Advantage: time-adjusts returns. Weakness: multiple IRRs possible, reinvestment rate assumption, can be manipulated by timing distributions.",
+      "EV_EBITDA": "Enterprise Value / EBITDA multiple \u2014 primary valuation multiple for mature businesses. EV = Market Cap + Debt - Cash. Sector benchmarks (2024): Tech: 15-25x, SaaS: 20-40x, Industrials: 8-12x, Consumer: 10-15x. Used as terminal value assumption in DCF. Lower multiple in rising rate environment."
+    }
+  }
+}

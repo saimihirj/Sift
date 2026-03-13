@@ -10,6 +10,12 @@ services:
         value: groq
       - key: VK_DATA_DIR
         value: /var/data/signalx
+      - key: SIGNALX_EXPERT_DATA_DIR
+        value: /app/knowledge_base/expert
+      - key: VK_SESSION_SECRET
+        sync: false
+      - key: VK_COOKIE_SECURE
+        value: "true"
       - key: OLLAMA_BASE_URL
         value: http://127.0.0.1:11434
       - key: GROQ_API_KEY

@@ -1,0 +1,385 @@
+{
+  "Finance_Expanded_Part2": {
+    "Credit_Default_Swap": {
+      "definition": "A Credit Default Swap (CDS) is a bilateral financial derivative contract in which the protection buyer pays periodic premiums (the 'CDS spread') to the protection seller in exchange for compensation if a specified reference entity experiences a defined credit event such as default, bankruptcy, or debt restructuring.",
+      "formula": "CDS Spread (bps) \u2248 (PD \u00d7 LGD) / (1 - PD \u00d7 LGD). Annual premium = Notional \u00d7 CDS Spread. At default: Protection seller pays Notional \u00d7 (1 - Recovery Rate).",
+      "practical_use": "Banks and asset managers hedge credit exposure on bond holdings. Speculative traders take directional views on creditworthiness. CDS indices (CDX, iTraxx) allow portfolio-level hedging.",
+      "why_it_matters": "CDS allow efficient transfer and pricing of credit risk, provide market-implied default probabilities, and enable management of concentrated credit exposures.",
+      "related_terms": [
+        "PD",
+        "LGD",
+        "EAD",
+        "CDS",
+        "Bond_Yield"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/c/creditdefaultswap.asp",
+        "https://www.bis.org"
+      ]
+    },
+    "Portfolio_Duration": {
+      "definition": "Weighted average time (in years) until a bond portfolio's cash flows are received, measuring sensitivity to interest rate changes.",
+      "formula": "Portfolio Duration = \u03a3 (w_i \u00d7 D_i), where w_i = market value weight and D_i = modified duration. DV01 = Portfolio Duration \u00d7 Portfolio Value \u00d7 0.0001.",
+      "practical_use": "Fixed income managers use duration to measure and manage interest rate risk. A portfolio with duration 5 loses ~5% for a 1% upward yield shift. Pension funds use duration matching (immunization).",
+      "why_it_matters": "Primary measure of interest rate sensitivity for fixed income portfolios. Essential for risk control, regulatory compliance, and performance attribution.",
+      "related_terms": [
+        "Duration",
+        "Convexity",
+        "Yield_Curve",
+        "Bond_Yield"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/d/duration.asp"
+      ]
+    },
+    "Value_at_Risk": {
+      "definition": "Statistical measure estimating the maximum potential loss of a portfolio over a specified time horizon at a given confidence level (e.g., 99% 1-day VaR = 1% probability losses exceed VaR on any given day).",
+      "formula": "VaR(\u03b1,T) = -\u03bc_T + z_\u03b1 \u00d7 \u03c3_T. Parametric VaR = Portfolio Value \u00d7 z_\u03b1 \u00d7 \u03c3. Scaling: \u03c3_T = \u03c3_daily \u00d7 \u221aT.",
+      "practical_use": "Banks use VaR for internal risk measurement and Basel regulatory capital. Common methods: Historical Simulation, Parametric, Monte Carlo.",
+      "why_it_matters": "Provides a single risk number enabling organization-wide communication. Embedded in Basel II/III market risk frameworks. Known limitation: does not capture losses beyond confidence threshold.",
+      "related_terms": [
+        "Expected_Shortfall",
+        "CVaR",
+        "Monte_Carlo",
+        "Basel_III",
+        "GARCH"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/v/var.asp",
+        "https://www.bis.org/bcbs/publ/d352.pdf"
+      ]
+    },
+    "VaR": {
+      "definition": "Abbreviation for Value at Risk. The threshold loss value such that the probability of portfolio loss exceeding VaR over a given horizon equals (1 - confidence level).",
+      "formula": "VaR(\u03b1) = inf{l \u2208 R : P(L > l) \u2264 1 - \u03b1}. Normal returns: VaR = \u03bc + z_\u03b1 \u00d7 \u03c3.",
+      "practical_use": "Industry-standard risk metric. Banks report VaR in financial disclosures. Risk limits set in VaR terms.",
+      "why_it_matters": "De facto standard risk metric across global financial institutions. Foundational to market risk capital requirements under Basel II/III/IV.",
+      "related_terms": [
+        "Value_at_Risk",
+        "Expected_Shortfall",
+        "CVaR",
+        "Basel_III"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/v/var.asp"
+      ]
+    },
+    "Expected_Shortfall": {
+      "definition": "Expected Shortfall (ES), also CVaR or Expected Tail Loss \u2014 the expected value of losses given that losses exceed the VaR threshold. Measures the average loss in the worst (1-\u03b1)% of scenarios.",
+      "formula": "ES(\u03b1) = E[L | L > VaR(\u03b1)] = (1/(1-\u03b1)) \u00d7 \u222b_\u03b1^1 VaR(u) du. Normal: ES = \u03bc + \u03c3 \u00d7 \u03c6(z_\u03b1)/(1-\u03b1).",
+      "practical_use": "Basel III FRTB replaced VaR with ES at 97.5% confidence for internal models. Used for tail risk understanding and portfolio optimization minimizing ES.",
+      "why_it_matters": "Coherent risk measure (unlike VaR). Provides fuller picture of tail risk and is now the regulatory standard under FRTB/Basel IV.",
+      "related_terms": [
+        "VaR",
+        "CVaR",
+        "Basel_III",
+        "Monte_Carlo"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/e/expected-shortfall.asp",
+        "https://www.bis.org/bcbs/publ/d457.pdf"
+      ]
+    },
+    "CVaR": {
+      "definition": "Conditional Value at Risk \u2014 synonymous with Expected Shortfall. Expected loss conditional on losses exceeding the VaR level.",
+      "formula": "CVaR(\u03b1) = E[L | L \u2265 VaR_\u03b1] = (1/(1-\u03b1)) \u00d7 \u222b_{VaR_\u03b1}^\u221e x f(x) dx.",
+      "practical_use": "Portfolio optimization via CVaR minimization (linear programming). Regulatory capital under FRTB. Preferred over VaR for capturing severity of extreme losses.",
+      "why_it_matters": "Addresses VaR's key weakness \u2014 quantifies how bad losses can get beyond VaR threshold. Coherent risk measure making it theoretically superior for aggregation.",
+      "related_terms": [
+        "Expected_Shortfall",
+        "VaR",
+        "Basel_III",
+        "Stress_Testing"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/e/expected-shortfall.asp"
+      ]
+    },
+    "Stress_Testing": {
+      "definition": "Risk management technique evaluating a portfolio or institution's resilience under extreme but plausible adverse scenarios including macroeconomic shocks, market crashes, or historical crisis replays.",
+      "formula": "Stress Loss = \u03a3_i (\u0394value_i under stress scenario). For bonds: -Duration \u00d7 \u0394Yield \u00d7 Value + \u00bd \u00d7 Convexity \u00d7 (\u0394Yield)\u00b2 \u00d7 Value.",
+      "practical_use": "Banks run regulatory stress tests (Fed DFAST/CCAR, ECB stress tests) annually. Internal stress testing informs risk appetite, capital planning, contingency funding.",
+      "why_it_matters": "Complements VaR by addressing scenarios outside normal distributions. Identifies tail risks and is a core pillar of Basel III and Dodd-Frank supervisory oversight.",
+      "related_terms": [
+        "VaR",
+        "Expected_Shortfall",
+        "Basel_III",
+        "Monte_Carlo",
+        "Scenario_Analysis"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/s/stresstesting.asp",
+        "https://www.federalreserve.gov"
+      ]
+    },
+    "Monte_Carlo": {
+      "definition": "Computational technique using repeated random sampling from probability distributions to model financial variable behavior and estimate portfolio values, option prices, or risk metrics.",
+      "formula": "Asset price (GBM): S(t+\u0394t) = S(t) \u00d7 exp[(\u03bc-\u03c3\u00b2/2)\u0394t + \u03c3\u221a\u0394t \u00d7 Z], Z~N(0,1). Option price = e^(-rT) \u00d7 E[max(S_T-K, 0)] averaged across simulated paths.",
+      "practical_use": "Pricing path-dependent derivatives, VaR for complex portfolios, CCR simulation, pension liability modeling. Quasi-Monte Carlo (Sobol sequences) improves convergence.",
+      "why_it_matters": "Most flexible risk and pricing tool, handling complex instruments and non-normal distributions. Indispensable for CVA/DVA, XVA desks, and regulatory capital modeling.",
+      "related_terms": [
+        "VaR",
+        "Expected_Shortfall",
+        "Black_Scholes",
+        "Stress_Testing"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/m/montecarlosimulation.asp"
+      ]
+    },
+    "Black_Scholes": {
+      "definition": "Mathematical model (BSM) for pricing European-style options assuming the underlying follows Geometric Brownian Motion with constant volatility and risk-free rate.",
+      "formula": "C = S\u2080N(d\u2081) - Ke^(-rT)N(d\u2082). P = Ke^(-rT)N(-d\u2082) - S\u2080N(-d\u2081). d\u2081 = [ln(S\u2080/K) + (r+\u03c3\u00b2/2)T]/(\u03c3\u221aT), d\u2082 = d\u2081 - \u03c3\u221aT.",
+      "practical_use": "Universal baseline for option pricing and Greeks calculation. Market makers quote options via implied volatility derived by inverting BSM.",
+      "why_it_matters": "Revolutionized derivatives markets with tractable arbitrage-free pricing. Underpins modern options markets and risk management. 1997 Nobel Prize in Economics.",
+      "related_terms": [
+        "Implied_Volatility",
+        "Greeks_Delta_Gamma_Vega_Theta_Rho",
+        "Binomial_Tree",
+        "Monte_Carlo"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/b/blackscholes.asp"
+      ]
+    },
+    "Binomial_Tree": {
+      "definition": "Discrete-time option pricing model (CRR) representing asset price evolution as a recombining lattice of up/down moves, enabling backward induction to price options including American-style.",
+      "formula": "u = e^(\u03c3\u221a\u0394t), d = 1/u. Risk-neutral p = (e^(r\u0394t)-d)/(u-d). V_node = e^(-r\u0394t)[p\u00d7V_up + (1-p)\u00d7V_down]. American: compare with early exercise at each node.",
+      "practical_use": "Prices American options, employee stock options, convertible bonds, dividend-paying stocks. As steps N\u2192\u221e, converges to Black-Scholes.",
+      "why_it_matters": "Most intuitive and flexible discrete option pricing model. Handles early exercise, discrete dividends, varying volatility. Foundational pedagogical tool.",
+      "related_terms": [
+        "Black_Scholes",
+        "Monte_Carlo",
+        "Implied_Volatility",
+        "Options"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/b/binomial_tree.asp"
+      ]
+    },
+    "Greeks_Delta_Gamma_Vega_Theta_Rho": {
+      "definition": "Sensitivity measures quantifying how an option's price changes with respect to various parameters: Delta (underlying price), Gamma (rate of Delta change), Vega (volatility), Theta (time decay), Rho (interest rate).",
+      "formula": "\u0394 = N(d\u2081) for call. \u0393 = N'(d\u2081)/(S\u2080\u03c3\u221aT). \u03bd = S\u2080N'(d\u2081)\u221aT. \u0398 = -[S\u2080N'(d\u2081)\u03c3/(2\u221aT)] - rKe^(-rT)N(d\u2082) for call. \u03c1 = KTe^(-rT)N(d\u2082) for call.",
+      "practical_use": "Delta-hedging neutralizes directional exposure; Gamma describes hedging frequency; Vega hedging neutralizes vol exposure; Theta drives time-decay P&L; Rho matters for long-dated options.",
+      "why_it_matters": "Fundamental language of options risk management. Drive dynamic hedging, volatility trading, and income strategies. Essential for structuring and risk-managing any options portfolio.",
+      "related_terms": [
+        "Black_Scholes",
+        "Implied_Volatility",
+        "Options",
+        "Hedging"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/g/greeks.asp"
+      ]
+    },
+    "Implied_Volatility": {
+      "definition": "The volatility value that, when input into an option pricing model (BSM), produces the option's current market price. Represents the market's consensus expectation of future underlying volatility.",
+      "formula": "Derived by numerically inverting BSM: Market Price = BSM(S,K,r,T,\u03c3_IV) \u2192 solve for \u03c3_IV. Newton-Raphson: \u03c3_{n+1} = \u03c3_n - [BSM(\u03c3_n)-Market Price]/Vega(\u03c3_n).",
+      "practical_use": "Traders buy options if IV < expected realized vol, sell if IV > expected. VIX is 30-day S&P 500 IV. IV skew reflects demand for downside protection.",
+      "why_it_matters": "Most important input in options pricing and a key market signal. Provides forward-looking uncertainty measure, drives premiums, used for cross-asset risk comparison.",
+      "related_terms": [
+        "Black_Scholes",
+        "Historical_Vol",
+        "GARCH",
+        "Greeks_Delta_Gamma_Vega_Theta_Rho"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/i/iv.asp"
+      ]
+    },
+    "Historical_Vol": {
+      "definition": "Realized or Statistical Volatility \u2014 the annualized standard deviation of an asset's past log returns over a specified lookback window (20-day, 60-day, 252-day).",
+      "formula": "r_t = ln(P_t/P_{t-1}). s\u00b2 = [1/(N-1)]\u03a3(r_t-r\u0304)\u00b2. Annualized HV = s \u00d7 \u221a252.",
+      "practical_use": "Input to option pricing models, VaR systems, GARCH calibration. Traders compare HV to IV to identify mis-priced options.",
+      "why_it_matters": "Empirical foundation for risk estimation and options pricing. HV vs IV comparison reveals volatility risk premium and drives volatility trading strategies.",
+      "related_terms": [
+        "Implied_Volatility",
+        "GARCH",
+        "EWMA",
+        "VaR"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/h/historicalvolatility.asp"
+      ]
+    },
+    "GARCH": {
+      "definition": "Generalized Autoregressive Conditional Heteroskedasticity \u2014 time-series volatility model capturing volatility clustering (large moves followed by large moves).",
+      "formula": "GARCH(1,1): \u03c3\u00b2_t = \u03c9 + \u03b1\u00d7\u03b5\u00b2_{t-1} + \u03b2\u00d7\u03c3\u00b2_{t-1}. \u03b1+\u03b2<1 for stationarity. Long-run variance: \u03c9/(1-\u03b1-\u03b2).",
+      "practical_use": "Industry standard for equity, FX, commodity volatility forecasting. Used for VaR (filtered historical simulation), options pricing, risk management.",
+      "why_it_matters": "Captures volatility clustering and mean reversion \u2014 two key empirical features of financial returns. Outperforms simple historical vol measures for forecasting.",
+      "related_terms": [
+        "EWMA",
+        "Historical_Vol",
+        "Implied_Volatility",
+        "VaR"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/g/garch.asp"
+      ]
+    },
+    "EWMA": {
+      "definition": "Exponentially Weighted Moving Average \u2014 estimates volatility by assigning exponentially declining weights to past observations, giving more weight to recent data. RiskMetrics uses \u03bb=0.94 (daily).",
+      "formula": "\u03c3\u00b2_t = \u03bb\u00d7\u03c3\u00b2_{t-1} + (1-\u03bb)\u00d7r\u00b2_{t-1}. Effective lookback \u2248 1/(1-\u03bb). For \u03bb=0.94: ~16.7 days.",
+      "practical_use": "VaR systems, risk engines, covariance matrix estimation. Simpler than GARCH but captures volatility clustering. Foundation of RiskMetrics methodology.",
+      "why_it_matters": "Computationally efficient, intuitive approach to time-varying volatility. Standardized in RiskMetrics Technical Document (1994), adopted by major financial institutions.",
+      "related_terms": [
+        "GARCH",
+        "Historical_Vol",
+        "VaR",
+        "Volatility"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/e/ewma.asp"
+      ]
+    },
+    "Basel_III": {
+      "definition": "Third iteration of Basel Accords \u2014 international bank regulatory framework post-2008 crisis strengthening capital requirements, introducing leverage ratios, and liquidity standards (LCR, NSFR).",
+      "formula": "CAR = Total Capital/RWA \u2265 8%. CET1 Ratio = CET1/RWA \u2265 4.5%. Tier1 Ratio \u2265 6%. Leverage Ratio = Tier1/Total Exposure \u2265 3%. LCR \u2265 100%. NSFR \u2265 100%.",
+      "practical_use": "Implemented globally (EU CRR/CRD IV, US rules). Banks must maintain minimum ratios at all times. Includes conservation buffer (2.5% CET1), countercyclical buffer (0-2.5%), G-SIB surcharges.",
+      "why_it_matters": "Fundamentally reshaped global banking by increasing capital quantity/quality, reducing leverage, improving liquidity. Designed to prevent recurrence of 2008 crisis.",
+      "related_terms": [
+        "CET1",
+        "Tier1_Capital",
+        "RWA",
+        "LGD",
+        "EAD",
+        "PD"
+      ],
+      "sources": [
+        "https://www.bis.org/bcbs/basel3.htm",
+        "https://www.investopedia.com/terms/b/basell-iii.asp"
+      ]
+    },
+    "CET1": {
+      "definition": "Common Equity Tier 1 \u2014 highest quality bank regulatory capital comprising common shares, retained earnings, and other comprehensive income, net of regulatory deductions.",
+      "formula": "CET1 = Common shares + Share premium + Retained earnings + AOCI - Regulatory deductions. CET1 Ratio = CET1/RWA. Effective minimum: 7.0% (4.5% + 2.5% conservation buffer).",
+      "practical_use": "Banks manage CET1 through retained earnings, equity issuance, dividend policies, share buybacks, RWA optimization. Stress tests assess CET1 under adverse scenarios.",
+      "why_it_matters": "Ultimate measure of bank financial strength, first line of defense against losses. Most scrutinized metric by regulators, investors, and rating agencies.",
+      "related_terms": [
+        "Tier1_Capital",
+        "Basel_III",
+        "RWA",
+        "Stress_Testing"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/c/common-equity-tier-1-cet1.asp"
+      ]
+    },
+    "Tier1_Capital": {
+      "definition": "Core regulatory capital comprising CET1 plus Additional Tier 1 (AT1) instruments \u2014 perpetual subordinated instruments (CoCos) that absorb losses on a going-concern basis.",
+      "formula": "Tier1 = CET1 + AT1. AT1: perpetual non-cumulative instruments converting to equity or written down when CET1 < 5.125% trigger. Tier1 Ratio = Tier1/RWA \u2265 6%.",
+      "practical_use": "AT1 (CoCos) issued by banks to supplement CET1 at lower cost than equity. Credit Suisse AT1 bonds (CHF 16bn) written to zero in 2023 UBS acquisition.",
+      "why_it_matters": "Determines bank going-concern loss absorption capacity. Tier1 ratio is key metric for regulatory approval of dividends, buybacks, and acquisitions.",
+      "related_terms": [
+        "CET1",
+        "Basel_III",
+        "RWA",
+        "AT1"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/t/tier1capital.asp"
+      ]
+    },
+    "RWA": {
+      "definition": "Risk-Weighted Assets \u2014 denominator of bank capital ratios. Each asset assigned a risk weight reflecting credit, market, and operational risk; RWA = sum of assets \u00d7 risk weights.",
+      "formula": "RWA = \u03a3 (Asset_i \u00d7 Risk_Weight_i). Total RWA = Credit + Market + Operational Risk RWA. Standardized weights: sovereigns 0%, OECD banks 20%, corporate 100%, equity 100-250%.",
+      "practical_use": "RWA optimization via securitization, CDS hedging, loan sales, IRB models reduces required capital and improves ROE. Regulators monitor RWA density for model gaming.",
+      "why_it_matters": "Cornerstone of risk-based capital adequacy. Ensures banks hold more capital against riskier assets. Determines capital requirements, profitability, and lending capacity.",
+      "related_terms": [
+        "Basel_III",
+        "CET1",
+        "Tier1_Capital",
+        "IRB_Approach",
+        "PD",
+        "LGD",
+        "EAD"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/r/risk-weighted-assets.asp"
+      ]
+    },
+    "LGD": {
+      "definition": "Loss Given Default \u2014 fraction of an exposure a lender expects to lose if a borrower defaults, after recoveries through collateral, guarantees, and workout. LGD = 1 - Recovery Rate.",
+      "formula": "LGD = (EAD - Recovery)/EAD. Expected Loss = PD \u00d7 LGD \u00d7 EAD. IRB Capital: K = LGD \u00d7 N[(N\u207b\u00b9(PD)+\u221a\u03c1\u00d7N\u207b\u00b9(0.999))/\u221a(1-\u03c1)] - PD\u00d7LGD.",
+      "practical_use": "Banks estimate LGD using historical workout data by collateral type, seniority, geography. Secured: 10-30%; unsecured corporate: 40-60%; subordinated: 60-80%.",
+      "why_it_matters": "One of three fundamental credit risk parameters (PD, LGD, EAD) determining expected loss and regulatory capital. Critical for loan pricing, IFRS 9 provisioning, and Basel IRB.",
+      "related_terms": [
+        "PD",
+        "EAD",
+        "IRB_Approach",
+        "Basel_III",
+        "Credit_Risk"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/l/lossgivendefault.asp"
+      ]
+    },
+    "EAD": {
+      "definition": "Exposure at Default \u2014 total value of a bank's exposure to a borrower at the time of default. For on-balance-sheet: outstanding balance. For off-balance-sheet: drawn + CCF \u00d7 undrawn commitment.",
+      "formula": "EAD = Drawn + CCF \u00d7 Undrawn Commitment. CCF (e.g., 75% for revolvers). For derivatives: EAD = MTM + PFE. EL = PD \u00d7 LGD \u00d7 EAD.",
+      "practical_use": "Critical for revolving credit facilities where borrowers draw more before default. Drives CVA calculations for derivatives. Basel IRB Advanced banks estimate own CCFs.",
+      "why_it_matters": "Exposure base for expected loss, regulatory capital, and credit risk pricing. Underestimating EAD for off-balance-sheet commitments causes systematic undercapitalization.",
+      "related_terms": [
+        "PD",
+        "LGD",
+        "IRB_Approach",
+        "Basel_III",
+        "CVA"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/e/exposure_at_default.asp"
+      ]
+    },
+    "PD": {
+      "definition": "Probability of Default \u2014 likelihood a borrower will fail to meet debt obligations over a specified horizon (typically 1 year). Fundamental credit risk parameter.",
+      "formula": "Merton model: PD = N(-DD), DD = [ln(V/F)+(\u03bc-\u03c3\u00b2/2)T]/(\u03c3\u221aT). Market-implied: PD \u2248 CDS Spread/LGD. EL = PD \u00d7 LGD \u00d7 EAD.",
+      "practical_use": "Banks assign PDs via internal rating models. Used for loan pricing (spread = PD\u00d7LGD), IFRS 9 ECL provisioning, regulatory capital, portfolio credit risk management.",
+      "why_it_matters": "Starting point for all credit risk analysis. Drives loan pricing, provisioning, capital requirements. With LGD and EAD, forms the complete expected loss framework.",
+      "related_terms": [
+        "LGD",
+        "EAD",
+        "IRB_Approach",
+        "Credit_Default_Swap",
+        "Basel_III"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/d/defaultprobability.asp"
+      ]
+    },
+    "IRB_Approach": {
+      "definition": "Internal Ratings-Based Approach \u2014 Basel framework allowing banks to use internally estimated credit risk parameters (PD, LGD, EAD, M) to calculate RWA, subject to regulatory approval. Foundation IRB (PD only) and Advanced IRB (all parameters).",
+      "formula": "K = {LGD\u00d7N[(N\u207b\u00b9(PD)/\u221a(1-R)) + \u221a(R/(1-R))\u00d7N\u207b\u00b9(0.999)] - PD\u00d7LGD} \u00d7 maturity_adjustment. RWA = 12.5 \u00d7 K \u00d7 EAD.",
+      "practical_use": "Large internationally-active banks apply A-IRB to reduce capital vs. Standardized Approach. Requires extensive validation, 5-7 years historical data. Basel IV introduces 72.5% output floor.",
+      "why_it_matters": "Aligns regulatory capital with actual economic risk. Incentivizes superior credit risk measurement but introduces model risk, motivating the Basel IV output floor.",
+      "related_terms": [
+        "Standardized_Approach",
+        "PD",
+        "LGD",
+        "EAD",
+        "RWA",
+        "Basel_III"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/i/internal-ratings-based-irb-approach.asp",
+        "https://www.bis.org/bcbs/publ/d424.pdf"
+      ]
+    },
+    "Standardized_Approach": {
+      "definition": "Basel framework for credit and operational risk capital calculation using regulator-prescribed risk weights based on asset class and external credit ratings (ECAI ratings from Moody's, S&P, Fitch).",
+      "formula": "RWA = \u03a3 (Exposure_i \u00d7 Risk_Weight_i). Examples: Cash/AAA-AA sovereigns 0%, OECD banks 20%, residential mortgages (LTV\u226450%) 20%, unrated corporate 100%, equity 100-250%.",
+      "practical_use": "Used by smaller/mid-sized banks globally and as regulatory floor for IRB banks (output floor = 72.5% SA RWA under Basel IV, effective EU Jan 2025).",
+      "why_it_matters": "Provides consistent, transparent, comparable capital floor across global banking. Reduces model risk and ensures minimum capital even for sophisticated IRB banks.",
+      "related_terms": [
+        "IRB_Approach",
+        "RWA",
+        "Basel_III",
+        "CET1",
+        "PD"
+      ],
+      "sources": [
+        "https://www.investopedia.com/terms/s/standardized-approach.asp",
+        "https://www.bis.org/bcbs/publ/d424.pdf"
+      ]
+    }
+  }
+}

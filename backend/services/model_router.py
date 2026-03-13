@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, AsyncIterator
 
 import httpx
@@ -13,6 +15,46 @@ import httpx
 
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 MODEL_PROVIDER = os.environ.get("VK_MODEL_PROVIDER", "auto").lower()
+CONTINUE_PROMPT = (
+    "Continue exactly from where you stopped. Do not restart, summarize, apologize, or repeat headings already covered. "
+    "Resume with the unfinished point and finish the answer cleanly."
+)
+VISION_MODEL_HINTS = (
+    "qwen2.5vl",
+    "qwen2.5-vl",
+    "qwen-vl",
+    "gemma3",
+    "llava",
+    "bakllava",
+    "moondream",
+    "gpt-4o",
+    "gpt-4.1",
+    "o4-mini",
+    "claude-3",
+    "claude-3.5",
+    "claude-3.7",
+    "gemini",
+    "pixtral",
+    "vision",
+)
+PROVIDER_VISION_SUPPORT = {
+    "ollama": True,
+    "groq": True,
+    "cerebras": False,
+    "openai": True,
+    "openrouter": True,
+    "anthropic": True,
+    "gemini": True,
+}
+RECOMMENDED_DECK_MODELS = {
+    "ollama": "qwen2.5vl:7b",
+    "groq": "",
+    "cerebras": "",
+    "openai": "gpt-4o",
+    "openrouter": "anthropic/claude-3.5-sonnet",
+    "anthropic": "claude-3-7-sonnet-latest",
+    "gemini": "gemini-1.5-pro",
+}
 
 
 def _env_float(name: str, default: float) -> float:
@@ -56,16 +98,6 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         default_balanced_model=os.environ.get("OLLAMA_MODEL_BALANCED", "qwen3:8b"),
         requires_api_key=False,
     ),
-    "cerebras": ProviderConfig(
-        key="cerebras",
-        label="Cerebras",
-        api_style="openai",
-        base_url=os.environ.get("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1"),
-        env_api_key_var="CEREBRAS_API_KEY",
-        default_speed_model=os.environ.get("CEREBRAS_MODEL_SPEED", "llama3.1-8b"),
-        default_balanced_model=os.environ.get("CEREBRAS_MODEL_BALANCED", "gpt-oss-120b"),
-        requires_api_key=True,
-    ),
     "groq": ProviderConfig(
         key="groq",
         label="Groq",
@@ -74,6 +106,16 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         env_api_key_var="GROQ_API_KEY",
         default_speed_model=os.environ.get("GROQ_MODEL_SPEED", "llama-3.1-8b-instant"),
         default_balanced_model=os.environ.get("GROQ_MODEL_BALANCED", "llama-3.3-70b-versatile"),
+        requires_api_key=True,
+    ),
+    "cerebras": ProviderConfig(
+        key="cerebras",
+        label="Cerebras",
+        api_style="openai",
+        base_url=os.environ.get("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1"),
+        env_api_key_var="CEREBRAS_API_KEY",
+        default_speed_model=os.environ.get("CEREBRAS_MODEL_SPEED", "llama3.1-8b"),
+        default_balanced_model=os.environ.get("CEREBRAS_MODEL_BALANCED", "gpt-oss-120b"),
         requires_api_key=True,
     ),
     "openai": ProviderConfig(
@@ -129,7 +171,7 @@ OLLAMA_MODEL_PROFILES = {
             "temperature": 0.72,
             "top_p": 0.9,
             "repeat_penalty": 1.06,
-            "num_predict": 150,
+            "num_predict": 220,
         },
     ),
     "balanced": ModelProfileConfig(
@@ -141,7 +183,7 @@ OLLAMA_MODEL_PROFILES = {
             "temperature": 0.74,
             "top_p": 0.9,
             "repeat_penalty": 1.05,
-            "num_predict": 220,
+            "num_predict": 420,
         },
     ),
 }
@@ -154,7 +196,7 @@ GROQ_MODEL_PROFILES = {
         options={
             "temperature": 0.7,
             "top_p": 0.9,
-            "max_tokens": 120,
+            "max_tokens": 320,
         },
     ),
     "balanced": ModelProfileConfig(
@@ -164,7 +206,7 @@ GROQ_MODEL_PROFILES = {
         options={
             "temperature": 0.7,
             "top_p": 0.9,
-            "max_tokens": 160,
+            "max_tokens": 720,
         },
     ),
 }
@@ -190,6 +232,8 @@ def provider_catalog() -> list[dict[str, Any]]:
                 "requiresApiKey": provider.requires_api_key,
                 "defaultSpeedModel": provider.default_speed_model,
                 "defaultBalancedModel": provider.default_balanced_model,
+                "supportsVisionModels": PROVIDER_VISION_SUPPORT.get(provider.key, False),
+                "recommendedDeckModel": RECOMMENDED_DECK_MODELS.get(provider.key, ""),
             }
         )
     return catalog
@@ -202,6 +246,41 @@ def provider_requires_api_key(provider: str) -> bool:
 def default_model_for_provider(provider: str, response_profile: str = "speed") -> str:
     config = PROVIDER_CONFIGS[normalize_provider(provider)]
     return config.default_balanced_model if normalize_profile(response_profile) == "balanced" else config.default_speed_model
+
+
+def recommended_deck_model_for_provider(provider: str) -> str:
+    return RECOMMENDED_DECK_MODELS.get(normalize_provider(provider), "")
+
+
+def model_supports_vision(provider: str, model: str) -> bool:
+    normalized_provider = normalize_provider(provider)
+    if not PROVIDER_VISION_SUPPORT.get(normalized_provider, False):
+        return False
+    lowered = (model or "").strip().lower()
+    if not lowered:
+        lowered = default_model_for_provider(normalized_provider, "balanced").lower()
+    return any(hint in lowered for hint in VISION_MODEL_HINTS)
+
+
+def _with_config_overrides(
+    config: ModelProfileConfig,
+    *,
+    max_tokens_override: int | None = None,
+    timeout_seconds_override: float | None = None,
+) -> ModelProfileConfig:
+    options = dict(config.options)
+    if max_tokens_override and max_tokens_override > 0:
+        if "num_predict" in options:
+            options["num_predict"] = int(max_tokens_override)
+        else:
+            options["max_tokens"] = int(max_tokens_override)
+    timeout_seconds = float(timeout_seconds_override) if timeout_seconds_override and timeout_seconds_override > 0 else config.timeout_seconds
+    return ModelProfileConfig(
+        key=config.key,
+        model=config.model,
+        timeout_seconds=timeout_seconds,
+        options=options,
+    )
 
 
 def _profile_config_for_provider(
@@ -220,15 +299,15 @@ def _profile_config_for_provider(
             "temperature": 0.72 if profile == "speed" else 0.74,
             "top_p": 0.9,
             "repeat_penalty": 1.06 if profile == "speed" else 1.05,
-            "num_predict": 150 if profile == "speed" else 220,
+            "num_predict": 220 if profile == "speed" else 420,
         }
         return ModelProfileConfig(key=profile, model=chosen_model, timeout_seconds=timeout_seconds, options=options)
 
-    timeout_seconds = 18.0 if profile == "speed" else 22.0
+    timeout_seconds = 28.0 if profile == "speed" else 42.0
     options = {
         "temperature": 0.7,
         "top_p": 0.9,
-        "max_tokens": 120 if profile == "speed" else 160,
+        "max_tokens": 320 if profile == "speed" else 720,
     }
     return ModelProfileConfig(key=profile, model=chosen_model, timeout_seconds=timeout_seconds, options=options)
 
@@ -254,6 +333,22 @@ def active_provider() -> str:
 
 def _merge_messages(system: str, messages: list[dict[str, Any]]) -> list[dict[str, str]]:
     return [{"role": "system", "content": system}, *messages]
+
+
+def _read_image_data_uri(image_path: str) -> str:
+    path = Path(image_path)
+    suffix = path.suffix.lower()
+    mime = "image/jpeg" if suffix in {".jpg", ".jpeg"} else "image/png"
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime};base64,{encoded}"
+
+
+def _read_image_bytes(image_path: str) -> tuple[str, str]:
+    path = Path(image_path)
+    suffix = path.suffix.lower()
+    media_type = "image/jpeg" if suffix in {".jpg", ".jpeg"} else "image/png"
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return media_type, encoded
 
 
 def _ollama_payload(system: str, messages: list[dict[str, Any]], config: ModelProfileConfig, stream: bool) -> dict[str, Any]:
@@ -284,6 +379,31 @@ def _openai_payload(
     }
 
 
+def _openai_multimodal_payload(
+    model: str,
+    system: str,
+    prompt: str,
+    image_paths: list[str],
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+) -> dict[str, Any]:
+    content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+    for image_path in image_paths:
+        content.append({"type": "image_url", "image_url": {"url": _read_image_data_uri(image_path)}})
+    return {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": content},
+        ],
+        "temperature": temperature,
+        "top_p": top_p,
+        "max_tokens": max_tokens,
+        "stream": False,
+    }
+
+
 def _anthropic_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
     cooked: list[dict[str, Any]] = []
     for message in messages:
@@ -294,6 +414,23 @@ def _anthropic_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             role = "user"
         cooked.append({"role": role, "content": message.get("content", "")})
     return cooked
+
+
+def _anthropic_multimodal_messages(prompt: str, image_paths: list[str]) -> list[dict[str, Any]]:
+    content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
+    for image_path in image_paths:
+        media_type, data = _read_image_bytes(image_path)
+        content.append(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": data,
+                },
+            }
+        )
+    return [{"role": "user", "content": content}]
 
 
 def _gemini_contents(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -309,6 +446,91 @@ def _gemini_contents(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
             }
         )
     return contents
+
+
+def _gemini_multimodal_contents(prompt: str, image_paths: list[str]) -> list[dict[str, Any]]:
+    parts: list[dict[str, Any]] = [{"text": prompt}]
+    for image_path in image_paths:
+        mime, data = _read_image_bytes(image_path)
+        parts.append({"inline_data": {"mime_type": mime, "data": data}})
+    return [{"role": "user", "parts": parts}]
+
+
+def _ollama_multimodal_payload(
+    model: str,
+    system: str,
+    prompt: str,
+    image_paths: list[str],
+    *,
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+    timeout_seconds: float | None = None,
+) -> dict[str, Any]:
+    images = [_read_image_bytes(path)[1] for path in image_paths]
+    options = {
+        "num_ctx": 8192,
+        "temperature": temperature,
+        "top_p": top_p,
+        "repeat_penalty": 1.05,
+        "num_predict": max_tokens,
+    }
+    if timeout_seconds:
+        options["timeout"] = timeout_seconds
+    return {
+        "model": model,
+        "stream": False,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt, "images": images},
+        ],
+        "options": options,
+    }
+
+
+def _normalize_finish_reason(value: Any) -> str:
+    reason = str(value or "").strip().lower()
+    if reason in {"length", "max_tokens", "max_output_tokens"}:
+        return "length"
+    if reason in {"stop", "end_turn", "end_turn_stop", "eos", "done"}:
+        return "stop"
+    if reason in {"tool_use", "tool_calls"}:
+        return "tool"
+    return reason
+
+
+def _needs_continuation(finish_reason: str, message: str) -> bool:
+    if _normalize_finish_reason(finish_reason) == "length":
+        return True
+    tail = (message or "").rstrip()
+    if len(tail) < 80:
+        return False
+    return not tail.endswith((".", "!", "?", "\"", "”", ")", "]"))
+
+
+def _merge_continuation_text(base: str, addition: str) -> tuple[str, str]:
+    left = (base or "").rstrip()
+    right = (addition or "").lstrip()
+    if not left:
+        return right, right
+    if not right:
+        return left, ""
+    max_overlap = min(len(left), len(right), 140)
+    overlap = 0
+    for size in range(max_overlap, 15, -1):
+        if left[-size:] == right[:size]:
+            overlap = size
+            break
+    merged_addition = right[overlap:].lstrip()
+    if not merged_addition or left.endswith((" ", "\n")):
+        separator = ""
+    elif left[-1:].isalnum() and merged_addition[:1].islower():
+        separator = " "
+    else:
+        separator = "\n"
+    merged = f"{left}{separator}{merged_addition}".strip()
+    delta = f"{separator}{merged_addition}" if merged_addition else ""
+    return merged, delta
 
 
 async def _stream_from_ollama(
@@ -349,6 +571,7 @@ async def _stream_from_ollama(
                         "model": config.model,
                         "provider": "ollama",
                         "fallbackUsed": False,
+                        "finishReason": _normalize_finish_reason(data.get("done_reason") or data.get("doneReason") or "stop"),
                         "timings": {
                             "firstTokenSeconds": round(first_token_seconds or total_seconds, 3),
                             "totalSeconds": round(total_seconds, 3),
@@ -382,6 +605,7 @@ async def _stream_from_openai_compatible(
     start = time.perf_counter()
     first_token_seconds = None
     accumulated: list[str] = []
+    finish_reason = ""
     timeout = httpx.Timeout(config.timeout_seconds, connect=3.0, read=config.timeout_seconds)
 
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -401,6 +625,7 @@ async def _stream_from_openai_compatible(
                 if data_blob == "[DONE]":
                     break
                 data = json.loads(data_blob)
+                finish_reason = _normalize_finish_reason(data.get("choices", [{}])[0].get("finish_reason", finish_reason))
                 delta = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
                 if delta:
                     accumulated.append(delta)
@@ -414,6 +639,7 @@ async def _stream_from_openai_compatible(
                 "model": config.model,
                 "provider": provider,
                 "fallbackUsed": False,
+                "finishReason": finish_reason or "stop",
                 "timings": {
                     "firstTokenSeconds": round(first_token_seconds or total_seconds, 3),
                     "totalSeconds": round(total_seconds, 3),
@@ -472,6 +698,7 @@ async def _stream_from_profile(
         "model": result["model"],
         "provider": normalized_provider,
         "fallbackUsed": False,
+        "finishReason": result.get("finishReason", "stop"),
         "timings": result["timings"],
     }
 
@@ -483,26 +710,96 @@ async def stream_chat_completion(
     provider_override: str | None = None,
     model_override: str = "",
     api_key: str | None = None,
+    max_tokens_override: int | None = None,
+    timeout_seconds_override: float | None = None,
+    allow_continuation: bool = True,
+    continuation_limit: int = 1,
 ) -> AsyncIterator[tuple[str, dict[str, Any]]]:
     requested = normalize_profile(response_profile)
     provider = normalize_provider(provider_override or active_provider())
-    primary = _profile_config_for_provider(provider, requested, model_override)
+    primary = _with_config_overrides(
+        _profile_config_for_provider(provider, requested, model_override),
+        max_tokens_override=max_tokens_override,
+        timeout_seconds_override=timeout_seconds_override,
+    )
     allow_fallback = not model_override.strip()
 
     try:
-        async for event, payload in _stream_from_profile(system, messages, primary, provider, api_key):
+        config_used = primary
+        fallback_used = False
+        meta_payload: dict[str, Any] | None = None
+        completion_payload: dict[str, Any] | None = None
+        async for event, payload in _stream_from_profile(system, messages, config_used, provider, api_key):
+            if event == "meta":
+                meta_payload = payload
+                yield event, payload
+                continue
+            if event == "complete":
+                completion_payload = payload
+                continue
             yield event, payload
-        return
     except Exception as exc:
         if requested == "speed" or not allow_fallback:
             raise exc
+        fallback_used = True
+        config_used = _with_config_overrides(
+            _profile_config_for_provider(provider, "speed"),
+            max_tokens_override=max_tokens_override,
+            timeout_seconds_override=timeout_seconds_override,
+        )
+        meta_payload = None
+        completion_payload = None
+        async for event, payload in _stream_from_profile(system, messages, config_used, provider, api_key):
+            if event == "meta":
+                payload["fallbackUsed"] = True
+                payload["requestedProfile"] = requested
+                meta_payload = payload
+                yield event, payload
+                continue
+            if event == "complete":
+                completion_payload = payload
+                continue
+            yield event, payload
 
-    fallback = _profile_config_for_provider(provider, "speed")
-    async for event, payload in _stream_from_profile(system, messages, fallback, provider, api_key):
-        if event in {"meta", "complete"}:
-            payload["fallbackUsed"] = True
-            payload["requestedProfile"] = requested
-        yield event, payload
+    if completion_payload is None:
+        raise RuntimeError("Model did not produce a completion")
+
+    final_message = completion_payload.get("message", "").strip()
+    final_finish_reason = completion_payload.get("finishReason", "stop")
+    continuation_count = 0
+    if allow_continuation:
+        while continuation_count < max(int(continuation_limit), 0) and _needs_continuation(final_finish_reason, final_message):
+            continuation_count += 1
+            continuation = await generate_provider_text(
+                provider=provider,
+                model=config_used.model,
+                system=system,
+                messages=[*messages, {"role": "assistant", "content": final_message}, {"role": "user", "content": CONTINUE_PROMPT}],
+                api_key=api_key,
+                max_tokens=int(config_used.options.get("num_predict", config_used.options.get("max_tokens", 720))),
+                temperature=float(config_used.options.get("temperature", 0.7)),
+                top_p=float(config_used.options.get("top_p", 0.9)),
+                timeout_seconds=float(config_used.timeout_seconds),
+            )
+            continuation_message = continuation.get("message", "").strip()
+            merged_message, delta = _merge_continuation_text(final_message, continuation_message)
+            final_message = merged_message
+            final_finish_reason = continuation.get("finishReason", final_finish_reason)
+            if delta:
+                yield "delta", {"delta": delta, "continuation": True}
+            if not continuation_message.strip():
+                break
+            if _normalize_finish_reason(final_finish_reason) != "length":
+                break
+
+    completion_payload["message"] = final_message
+    completion_payload["finishReason"] = final_finish_reason or "stop"
+    completion_payload["continuedAfterLengthLimit"] = continuation_count > 0
+    completion_payload["continuationCount"] = continuation_count
+    if fallback_used:
+        completion_payload["fallbackUsed"] = True
+        completion_payload["requestedProfile"] = requested
+    yield "complete", completion_payload
 
 
 async def _complete_ollama(
@@ -535,6 +832,7 @@ async def _complete_ollama(
     total_seconds = time.perf_counter() - start
     return {
         "message": data.get("message", {}).get("content", "").strip(),
+        "finishReason": _normalize_finish_reason(data.get("done_reason") or data.get("doneReason") or "stop"),
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
@@ -569,6 +867,7 @@ async def _complete_openai(
     content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
     return {
         "message": (content or "").strip(),
+        "finishReason": _normalize_finish_reason(data.get("choices", [{}])[0].get("finish_reason", "stop")),
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
@@ -610,6 +909,7 @@ async def _complete_anthropic(
             text_parts.append(item.get("text", ""))
     return {
         "message": "".join(text_parts).strip(),
+        "finishReason": _normalize_finish_reason(data.get("stop_reason", "stop")),
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
@@ -652,8 +952,10 @@ async def _complete_gemini(
         for part in candidate.get("content", {}).get("parts", []):
             if part.get("text"):
                 parts.append(part["text"])
+    finish_reason = _normalize_finish_reason((data.get("candidates", [{}]) or [{}])[0].get("finishReason", "stop"))
     return {
         "message": "".join(parts).strip(),
+        "finishReason": finish_reason,
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
@@ -706,6 +1008,245 @@ async def generate_provider_text(
         "message": result["message"],
         "model": chosen_model,
         "provider": normalized_provider,
+        "finishReason": result.get("finishReason", "stop"),
+        "timings": result["timings"],
+    }
+
+
+async def _complete_ollama_multimodal(
+    system: str,
+    prompt: str,
+    image_paths: list[str],
+    model: str,
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    start = time.perf_counter()
+    payload = _ollama_multimodal_payload(
+        model,
+        system,
+        prompt,
+        image_paths,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        timeout_seconds=timeout_seconds,
+    )
+    timeout = httpx.Timeout(timeout_seconds, connect=3.0, read=timeout_seconds)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload)
+        response.raise_for_status()
+        data = response.json()
+    total_seconds = time.perf_counter() - start
+    return {
+        "message": data.get("message", {}).get("content", "").strip(),
+        "finishReason": _normalize_finish_reason(data.get("done_reason") or data.get("doneReason") or "stop"),
+        "timings": {
+            "firstTokenSeconds": round(total_seconds, 3),
+            "totalSeconds": round(total_seconds, 3),
+        },
+    }
+
+
+async def _complete_openai_multimodal(
+    provider: str,
+    system: str,
+    prompt: str,
+    image_paths: list[str],
+    model: str,
+    api_key: str,
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    provider_config = PROVIDER_CONFIGS[normalize_provider(provider)]
+    payload = _openai_multimodal_payload(model, system, prompt, image_paths, max_tokens, temperature, top_p)
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    if provider == "openrouter":
+        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://signalx.local")
+        headers["X-Title"] = "SignalX"
+    timeout = httpx.Timeout(timeout_seconds, connect=3.0, read=timeout_seconds)
+    start = time.perf_counter()
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(f"{provider_config.base_url}/chat/completions", headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+    total_seconds = time.perf_counter() - start
+    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    return {
+        "message": (content or "").strip(),
+        "finishReason": _normalize_finish_reason(data.get("choices", [{}])[0].get("finish_reason", "stop")),
+        "timings": {
+            "firstTokenSeconds": round(total_seconds, 3),
+            "totalSeconds": round(total_seconds, 3),
+        },
+    }
+
+
+async def _complete_anthropic_multimodal(
+    system: str,
+    prompt: str,
+    image_paths: list[str],
+    model: str,
+    api_key: str,
+    max_tokens: int,
+    temperature: float,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    start = time.perf_counter()
+    payload = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "system": system,
+        "messages": _anthropic_multimodal_messages(prompt, image_paths),
+    }
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": os.environ.get("ANTHROPIC_VERSION", "2023-06-01"),
+        "content-type": "application/json",
+    }
+    timeout = httpx.Timeout(timeout_seconds, connect=3.0, read=timeout_seconds)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(f"{PROVIDER_CONFIGS['anthropic'].base_url}/messages", headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+    total_seconds = time.perf_counter() - start
+    text_parts = []
+    for item in data.get("content", []):
+        if item.get("type") == "text":
+            text_parts.append(item.get("text", ""))
+    return {
+        "message": "".join(text_parts).strip(),
+        "finishReason": _normalize_finish_reason(data.get("stop_reason", "stop")),
+        "timings": {
+            "firstTokenSeconds": round(total_seconds, 3),
+            "totalSeconds": round(total_seconds, 3),
+        },
+    }
+
+
+async def _complete_gemini_multimodal(
+    system: str,
+    prompt: str,
+    image_paths: list[str],
+    model: str,
+    api_key: str,
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    start = time.perf_counter()
+    payload = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": _gemini_multimodal_contents(prompt, image_paths),
+        "generationConfig": {
+            "temperature": temperature,
+            "topP": top_p,
+            "maxOutputTokens": max_tokens,
+        },
+    }
+    timeout = httpx.Timeout(timeout_seconds, connect=3.0, read=timeout_seconds)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(
+            f"{PROVIDER_CONFIGS['gemini'].base_url}/models/{model}:generateContent",
+            params={"key": api_key},
+            json=payload,
+        )
+        response.raise_for_status()
+        data = response.json()
+    total_seconds = time.perf_counter() - start
+    parts = []
+    for candidate in data.get("candidates", []):
+        for part in candidate.get("content", {}).get("parts", []):
+            if part.get("text"):
+                parts.append(part["text"])
+    finish_reason = _normalize_finish_reason((data.get("candidates", [{}]) or [{}])[0].get("finishReason", "stop"))
+    return {
+        "message": "".join(parts).strip(),
+        "finishReason": finish_reason,
+        "timings": {
+            "firstTokenSeconds": round(total_seconds, 3),
+            "totalSeconds": round(total_seconds, 3),
+        },
+    }
+
+
+async def generate_provider_multimodal_text(
+    *,
+    provider: str,
+    model: str,
+    system: str,
+    prompt: str,
+    image_paths: list[str],
+    api_key: str | None = None,
+    max_tokens: int = 1600,
+    temperature: float = 0.2,
+    top_p: float = 0.9,
+    timeout_seconds: float = 90.0,
+) -> dict[str, Any]:
+    normalized_provider = normalize_provider(provider)
+    provider_config = PROVIDER_CONFIGS[normalized_provider]
+    chosen_model = model.strip() if model else default_model_for_provider(normalized_provider, "balanced")
+    chosen_api_key = _provider_api_key(normalized_provider, api_key)
+
+    if not model_supports_vision(normalized_provider, chosen_model):
+        raise RuntimeError(f"{provider_config.label} model does not appear to support multimodal review")
+    if provider_config.requires_api_key and not chosen_api_key:
+        raise RuntimeError(f"{provider_config.label} API key is required")
+    if not image_paths:
+        raise RuntimeError("At least one image is required for multimodal review")
+
+    if provider_config.api_style == "ollama":
+        result = await _complete_ollama_multimodal(system, prompt, image_paths, chosen_model, max_tokens, temperature, top_p, timeout_seconds)
+    elif provider_config.api_style == "openai":
+        result = await _complete_openai_multimodal(
+            normalized_provider,
+            system,
+            prompt,
+            image_paths,
+            chosen_model,
+            chosen_api_key,
+            max_tokens,
+            temperature,
+            top_p,
+            timeout_seconds,
+        )
+    elif provider_config.api_style == "anthropic":
+        result = await _complete_anthropic_multimodal(
+            system,
+            prompt,
+            image_paths,
+            chosen_model,
+            chosen_api_key,
+            max_tokens,
+            temperature,
+            timeout_seconds,
+        )
+    elif provider_config.api_style == "gemini":
+        result = await _complete_gemini_multimodal(
+            system,
+            prompt,
+            image_paths,
+            chosen_model,
+            chosen_api_key,
+            max_tokens,
+            temperature,
+            top_p,
+            timeout_seconds,
+        )
+    else:
+        raise RuntimeError(f"Unsupported multimodal provider: {normalized_provider}")
+
+    return {
+        "message": result["message"],
+        "model": chosen_model,
+        "provider": normalized_provider,
+        "finishReason": result.get("finishReason", "stop"),
         "timings": result["timings"],
     }
 

@@ -7,13 +7,15 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
-FounderType = Literal["student", "professional", "founder", "serial", "unknown"]
+FounderType = Literal["student", "operator", "founder", "investor", "professional", "other", "serial", "unknown"]
 Sector = Literal["saas", "d2c", "fintech", "marketplace", "edtech", "healthtech", "deeptech", "unknown"]
 Stage = Literal["idea", "pre-revenue", "early-revenue", "growth", "unknown"]
 Mode = Literal["think_it_through", "quick_stress_test"]
 ResponseProfile = Literal["speed", "balanced"]
-SessionType = Literal["mentor", "evaluator"]
+SessionType = Literal["mentor", "evaluator", "expert"]
 Provider = Literal["ollama", "cerebras", "groq", "openai", "openrouter", "anthropic", "gemini"]
+HelpMode = Literal["coach_me", "challenge_me", "explain_directly"]
+EvaluatorMode = Literal["idea_review", "deck_review"]
 
 
 class ChatTurn(BaseModel):
@@ -27,6 +29,26 @@ class CoverageItem(BaseModel):
     section: str
     score: int
     label: str
+
+
+class SourceCitation(BaseModel):
+    title: str
+    url: str = ""
+    label: str = ""
+    sourceType: str = "kb"
+    geographyScope: str = "global"
+    confidence: str = "medium"
+    domain: str = "general"
+
+
+class ExpertAnalysisSnapshot(BaseModel):
+    strengths: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+    missingEvidence: list[str] = Field(default_factory=list)
+    contradictions: list[str] = Field(default_factory=list)
+    nextQuestions: list[str] = Field(default_factory=list)
+    recommendedNextActions: list[str] = Field(default_factory=list)
+    concepts: list[str] = Field(default_factory=list)
 
 
 class EvaluationQuestion(BaseModel):
@@ -99,13 +121,72 @@ class EvaluationReport(BaseModel):
     nextExperiments: list[str] = Field(default_factory=list)
 
 
+class DeckCoverageItem(BaseModel):
+    section: str
+    status: str
+    note: str = ""
+    refs: list[str] = Field(default_factory=list)
+    evidence: list[str] = Field(default_factory=list)
+    missingItems: list[str] = Field(default_factory=list)
+
+
+class DeckConstraintCheck(BaseModel):
+    key: str
+    label: str
+    status: str
+    note: str = ""
+    refs: list[str] = Field(default_factory=list)
+
+
+class DeckFocusedAssessment(BaseModel):
+    key: str
+    label: str
+    status: str
+    assessment: str = ""
+    refs: list[str] = Field(default_factory=list)
+
+
+class DeckSlideReview(BaseModel):
+    index: int
+    label: str
+    summary: str = ""
+    whatWorks: list[str] = Field(default_factory=list)
+    issues: list[str] = Field(default_factory=list)
+    suggestions: list[str] = Field(default_factory=list)
+    refs: list[str] = Field(default_factory=list)
+
+
+class DeckEvaluationReport(BaseModel):
+    overallScore: float = 0.0
+    confidence: float = 0.0
+    reviewMode: str = "text_transcript"
+    reviewLimitations: list[str] = Field(default_factory=list)
+    verdict: str = ""
+    summary: str = ""
+    whatWorks: list[str] = Field(default_factory=list)
+    weakPoints: list[str] = Field(default_factory=list)
+    unprovenClaims: list[str] = Field(default_factory=list)
+    storyFlow: str = ""
+    templateCoverage: list[DeckCoverageItem] = Field(default_factory=list)
+    constraintChecks: list[DeckConstraintCheck] = Field(default_factory=list)
+    focusedAssessments: list[DeckFocusedAssessment] = Field(default_factory=list)
+    slideReviews: list[DeckSlideReview] = Field(default_factory=list)
+    topFixes: list[str] = Field(default_factory=list)
+    londonWhaleAssessment: str = ""
+    stopReason: str = ""
+
+
 class StartSessionRequest(BaseModel):
     founderType: FounderType = "unknown"
+    userRole: FounderType | None = None
     sector: Sector = "unknown"
     stage: Stage = "unknown"
     mode: Mode = "think_it_through"
     geography: str = "unspecified"
     sessionType: SessionType = "mentor"
+    evaluatorMode: EvaluatorMode = "idea_review"
+    helpMode: HelpMode = "coach_me"
+    liveWebEnabled: bool = False
     questionBudget: int | None = None
     provider: Provider = "ollama"
     model: str = ""
@@ -142,12 +223,23 @@ class SessionResponse(BaseModel):
     nextGap: str
     activeUploads: list[dict[str, Any]] = Field(default_factory=list)
     sessionType: SessionType = "mentor"
+    evaluatorMode: EvaluatorMode = "idea_review"
     provider: str = "ollama"
     model: str = ""
+    supportsVision: bool = False
     questionBudget: int | None = None
     websiteUrl: str = ""
+    sources: list[SourceCitation] = Field(default_factory=list)
+    confidence: float = 0.0
+    knowledgeLane: str = "general"
+    usedLiveWeb: bool = False
+    followUpMode: str = ""
+    helpMode: HelpMode = "coach_me"
+    liveWebEnabled: bool = False
+    analysisSnapshot: ExpertAnalysisSnapshot = Field(default_factory=ExpertAnalysisSnapshot)
     evaluationProgress: EvaluationProgress | None = None
     evaluationReport: EvaluationReport | None = None
+    deckEvaluationReport: DeckEvaluationReport | None = None
 
 
 class StartSessionResponse(BaseModel):
@@ -160,12 +252,23 @@ class StartSessionResponse(BaseModel):
     nextGap: str
     activeUploads: list[dict[str, Any]] = Field(default_factory=list)
     sessionType: SessionType = "mentor"
+    evaluatorMode: EvaluatorMode = "idea_review"
     provider: str = "ollama"
     model: str = ""
+    supportsVision: bool = False
     questionBudget: int | None = None
     websiteUrl: str = ""
+    sources: list[SourceCitation] = Field(default_factory=list)
+    confidence: float = 0.0
+    knowledgeLane: str = "general"
+    usedLiveWeb: bool = False
+    followUpMode: str = ""
+    helpMode: HelpMode = "coach_me"
+    liveWebEnabled: bool = False
+    analysisSnapshot: ExpertAnalysisSnapshot = Field(default_factory=ExpertAnalysisSnapshot)
     evaluationProgress: EvaluationProgress | None = None
     evaluationReport: EvaluationReport | None = None
+    deckEvaluationReport: DeckEvaluationReport | None = None
 
 
 class SessionListResponse(BaseModel):
@@ -181,6 +284,7 @@ class SessionRuntimeResponse(BaseModel):
     sessionId: str
     provider: str = "ollama"
     model: str = ""
+    supportsVision: bool = False
 
 
 class ClearHistoryRequest(BaseModel):
@@ -220,21 +324,27 @@ class EvaluatorAnswerRequest(BaseModel):
 
 class EvaluatorAnswerResponse(BaseModel):
     sessionId: str
+    evaluatorMode: EvaluatorMode = "idea_review"
     evaluationProgress: EvaluationProgress
-    evaluationReport: EvaluationReport
+    evaluationReport: EvaluationReport | None = None
+    deckEvaluationReport: DeckEvaluationReport | None = None
     reciprocal: str
     question: EvaluationQuestion | None = None
     questionLabel: str = ""
     activeUploads: list[dict[str, Any]] = Field(default_factory=list)
     warning: str = ""
+    supportsVision: bool = False
 
 
 class EvaluatorReportResponse(BaseModel):
     sessionId: str
-    evaluationReport: EvaluationReport
+    evaluatorMode: EvaluatorMode = "idea_review"
+    evaluationReport: EvaluationReport | None = None
+    deckEvaluationReport: DeckEvaluationReport | None = None
     evaluationProgress: EvaluationProgress
     provider: str = "ollama"
     model: str = ""
+    supportsVision: bool = False
     websiteUrl: str = ""
 
 

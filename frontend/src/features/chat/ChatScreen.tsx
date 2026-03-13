@@ -387,7 +387,12 @@ export function ChatScreen({
 
         {mobilePane === "chat" ? (
           <div className="chat-panel">
-            <ChatMessageList history={session.history} streamingAssistant={streamingAssistant} assistantLabel="Ideate" />
+            <ChatMessageList
+              history={session.history}
+              streamingAssistant={streamingAssistant}
+              assistantLabel="Ideate"
+              sessionId={session.sessionId}
+            />
             {starterHelper && session.history.length <= 3 ? <div className="prompt-helper">{starterHelper}</div> : null}
             <div className="chip-row">
               {visibleChips.map((chip) => (

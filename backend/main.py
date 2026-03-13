@@ -25,6 +25,7 @@ from backend.api.client import router as client_router
 from backend.api.evaluator import router as evaluator_router
 from backend.api.outline import router as outline_router
 from backend.api.session import router as session_router
+from backend.services.expert_knowledge import expert_card_count, expert_data_dir
 from backend.services.model_router import active_provider
 from backend.services.runtime_state import auto_stop_monitor
 
@@ -64,6 +65,8 @@ async def health() -> dict:
         "app": "SignalX",
         "modelProvider": active_provider(),
         "dataDir": str(memory.DATA_DIR),
+        "expertDataDir": str(expert_data_dir()),
+        "expertCardCount": expert_card_count(),
     }
 
 

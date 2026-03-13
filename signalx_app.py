@@ -15,6 +15,13 @@ from urllib.request import urlopen
 
 import uvicorn
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parent / ".env")
+except ImportError:  # pragma: no cover - optional dependency path
+    pass
+
 
 ROOT = Path(__file__).resolve().parent
 FRONTEND_DIST = ROOT / "frontend" / "dist" / "index.html"
@@ -106,6 +113,14 @@ def cleanup_process(process: subprocess.Popen[str] | None) -> None:
         process.wait(timeout=5)
 
 
+def configure_runtime_defaults(no_ollama: bool) -> None:
+    if not no_ollama:
+        return
+    provider_mode = os.environ.get("VK_MODEL_PROVIDER", "auto").strip().lower()
+    if provider_mode in {"", "auto", "ollama"}:
+        os.environ["VK_MODEL_PROVIDER"] = "groq"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run SignalX as a single local web app.")
     parser.add_argument("--host", default="127.0.0.1")
@@ -118,6 +133,7 @@ def main() -> int:
     parser.add_argument("--admin", action="store_true", help="Open the app directly on /admin.")
     args = parser.parse_args()
 
+    configure_runtime_defaults(args.no_ollama)
     ensure_frontend_built(skip_build=not args.build)
 
     os.environ["VK_AUTO_STOP_SECONDS"] = str(args.idle_timeout)

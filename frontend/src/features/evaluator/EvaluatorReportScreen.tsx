@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import type { EvaluatorReportPayload, ThemeMode } from "../../app/types";
+import type { DeckEvaluationReport, EvaluationReport, EvaluatorReportPayload, ThemeMode } from "../../app/types";
 import { continueEvaluator, getEvaluatorReport } from "../../lib/api/client";
 
 type Props = {
@@ -25,8 +25,8 @@ function joinNumbered(items: string[]): string {
   return items.map((item, index) => `${index + 1}. ${item}`).join("\n");
 }
 
-function formatLensBullet(item: EvaluatorReportPayload["evaluationReport"]["coreLenses"][number]): string {
-  const parts = [`**${item.label} (${item.status})**: ${item.why || "Not available."}`];
+function formatLensBullet(item: EvaluationReport["coreLenses"][number]): string {
+  const parts = [`${item.label} (${item.status}): ${item.why || "Not available."}`];
   if (item.evidence.length > 0) {
     parts.push(`Evidence used: ${item.evidence.join(" | ")}.`);
   }
@@ -36,7 +36,7 @@ function formatLensBullet(item: EvaluatorReportPayload["evaluationReport"]["core
   return parts.join(" ");
 }
 
-function pickLensGroups(report: EvaluatorReportPayload["evaluationReport"]) {
+function pickLensGroups(report: EvaluationReport) {
   const all = [...(report.coreLenses ?? []), ...(report.supportingLenses ?? [])];
   return {
     working: all.filter((item) => item.status === "strong"),
@@ -44,42 +44,18 @@ function pickLensGroups(report: EvaluatorReportPayload["evaluationReport"]) {
   };
 }
 
-function buildQuestionAppendix(questions: EvaluatorReportPayload["evaluationReport"]["questions"]): string {
-  if (!questions.length) {
-    return "## Question Appendix\n\n- No question appendix available.\n";
-  }
-  return [
-    "## Question Appendix",
-    "",
-    ...questions.flatMap((item, index) => {
-      const lines = [
-        `### ${index + 1}. ${item.question}`,
-        `- Category: ${item.category}`,
-        `- Score: ${item.score.toFixed(1)}`,
-        `- Why: ${item.why || "Not available"}`,
-      ];
-      if (item.suggestions.length > 0) {
-        lines.push(`- Suggestions: ${item.suggestions.join(" | ")}`);
-      }
-      lines.push("");
-      return lines;
-    }),
-  ].join("\n");
-}
-
-function buildReportMarkdown(payload: EvaluatorReportPayload): string {
-  const report = payload.evaluationReport;
+function buildIdeaReportMarkdown(payload: EvaluatorReportPayload, report: EvaluationReport): string {
   const groups = pickLensGroups(report);
   return [
     "# SignalX Evaluation Report",
     "",
-    `**Verdict:** ${report.verdict || report.summary || "Not available"}`,
-    `**Success score:** ${report.overallScore.toFixed(1)}`,
-    `**Confidence:** ${report.confidence ? `${report.confidence.toFixed(0)} / 100` : "Pending"}`,
-    `**Questions asked:** ${report.answeredQuestions}`,
-    `**Report type:** ${report.partial ? "Partial assessment" : "Complete assessment"}`,
-    `**Runtime:** ${payload.provider || "ollama"} · ${payload.model || "-"}`,
-    `**Stop reason:** ${report.stopReason || "Not available"}`,
+    `Verdict: ${report.verdict || report.summary || "Not available"}`,
+    `Success score: ${report.overallScore.toFixed(1)}`,
+    `Confidence: ${report.confidence ? `${report.confidence.toFixed(0)} / 100` : "Pending"}`,
+    `Questions asked: ${report.answeredQuestions}`,
+    `Report type: ${report.partial ? "Partial assessment" : "Complete assessment"}`,
+    `Runtime: ${payload.provider || "ollama"} · ${payload.model || "-"}`,
+    `Stop reason: ${report.stopReason || "Not available"}`,
     "",
     "## Plain-English Takeaway",
     "",
@@ -108,9 +84,315 @@ function buildReportMarkdown(payload: EvaluatorReportPayload): string {
     "## Next Experiments",
     "",
     joinBullets(report.nextExperiments ?? []),
-    "",
-    buildQuestionAppendix(report.questions ?? []),
   ].join("\n");
+}
+
+function buildDeckReportMarkdown(payload: EvaluatorReportPayload, report: DeckEvaluationReport): string {
+  return [
+    "# SignalX Deck Review",
+    "",
+    `Verdict: ${report.verdict || "Not available"}`,
+    `Score: ${report.overallScore.toFixed(1)}`,
+    `Confidence: ${report.confidence ? `${report.confidence.toFixed(0)} / 100` : "Pending"}`,
+    `Review mode: ${report.reviewMode}`,
+    `Runtime: ${payload.provider || "ollama"} · ${payload.model || "-"}`,
+    "",
+    "## Summary",
+    "",
+    report.summary || "No summary available.",
+    "",
+    "## What Works",
+    "",
+    joinBullets(report.whatWorks ?? []),
+    "",
+    "## What Feels Weak",
+    "",
+    joinBullets(report.weakPoints ?? []),
+    "",
+    "## Confident Claims Without Proof",
+    "",
+    joinBullets(report.unprovenClaims ?? []),
+    "",
+    "## Top Fixes",
+    "",
+    joinNumbered(report.topFixes ?? []),
+    "",
+    "## Template Coverage",
+    "",
+    ...report.templateCoverage.map((item) =>
+      [
+        `### ${item.section} (${item.status})`,
+        item.note || "No coverage note available.",
+        item.evidence.length ? `Seen:\n${joinBullets(item.evidence)}` : "",
+        item.missingItems.length ? `Still missing:\n${joinBullets(item.missingItems)}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    ),
+  ].join("\n");
+}
+
+function SectionList({ title, items, ordered = false }: { title: string; items: string[]; ordered?: boolean }) {
+  if (!items.length) {
+    return null;
+  }
+  const ListTag = ordered ? "ol" : "ul";
+  return (
+    <section className="report-doc-section">
+      <h3>{title}</h3>
+      <ListTag className={ordered ? "report-doc-bullets ordered" : "report-doc-bullets"}>
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ListTag>
+    </section>
+  );
+}
+
+function IdeaReportBody({ payload, report }: { payload: EvaluatorReportPayload; report: EvaluationReport }) {
+  const lensGroups = pickLensGroups(report);
+  return (
+    <>
+      <div className="report-doc-head">
+        <div className="report-doc-title">
+          <span className="eyebrow">Verdict</span>
+          <h1>{report.verdict || report.summary || "No report available yet."}</h1>
+          <p>{report.summary || report.stopReason || report.why?.[0] || "No summary available."}</p>
+        </div>
+        <div className="report-doc-score">
+          <strong>{report.overallScore.toFixed(1)}</strong>
+          <span>{report.partial ? "Partial assessment" : "Success score"}</span>
+        </div>
+      </div>
+
+      <section className="report-doc-section">
+        <p className="report-doc-lead">{report.summary || report.verdict}</p>
+        <div className="report-doc-summary">
+          <div>
+            <span className="rail-label">Confidence</span>
+            <strong>{report.confidence ? `${report.confidence.toFixed(0)} / 100` : "Pending"}</strong>
+          </div>
+          <div>
+            <span className="rail-label">Questions asked</span>
+            <strong>{report.answeredQuestions}</strong>
+          </div>
+          <div>
+            <span className="rail-label">Runtime</span>
+            <strong>{payload.provider || "ollama"} · {payload.model || "-"}</strong>
+          </div>
+          <div>
+            <span className="rail-label">Stop reason</span>
+            <strong>{report.stopReason || "Not available"}</strong>
+          </div>
+        </div>
+      </section>
+
+      <SectionList title="Why this score" items={report.why ?? []} />
+
+      <section className="report-doc-section">
+        <h3>What is already working</h3>
+        <ul className="report-doc-bullets">
+          {(lensGroups.working.length ? lensGroups.working : report.coreLenses.slice(0, 1)).map((item) => (
+            <li key={item.key}>{formatLensBullet(item)}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="report-doc-section">
+        <h3>What still needs work</h3>
+        <ul className="report-doc-bullets">
+          {(lensGroups.needsWork.length ? lensGroups.needsWork : report.supportingLenses).map((item) => (
+            <li key={item.key}>{formatLensBullet(item)}</li>
+          ))}
+        </ul>
+      </section>
+
+      <SectionList title="Top fixes" items={report.suggestions ?? []} ordered />
+      <SectionList title="Missing evidence or open risks" items={report.missingEvidence ?? []} />
+      <SectionList title="Next experiments" items={report.nextExperiments ?? []} />
+
+      {(report.questions?.length ?? 0) > 0 ? (
+        <details className="report-doc-details">
+          <summary>Question appendix</summary>
+          <div className="report-doc-stack">
+            {report.questions.map((item, index) => (
+              <section key={item.questionId} className="report-doc-item">
+                <div className="report-doc-item-head">
+                  <strong>{index + 1}. {item.question}</strong>
+                  <span className="rail-label">{item.category} · {item.score.toFixed(1)}</span>
+                </div>
+                <p>{item.why}</p>
+                {item.suggestions.length > 0 ? (
+                  <ul className="report-doc-bullets compact">
+                    {item.suggestions.map((suggestion) => (
+                      <li key={suggestion}>{suggestion}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </>
+  );
+}
+
+function DeckReportBody({ payload, report }: { payload: EvaluatorReportPayload; report: DeckEvaluationReport }) {
+  return (
+    <>
+      <div className="report-doc-head">
+        <div className="report-doc-title">
+          <span className="eyebrow">Deck verdict</span>
+          <h1>{report.verdict || "No report available yet."}</h1>
+          <p>{report.summary || report.stopReason || "No summary available."}</p>
+        </div>
+        <div className="report-doc-score">
+          <strong>{report.overallScore.toFixed(1)}</strong>
+          <span>{report.reviewMode === "multimodal" ? "Deck score" : "Transcript review"}</span>
+        </div>
+      </div>
+
+      <section className="report-doc-section">
+        <p className="report-doc-lead">{report.summary || report.verdict}</p>
+        <div className="report-doc-summary">
+          <div>
+            <span className="rail-label">Confidence</span>
+            <strong>{report.confidence ? `${report.confidence.toFixed(0)} / 100` : "Pending"}</strong>
+          </div>
+          <div>
+            <span className="rail-label">Review mode</span>
+            <strong>{report.reviewMode === "multimodal" ? "Slide-image review" : "Text transcript review"}</strong>
+          </div>
+          <div>
+            <span className="rail-label">Runtime</span>
+            <strong>{payload.provider || "ollama"} · {payload.model || "-"}</strong>
+          </div>
+          <div>
+            <span className="rail-label">Vision support</span>
+            <strong>{payload.supportsVision ? "Available" : "Not active"}</strong>
+          </div>
+        </div>
+      </section>
+
+      <SectionList title="What is working" items={report.whatWorks ?? []} />
+      <SectionList title="What feels weak or unconvincing" items={report.weakPoints ?? []} />
+      <SectionList title="Claims that sound confident without proof" items={report.unprovenClaims ?? []} />
+
+      {report.storyFlow ? (
+        <section className="report-doc-section">
+          <h3>Story flow</h3>
+          <p>{report.storyFlow}</p>
+        </section>
+      ) : null}
+
+      <section className="report-doc-section">
+        <h3>Template coverage</h3>
+        <div className="report-doc-stack">
+          {report.templateCoverage.map((item) => (
+            <article key={item.section} className="report-doc-item">
+              <div className="report-doc-item-head">
+                <strong>{item.section}</strong>
+                <span className="rail-label">{item.status}</span>
+              </div>
+              <p>{item.note}</p>
+              {item.evidence.length > 0 ? (
+                <div className="report-doc-sublist">
+                  <span className="rail-label">Seen</span>
+                  <ul className="report-doc-bullets compact">
+                    {item.evidence.map((evidence) => (
+                      <li key={evidence}>{evidence}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {item.missingItems.length > 0 ? (
+                <div className="report-doc-sublist">
+                  <span className="rail-label">Still missing</span>
+                  <ul className="report-doc-bullets compact">
+                    {item.missingItems.map((missing) => (
+                      <li key={missing}>{missing}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {item.refs.length > 0 ? <small className="muted-copy">{item.refs.join(" · ")}</small> : null}
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="report-doc-section">
+        <h3>Constraint checks</h3>
+        <div className="report-doc-stack">
+          {report.constraintChecks.map((item) => (
+            <article key={item.key} className="report-doc-item">
+              <div className="report-doc-item-head">
+                <strong>{item.label}</strong>
+                <span className="rail-label">{item.status}</span>
+              </div>
+              <p>{item.note}</p>
+              {item.refs.length > 0 ? <small className="muted-copy">{item.refs.join(" · ")}</small> : null}
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="report-doc-section">
+        <h3>Focused assessments</h3>
+        <div className="report-doc-stack">
+          {report.focusedAssessments.map((item) => (
+            <article key={item.key} className="report-doc-item">
+              <div className="report-doc-item-head">
+                <strong>{item.label}</strong>
+                <span className="rail-label">{item.status}</span>
+              </div>
+              <p>{item.assessment}</p>
+              {item.refs.length > 0 ? <small className="muted-copy">{item.refs.join(" · ")}</small> : null}
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="report-doc-section">
+        <h3>Slide-by-slide notes</h3>
+        <div className="report-doc-stack">
+          {report.slideReviews.map((item) => (
+            <article key={item.label} className="report-doc-item">
+              <div className="report-doc-item-head">
+                <strong>{item.label}</strong>
+                <span className="rail-label">Slide {item.index}</span>
+              </div>
+              {item.summary ? <p>{item.summary}</p> : null}
+              <SectionList title="Working" items={item.whatWorks} />
+              <SectionList title="Needs work" items={item.issues} />
+              <SectionList title="Suggestions" items={item.suggestions} />
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {report.londonWhaleAssessment ? (
+        <section className="report-doc-section">
+          <h3>London Whale hook</h3>
+          <p>{report.londonWhaleAssessment}</p>
+        </section>
+      ) : null}
+
+      <SectionList title="Top 5 fastest changes" items={report.topFixes ?? []} ordered />
+
+      {report.reviewLimitations.length > 0 ? (
+        <section className="report-doc-section">
+          <h3>Review limitations</h3>
+          <ul className="report-doc-bullets">
+            {report.reviewLimitations.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </>
+  );
 }
 
 export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onResumeSession }: Props) {
@@ -145,23 +427,36 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onR
     };
   }, [sessionId]);
 
-  const report = payload?.evaluationReport;
-  const canGoDeeper = Boolean(payload?.evaluationProgress?.canGoDeeper);
+  const report = payload?.evaluationReport ?? null;
+  const deckReport = payload?.deckEvaluationReport ?? null;
+  const evaluatorMode = payload?.evaluatorMode ?? "idea_review";
   const reportReady = Boolean(payload?.evaluationProgress?.completed);
-  const lensGroups = report ? pickLensGroups(report) : { working: [], needsWork: [] };
+  const canGoDeeper = Boolean(payload?.evaluationProgress?.canGoDeeper && evaluatorMode === "idea_review");
 
   void theme;
   void onThemeChange;
 
+  const downloadMarkdown = useMemo(() => {
+    if (!payload || !reportReady) {
+      return "";
+    }
+    if (evaluatorMode === "deck_review" && deckReport) {
+      return buildDeckReportMarkdown(payload, deckReport);
+    }
+    if (report) {
+      return buildIdeaReportMarkdown(payload, report);
+    }
+    return "";
+  }, [deckReport, evaluatorMode, payload, report, reportReady]);
+
   const handleDownload = () => {
-    if (!payload || !report) {
+    if (!downloadMarkdown) {
       return;
     }
-    const markdown = buildReportMarkdown(payload);
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const blob = new Blob([downloadMarkdown], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    const suffix = report.partial ? "partial" : "final";
+    const suffix = evaluatorMode === "deck_review" ? "deck" : (report?.partial ? "partial" : "final");
     link.href = url;
     link.download = `signalx-evaluation-${sessionId || "report"}-${suffix}.md`;
     document.body.appendChild(link);
@@ -175,14 +470,14 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onR
       <header className="pane-header">
         <div>
           <span className="eyebrow">Evaluate report</span>
-          <h2>{reportReady ? "Evaluation report" : "Report not ready yet"}</h2>
+          <h2>{reportReady ? (evaluatorMode === "deck_review" ? "Deck review" : "Evaluation report") : "Report not ready yet"}</h2>
         </div>
         <div className="status-stack">
           <div className="header-actions">
             <button type="button" className="ghost-button compact" onClick={() => navigate("/")}>
               Back
             </button>
-            <button type="button" className="ghost-button compact" onClick={handleDownload} disabled={!reportReady || !report}>
+            <button type="button" className="ghost-button compact" onClick={handleDownload} disabled={!downloadMarkdown}>
               Download
             </button>
             {canGoDeeper ? (
@@ -216,132 +511,20 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onR
 
       <main className="report-doc-main">
         <article className="outline-card report-doc-card">
-          {!reportReady || !report ? (
+          {!reportReady ? (
             <section className="report-doc-section">
-              <h3>Keep answering for now</h3>
+              <h3>Keep going for now</h3>
               <p className="report-doc-lead">
-                The evaluator is not satisfied enough yet to issue a final verdict. Go back to the session and answer the latest question. The report will appear once the engine has enough evidence.
+                {evaluatorMode === "deck_review"
+                  ? "Upload a deck and run the review first. The report appears as soon as the deck has been assessed."
+                  : "The evaluator is not satisfied enough yet to issue a final verdict. Go back to the session and answer the latest question."}
               </p>
             </section>
-          ) : (
-            <>
-              <div className="report-doc-head">
-                <div className="report-doc-title">
-                  <span className="eyebrow">Verdict</span>
-                  <h1>{report.verdict || report.summary || "No report available yet."}</h1>
-                  <p>{report.summary || report.stopReason || report.why?.[0] || "No summary available."}</p>
-                </div>
-                <div className="report-doc-score">
-                  <strong>{report.overallScore.toFixed(1)}</strong>
-                  <span>{report.partial ? "Partial assessment" : "Success score"}</span>
-                </div>
-              </div>
-
-              <section className="report-doc-section">
-                <p className="report-doc-lead">
-                  {report.summary || report.verdict}
-                </p>
-                <div className="report-doc-summary">
-                  <div>
-                    <span className="rail-label">Confidence</span>
-                    <strong>{report.confidence ? `${report.confidence.toFixed(0)} / 100` : "Pending"}</strong>
-                  </div>
-                  <div>
-                    <span className="rail-label">Questions asked</span>
-                    <strong>{report.answeredQuestions}</strong>
-                  </div>
-                  <div>
-                    <span className="rail-label">Runtime</span>
-                    <strong>{payload?.provider || "ollama"} · {payload?.model || "-"}</strong>
-                  </div>
-                  <div>
-                    <span className="rail-label">Stop reason</span>
-                    <strong>{report.stopReason || "Not available"}</strong>
-                  </div>
-                </div>
-              </section>
-
-              {(report.why?.length ?? 0) > 0 ? (
-                <section className="report-doc-section">
-                  <h3>Why this score</h3>
-                  <ul className="report-doc-bullets">
-                    {report.why.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              <section className="report-doc-section">
-                <h3>What is already working</h3>
-                <ul className="report-doc-bullets">
-                  {(lensGroups.working.length ? lensGroups.working : report.coreLenses.slice(0, 1)).map((item) => (
-                    <li key={item.key}>{formatLensBullet(item)}</li>
-                  ))}
-                </ul>
-              </section>
-
-              <section className="report-doc-section">
-                <h3>What still needs work</h3>
-                <ul className="report-doc-bullets">
-                  {(lensGroups.needsWork.length ? lensGroups.needsWork : report.supportingLenses).map((item) => (
-                    <li key={item.key}>{formatLensBullet(item)}</li>
-                  ))}
-                </ul>
-              </section>
-
-              <section className="report-doc-section">
-                <h3>Top fixes</h3>
-                <ol className="report-doc-bullets ordered">
-                  {(report.suggestions ?? []).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ol>
-              </section>
-
-              <section className="report-doc-section">
-                <h3>Missing evidence or open risks</h3>
-                <ul className="report-doc-bullets">
-                  {(report.missingEvidence ?? []).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-
-              <section className="report-doc-section">
-                <h3>Next experiments</h3>
-                <ul className="report-doc-bullets">
-                  {(report.nextExperiments ?? []).map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </section>
-
-              {(report.questions?.length ?? 0) > 0 ? (
-                <details className="report-doc-details">
-                  <summary>Question appendix</summary>
-                  <div className="report-doc-stack">
-                    {report.questions.map((item, index) => (
-                      <section key={item.questionId} className="report-doc-item">
-                        <div className="report-doc-item-head">
-                          <strong>{index + 1}. {item.question}</strong>
-                          <span className="rail-label">{item.category} · {item.score.toFixed(1)}</span>
-                        </div>
-                        <p>{item.why}</p>
-                        {item.suggestions.length > 0 ? (
-                          <ul className="report-doc-bullets compact">
-                            {item.suggestions.map((suggestion) => (
-                              <li key={suggestion}>{suggestion}</li>
-                            ))}
-                          </ul>
-                        ) : null}
-                      </section>
-                    ))}
-                  </div>
-                </details>
-              ) : null}
-            </>
-          )}
+          ) : evaluatorMode === "deck_review" && deckReport ? (
+            <DeckReportBody payload={payload as EvaluatorReportPayload} report={deckReport} />
+          ) : report ? (
+            <IdeaReportBody payload={payload as EvaluatorReportPayload} report={report} />
+          ) : null}
         </article>
       </main>
     </div>

@@ -1,30 +1,30 @@
 # SignalX Architecture
 
-This document explains how SignalX works today, how it should run in production for the MVP, and what to monitor.
+This document explains how SignalX works today, how it should run for a shareable MVP, and what to monitor.
 
-It is written for product and technical review, so it can be shared directly with a co-founder.
+It is written for product and technical review.
 
 ## Product Goal
 
-SignalX is a founder copilot, not a generic chatbot.
+SignalX is a domain workbench, not a generic chatbot.
 
 The product should:
-- help founders clarify the real problem
+- help users clarify the real problem
 - test assumptions with evidence
-- stay grounded in customer discovery and early validation
-- adapt tone by founder type and stage
-- turn conversations into a refined pitch or a clearer evaluation verdict
+- stay grounded in customer discovery, finance, and operating reality
+- adapt tone by role, geography, and workflow
+- turn conversations into a refined pitch, evaluation report, or expert analysis
 
 ## Recommended MVP Stack
 
-For the best POC / MVP deployment:
+For the best current MVP deployment:
 
 - `Frontend + API hosting`: Render web service
-- `Database`: Supabase Postgres
-- `File storage`: Supabase Storage
-- `Auth`: Supabase Auth
-- `Model inference`: Groq in production, Ollama locally
-- `Monitoring`: Render metrics + logs, Supabase logs, in-app usage tracking
+- `Database`: SQLite on persistent disk
+- `File storage`: persistent disk
+- `Auth`: optional OAuth later
+- `Model inference`: Groq or another API provider in production, Ollama locally
+- `Monitoring`: Render metrics + logs, in-app usage tracking
 
 ## 1. Current Local Architecture
 
@@ -32,12 +32,13 @@ Use this for local development and private testing.
 
 ```mermaid
 flowchart LR
-    U["Founder / Tester Browser"] --> F["React Frontend (Vite)"]
+    U["User Browser"] --> F["React Frontend (Vite)"]
     F --> A["FastAPI Backend"]
-    A --> M["Ollama"]
+    A --> M["Ollama or API Provider"]
     A --> S["SQLite sessions.db"]
     A --> UPL["Local uploads folder"]
-    A --> O["Refined pitch generation"]
+    A --> KB["Expert corpus"]
+    A --> O["Refined pitch / expert analysis"]
 
     subgraph Local Ports
       F
@@ -78,27 +79,22 @@ npm run dev
 
 ## 2. Recommended MVP Production Architecture
 
-This is the architecture recommended for sharing the product with a co-founder and early testers.
+This is the architecture recommended for sharing the current app with early testers.
 
 ```mermaid
 flowchart LR
     B["User Browser"] --> R["Render Web Service\nReact build + FastAPI API"]
-    R --> DB["Supabase Postgres"]
-    R --> ST["Supabase Storage"]
-    R --> AU["Supabase Auth"]
+    R --> DB["Persistent Disk\nSQLite + uploads"]
     R --> G["Groq Model API"]
 
     R --> LG["Render Logs / Metrics"]
-    DB --> SL["Supabase Logs"]
-    AU --> SL
-    ST --> SL
 ```
 
 ### Why this shape
 
 - one deployed service is simpler than splitting frontend and backend too early
 - Render fits the current Dockerized FastAPI app well
-- Supabase replaces local SQLite and local upload storage
+- persistent disk keeps the current SQLite and upload model intact
 - Groq removes the need to run Ollama on the internet-facing deployment
 
 ## 3. Request Workflow
@@ -116,7 +112,7 @@ sequenceDiagram
     UI->>API: POST /api/session/start
     API->>DB: create session row
     API-->>UI: opening message + chips + state
-    UI-->>User: mentor console opens
+    UI-->>User: workbench opens
 ```
 
 ### Chat workflow
@@ -133,7 +129,7 @@ sequenceDiagram
     User->>UI: send message or file
     UI->>API: POST /api/chat
     API->>RET: build retrieval context
-    RET-->>API: sector + investor + upload snippets
+    RET-->>API: expert cards + upload snippets + routing hints
     API->>MODEL: stream chat completion
     MODEL-->>API: streamed tokens
     API-->>UI: SSE events (meta, delta, done)
@@ -191,6 +187,7 @@ Responsibilities:
 - session resume
 - ideate shell
 - evaluate shell
+- expert shell
 - streaming response rendering
 - refined pitch view
 - heartbeat for local auto-stop
@@ -214,15 +211,16 @@ Responsibilities:
 
 - `backend/services/prompting.py`
 - `backend/services/retrieval.py`
-- `backend/services/external_sources.py`
+- `backend/services/expert_knowledge.py`
+- `backend/services/expert_agent.py`
 - `backend/services/model_router.py`
 - `backend/services/state_engine.py`
 - `backend/services/uploads.py`
 
 Responsibilities:
-- mentor behavior rules
+- workflow behavior rules
 - compact retrieval context
-- external VC / startup question lenses
+- expert corpus loading and routing
 - model routing and fallback
 - deterministic state updates
 - upload parsing and snippet retrieval
@@ -234,8 +232,8 @@ Current local storage:
 - `backend/services/uploads.py` -> `data/session_uploads/`
 
 Recommended production storage:
-- Supabase Postgres
-- Supabase Storage
+- persistent disk for MVP
+- optional managed database and object storage later
 
 ## 5. Ports And Endpoints To Monitor
 
@@ -269,7 +267,7 @@ https://your-domain.com
 
 Internally:
 - Render container listens on port `8000`
-- Supabase and Groq are external managed services
+- Groq and other API providers are external managed services
 
 ## 6. What To Monitor
 
@@ -286,19 +284,6 @@ Monitor:
 Where:
 - Render service logs
 - Render service metrics
-
-### Supabase
-
-Monitor:
-- auth logins
-- database errors
-- slow queries
-- storage errors
-- file upload failures
-
-Where:
-- Supabase logs
-- Supabase dashboard
 
 ### Model provider
 
@@ -380,25 +365,32 @@ Suggested sections:
 
 ## 9. Suggested Environment Split
 
-### Local
+### Local open-source
 
 - Ollama
 - SQLite
 - local uploads
 - `python3 signalx_app.py --build`
 
+### Local API-key mode
+
+- Groq, Cerebras, OpenAI, OpenRouter, Anthropic, or Gemini
+- SQLite
+- local uploads
+- `python3 signalx_app.py --build --no-ollama`
+
 ### MVP / staging
 
 - Render
-- Supabase
+- persistent disk
 - Groq
-- invite-only auth
+- optional invite-only auth
 
 ### Later production
 
 - optional Vercel frontend
 - Render or another container host for API
-- same Supabase backend
+- optional managed database/object storage
 - stronger analytics and alerting
 
 ## 10. Short Summary
@@ -406,13 +398,13 @@ Suggested sections:
 Today:
 - local-first app
 - React + FastAPI
-- Ollama
+- Ollama or API providers
 - SQLite
 - local upload storage
 
 Best MVP deployment:
 - Render web service
-- Supabase Postgres + Storage + Auth
+- persistent disk for SQLite and uploads
 - Groq inference
 - internal product analytics
 

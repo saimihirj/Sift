@@ -1,0 +1,585 @@
+{
+  "Rounds_Instruments_Terms": {
+    "Pre_Seed": {
+      "definition": "The earliest formal funding stage for a startup, typically raising $250K–$2M before a product is fully built or market fit is established. Capital comes from founders' personal savings, friends and family, angel investors, and dedicated pre-seed funds. The company is often at the idea or prototype stage with little to no revenue.",
+      "practical_use": "Founders use pre-seed capital to build an MVP, hire the first 1–2 engineers, and gather initial user feedback. Investors at this stage take the highest risk and typically receive 5–15% ownership via SAFEs or convertible notes.",
+      "why_it_matters": "Pre-seed funding determines the initial cap table structure and sets ownership percentages that affect all future dilution calculations. Poor pre-seed terms — excessive dilution or complex instruments — can make later institutional rounds difficult to close.",
+      "related_terms": ["Seed_Round", "SAFE", "Convertible_Note", "Cap_Table", "Dilution"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Seed_Round": {
+      "definition": "A funding round typically raising $1M–$5M aimed at companies with a working product seeking initial market validation. Seed rounds are led by dedicated seed funds, micro-VCs, and angel syndicates. The company usually has early traction metrics, some paying customers, or strong growth signals.",
+      "practical_use": "Founders use seed capital to hire core team members, refine product-market fit, and build go-to-market infrastructure. Investors often use SAFEs, convertible notes, or priced equity rounds (Series Seed) and typically take 10–25% ownership.",
+      "why_it_matters": "The seed round establishes the first formal priced valuation or conversion triggers, setting the baseline for all future fundraising. Seed-stage cap table cleanliness is essential before approaching Series A institutional investors.",
+      "related_terms": ["Pre_Seed", "Series_Seed", "Series_A", "SAFE", "Convertible_Note", "Cap_Table"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Series_Seed": {
+      "definition": "A priced equity round at the seed stage that uses standardized preferred stock documents (e.g., Series Seed documents from Cooley or NVCA). It is distinct from convertible instruments like SAFEs because it establishes an explicit share price and formal preferred stock class at the time of investment.",
+      "practical_use": "Companies raising $1M–$3M from institutional seed investors often use Series Seed documents because they provide cleaner cap table structure than multiple SAFEs. Investors receive Series Seed Preferred Stock with basic protective provisions and information rights.",
+      "why_it_matters": "Series Seed establishes a formal preferred share class, meaning liquidation preferences and anti-dilution rights are set from the start. This gives founders more clarity on exact ownership and governance from day one compared to SAFEs that convert later at uncertain terms.",
+      "related_terms": ["Seed_Round", "Series_A", "Liquidation_Preference", "Anti_Dilution", "Cap_Table"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Series_A": {
+      "definition": "The first major institutional venture capital round, typically raising $5M–$20M from established VC firms. At this stage the company has demonstrated clear product-market fit, consistent revenue growth, and is ready to scale its team and operations. Series A investors receive Series A Preferred Stock.",
+      "practical_use": "Founders use Series A capital to build out sales and marketing teams, expand engineering, and establish repeatable go-to-market motions. Lead investors typically negotiate a board seat, protective provisions, anti-dilution rights, and pro-rata rights for future rounds.",
+      "why_it_matters": "Series A sets the standard term sheet structure and governance framework for the company. The valuation established here directly affects how much dilution founders and seed investors experience and shapes expectations for all future rounds.",
+      "related_terms": ["Seed_Round", "Series_B", "Term_Sheet", "Board_Seat", "Dilution", "Pro_Rata"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Series_B": {
+      "definition": "A growth-stage funding round typically raising $20M–$60M for companies with a proven business model seeking to scale operations, expand into new markets, or accelerate customer acquisition. Series B investors are typically established VC firms and sometimes growth equity funds.",
+      "practical_use": "Founders deploy Series B capital to build out sales infrastructure, expand geographically, hire senior leadership (CMO, CFO), and invest in operational systems. Metrics like ARR growth rate, net revenue retention, and unit economics are heavily scrutinized by Series B investors.",
+      "why_it_matters": "Series B typically involves more complex term sheet negotiations with multiple investor classes already on the cap table. Dilution management becomes critical, and existing investor pro-rata rights and protective provisions add complexity to new investor negotiations.",
+      "related_terms": ["Series_A", "Series_C", "Growth_Equity", "Pro_Rata", "Dilution", "Protective_Provisions"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Series_C": {
+      "definition": "A late-stage venture round typically raising $60M or more for companies with substantial revenue, proven scalability, and often international expansion plans. Series C investors include large VC firms, growth equity funds, hedge funds, sovereign wealth funds, and corporate venture arms.",
+      "practical_use": "Founders use Series C capital for international market entry, large-scale M&A, deep R&D investment, or to build cash reserves ahead of an IPO. Financial modeling, unit economics, and path to profitability are rigorously scrutinized at this stage.",
+      "why_it_matters": "Series C and beyond significantly expand cap table complexity and introduce new investor classes with potentially conflicting preferences. Terms negotiated here heavily influence IPO or M&A outcomes, particularly the liquidation preference stack.",
+      "related_terms": ["Series_B", "Late_Stage", "Growth_Equity", "Liquidation_Preference", "Cap_Table"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Late_Stage": {
+      "definition": "Funding rounds for mature private companies (Series D and beyond) typically valued above $500M or at unicorn status ($1B+). These rounds often serve as pre-IPO financings or growth capital for companies with substantial revenues, large teams, and established market positions.",
+      "practical_use": "Late-stage investors (Tiger Global, SoftBank, Fidelity, T. Rowe Price) use these rounds to gain pre-IPO access. Companies use the capital for massive geographic expansion, talent acquisition, or to extend runway while waiting for optimal IPO market conditions.",
+      "why_it_matters": "Late-stage rounds often include complex structures like ratchets, IPO price floors, or guaranteed returns that can significantly harm common shareholders. The liquidation preference stack from multiple rounds can make IPOs or M&A exits unfavorable for founders and employees.",
+      "related_terms": ["Series_C", "Growth_Equity", "Continuation_Fund", "Liquidation_Preference"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Growth_Equity": {
+      "definition": "A hybrid investment strategy between venture capital and private equity that invests in established, profitable or near-profitable companies seeking capital for expansion without giving up control. Growth equity investments typically range from $10M to $500M+ in companies with $10M–$200M+ in revenue.",
+      "practical_use": "Growth equity funds (General Atlantic, TA Associates, Summit Partners) invest in founder-owned businesses that want expansion capital without a full private equity buyout. Companies retain operational control while gaining significant capital for scaling.",
+      "why_it_matters": "Growth equity sits at the intersection of VC risk and PE discipline — investors expect lower risk than early VC but higher returns than traditional PE. The minority, non-control nature means governance rights and protective provisions in term sheets are carefully negotiated.",
+      "related_terms": ["Late_Stage", "Series_C", "Protective_Provisions", "Liquidation_Preference", "Dilution"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Bridge_Round": {
+      "definition": "A short-term financing round, often using convertible notes or SAFEs, designed to give a company enough runway to reach the next major funding milestone or achieve a specific value-creation event. Bridge rounds are typically smaller than primary rounds and may include existing investors.",
+      "practical_use": "Founders use bridge rounds when they need 3–9 months of additional runway to hit a metric target before closing a larger round. Bridge notes often include a discount (15–25%) or cap on conversion, giving bridge investors favorable conversion terms at the next priced round.",
+      "why_it_matters": "Bridge rounds signal potential difficulty in fundraising and can create unfavorable cap table dynamics if overused. The discount and conversion terms of bridge notes can create misaligned incentives if the bridge extends repeatedly without achieving the target milestone.",
+      "related_terms": ["Convertible_Note", "SAFE", "Down_Round", "Cap_Table", "Dilution"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Down_Round": {
+      "definition": "A funding round in which new capital is raised at a lower pre-money valuation than the previous round's post-money valuation. Down rounds occur when a company's growth has slowed, market conditions have deteriorated, or earlier valuations were inflated beyond what subsequent performance justified.",
+      "practical_use": "During down rounds, anti-dilution provisions activate for existing preferred shareholders, meaning they receive additional shares to maintain their effective ownership percentage. This dilutes common stockholders (founders and employees) disproportionately and can damage team morale and retention.",
+      "why_it_matters": "Down rounds trigger anti-dilution adjustments that can severely dilute founders and employees holding common stock. Full ratchet anti-dilution is especially punishing, while weighted average is less severe. Down rounds also create negative signaling effects with customers, partners, and future investors.",
+      "related_terms": ["Up_Round", "Anti_Dilution", "Full_Ratchet", "Weighted_Average_Anti_Dilution", "Dilution", "Recap"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Up_Round": {
+      "definition": "A funding round in which new capital is raised at a higher pre-money valuation than the previous round's post-money valuation, reflecting positive company progress, strong market conditions, or increased investor demand. Up rounds signal healthy company momentum.",
+      "practical_use": "In an up round, existing anti-dilution provisions do not trigger because the new share price is higher than previous rounds. Founders and investors negotiate pro-rata rights carefully in up rounds, as the higher valuation makes maintaining ownership percentage more expensive for follow-on investors.",
+      "why_it_matters": "Up rounds validate the company's growth trajectory and make future fundraising, employee recruitment, and exit opportunities more favorable. However, excessive up rounds can set unrealistic valuation expectations that eventually force a painful down round correction.",
+      "related_terms": ["Down_Round", "Anti_Dilution", "Pro_Rata", "Pre_Money", "Post_Money"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Recap": {
+      "definition": "Short for recapitalization — a restructuring of a company's capital structure to achieve a specific financial objective. In venture contexts, a recap often involves resetting the cap table to attract new investment when the existing structure is too burdened with liquidation preferences to support growth financing.",
+      "practical_use": "Recaps are used in distressed situations where the existing liquidation preference stack is so high that new investors won't invest without a reset. A cram-down recap can force existing preferred shareholders to convert or accept new terms, heavily diluting those who do not participate.",
+      "why_it_matters": "Recaps represent a fundamental reset of investor economics and governance. They can be highly contentious, pitting existing investors against new investors and common stockholders. The terms of a recap often determine whether founders and employees retain any meaningful ownership.",
+      "related_terms": ["Down_Round", "Liquidation_Preference", "Cap_Table", "Dilution", "Pay_to_Play"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Venture_Debt": {
+      "definition": "A form of debt financing available to venture-backed startups, typically provided by specialized lenders (Silicon Valley Bank, Western Technology Investment, Hercules Capital) rather than traditional banks. Venture debt is non-dilutive relative to equity but usually includes warrant coverage of 0.5–2% of the loan amount.",
+      "formula": "Loan Amount ≈ 25–35% of last equity round. Total cost = Interest (8–12% annual) + Warrant Coverage (0.5–2% of loan amount converted to equity at last round price). Typical term: 3–4 years with interest-only period of 12–18 months.",
+      "practical_use": "A company that raised a $10M Series A might take $2.5M–$3.5M in venture debt, adding 6–12 months of runway while only issuing small warrants. Founders use venture debt to extend runway between equity rounds without additional dilution, bridging to a higher-valuation next round.",
+      "why_it_matters": "Venture debt is cheaper than equity dilution if the company succeeds but can be dangerous if covenants are breached or the company faces a downturn. Unlike equity, debt must be repaid — creating cash flow obligations that can strain a startup during market downturns or slower-than-expected growth.",
+      "related_terms": ["Dilution", "Bridge_Round", "Convertible_Note", "Cap_Table"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "SAFE": {
+      "definition": "Simple Agreement for Future Equity — a standardized investment instrument created by Y Combinator that gives an investor the right to receive equity in a future priced round. SAFEs have no interest rate and no maturity date, making them simpler than convertible notes. The standard post-money SAFE specifies ownership on a post-money basis at the time of conversion.",
+      "practical_use": "A $125K investment on a $1.5M post-money SAFE converts to 8.33% ownership before dilution from the priced round. YC's standard SAFE comes in four variants: post-money cap, pre-money cap, discount only, and uncapped MFN (Most Favored Nation). SAFEs are the dominant early-stage instrument for pre-seed and seed deals.",
+      "why_it_matters": "Post-money SAFEs provide investors certainty about their ownership percentage at conversion, shifting dilution risk to founders. Understanding whether a SAFE is pre-money vs. post-money is critical — post-money SAFEs protect investors more and dilute founders more when multiple SAFEs are stacked on the same cap table.",
+      "related_terms": ["SAFE_Note", "Convertible_Note", "Pre_Money", "Post_Money", "Cap_Table", "Dilution"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "SAFE_Note": {
+      "definition": "A colloquial term for a SAFE (Simple Agreement for Future Equity), sometimes used interchangeably despite the SAFE technically not being a note since it carries no interest or maturity date. The distinction matters legally — a convertible note is debt, while a SAFE is a contractual right to future equity.",
+      "practical_use": "When founders or investors refer to a SAFE note, they typically mean a standard YC SAFE instrument. It is important to clarify the exact instrument because convertible notes (actual debt instruments) carry interest and maturity dates, creating different legal and financial obligations than a true SAFE.",
+      "why_it_matters": "The note misnomer can cause legal confusion about whether the instrument constitutes debt on the company's balance sheet. True SAFEs are classified as equity instruments and do not trigger the same repayment obligations as convertible notes, which is material in insolvency or distressed scenarios.",
+      "related_terms": ["SAFE", "Convertible_Note", "Bridge_Round", "Pre_Seed", "Cap_Table"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Convertible_Note": {
+      "definition": "A debt instrument that converts into equity at a future priced funding round, typically at a discount (10–30%) or subject to a valuation cap — whichever is more favorable to the investor. Unlike SAFEs, convertible notes carry an interest rate (5–8% annual) and a maturity date (12–24 months), after which repayment or conversion is required.",
+      "formula": "Conversion Shares = (Principal + Accrued Interest) / Conversion Price. Conversion Price = min(Valuation Cap / Pre-Money Shares, Next Round Price × (1 - Discount%))",
+      "practical_use": "A $500K convertible note at 20% discount with a $5M cap converts at a $10M Series A at the capped price (50% effective discount). Founders prefer notes for speed of closing; investors prefer them for the downside protection of debt status and interest accrual if conversion does not occur.",
+      "why_it_matters": "Convertible notes appear as debt on the balance sheet until conversion, which can affect banking covenants and financial ratios. The maturity date creates a hard deadline — if the company has not raised a priced round by maturity, investors can demand repayment or force conversion at potentially unfavorable terms.",
+      "related_terms": ["SAFE", "Bridge_Round", "Pre_Money", "Post_Money", "Cap_Table"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Term_Sheet": {
+      "definition": "A non-binding document outlining the key terms and conditions of a proposed investment, covering economics (valuation, investment amount, share price), governance (board composition, voting rights, protective provisions), and investor protections (anti-dilution, liquidation preference, pro-rata rights). Term sheets precede definitive legal agreements.",
+      "practical_use": "Lead investors propose a term sheet after completing initial due diligence. Founders negotiate key provisions before signing — the term sheet is typically binding only on the no-shop and exclusivity clauses. Legal fees for definitives are triggered after term sheet signing, making negotiation at the term sheet stage critical and cost-effective.",
+      "why_it_matters": "While non-binding on economics, term sheet terms set the framework for definitive documents. Agreeing to unfavorable terms such as participating preferred or full ratchet anti-dilution at the term sheet stage is very difficult to reverse in definitives. The no-shop clause prevents founders from shopping the deal after signing.",
+      "related_terms": ["No_Shop", "Exclusivity", "Liquidation_Preference", "Anti_Dilution", "Board_Seat", "Protective_Provisions"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Cap_Table": {
+      "definition": "Capitalization table — a spreadsheet or database tracking the ownership structure of a company, including all equity securities (common stock, preferred stock, options, warrants, SAFEs, convertible notes) and their holders, share counts, ownership percentages, and economic rights. The cap table captures the complete ownership picture on both a basic and fully diluted basis.",
+      "practical_use": "Founders maintain cap tables using tools like Carta, Pulley, or Shareworks. Cap tables are required in due diligence for every funding round and M&A transaction. Investors analyze the cap table to understand dilution impact, liquidation preference stack, and option pool sizing before investing.",
+      "why_it_matters": "An incorrect or messy cap table can derail funding rounds or acquisitions. Understanding the fully diluted cap table — including all options, warrants, SAFEs, and convertible notes — is essential for calculating true ownership percentages and modeling exit scenarios under different liquidation preference structures.",
+      "related_terms": ["Dilution", "Ownership", "SAFE", "Convertible_Note", "Liquidation_Preference"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Pre_Money": {
+      "definition": "The valuation of a company immediately before a new investment round, before the new capital is added. Pre-money valuation is used to calculate the price per share for the new investment and determines how much of the company the new investors will own.",
+      "formula": "Pre-Money Valuation = Post-Money Valuation − New Investment Amount. Price Per Share = Pre-Money Valuation / Pre-Money Fully Diluted Shares Outstanding",
+      "practical_use": "If a company has a $10M pre-money valuation and raises $2M, investors receive $2M / $12M = 16.7% ownership. Founders often confuse pre-money and post-money when discussing valuations — specifying which basis is critical in negotiations, especially with YC post-money SAFEs where the distinction changes founder dilution significantly.",
+      "why_it_matters": "The pre-money valuation directly determines dilution. A $10M pre-money vs. $10M post-money on a $2M raise is a significant difference — pre-money gives investors 16.7% while post-money gives investors exactly 20%. This is one of the most common and costly misunderstandings in early-stage fundraising.",
+      "related_terms": ["Post_Money", "Dilution", "Ownership", "SAFE", "Cap_Table"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Post_Money": {
+      "definition": "The valuation of a company immediately after a new investment round, including the newly invested capital. Post-money valuation equals pre-money valuation plus the new investment amount. New investor ownership percentage equals their investment divided by the post-money valuation.",
+      "formula": "Post-Money Valuation = Pre-Money Valuation + New Investment Amount. New Investor Ownership % = New Investment / Post-Money Valuation",
+      "practical_use": "On a YC post-money SAFE, a $250K investment on a $5M post-money cap gives investors exactly 5% ownership ($250K / $5M), regardless of other SAFEs issued. This certainty makes post-money SAFEs more predictable than pre-money SAFEs when multiple investors are participating in the same round.",
+      "why_it_matters": "Post-money SAFEs shift the dilution risk of additional SAFEs from investors to founders — each new SAFE dilutes founders rather than all SAFE holders proportionally. Understanding post-money mechanics is essential for founders to accurately model their ownership stake before a priced round closes.",
+      "related_terms": ["Pre_Money", "SAFE", "Dilution", "Ownership", "Cap_Table"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Ownership": {
+      "definition": "The percentage of a company's equity held by a particular shareholder, calculated on either a basic (issued shares only) or fully diluted basis (including options, warrants, SAFEs, and convertible notes). Ownership percentage determines economic rights in exit proceeds and, in some cases, voting rights.",
+      "formula": "Basic Ownership % = Shares Held / Total Issued Shares. Fully Diluted Ownership % = Shares Held / (Total Issued + All Options + Warrants + Convertible Securities as-converted)",
+      "practical_use": "A founder may show 60% basic ownership but only 45% fully diluted once accounting for an option pool, outstanding SAFEs, and warrants. The fully diluted number is the economically relevant figure used in all investment and exit calculations.",
+      "why_it_matters": "Ownership percentage at exit determines how much each party receives from a liquidity event, subject to liquidation preference waterfall calculations. Founders must model their post-financing ownership carefully to understand how much dilution they can absorb across multiple rounds before their stake becomes demotivating.",
+      "related_terms": ["Dilution", "Cap_Table", "Pre_Money", "Post_Money", "Liquidation_Preference"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Dilution": {
+      "definition": "The reduction in an existing shareholder's ownership percentage that occurs when new shares are issued — to new investors, employees via option grants, or upon conversion of SAFEs, convertible notes, or warrants. Dilution is a fundamental mechanic of startup financing; all existing shareholders are diluted when new shares are created.",
+      "formula": "Post-Financing Ownership % = Pre-Financing Shares / (Pre-Financing Shares + New Shares Issued). Dilution % = 1 − (Post-Financing Ownership / Pre-Financing Ownership)",
+      "practical_use": "A founder with 70% ownership who raises a round issuing 20% to new investors on a fully diluted basis will own approximately 56% post-round (70% × 80%), assuming the option pool is carved from pre-money. Founders must model cumulative dilution across all rounds to understand terminal ownership at exit.",
+      "why_it_matters": "Cumulative dilution across pre-seed, seed, Series A, B, and C can reduce a founder's ownership from 100% to 10–20% before exit. Understanding dilution mechanics — particularly the difference between pre-money and post-money option pools — can preserve millions of dollars in founder value.",
+      "related_terms": ["Anti_Dilution", "Ownership", "Cap_Table", "Pre_Money", "Post_Money"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Anti_Dilution": {
+      "definition": "A contractual protection granted to preferred stockholders that adjusts their conversion price (and thus the number of shares they receive upon converting to common) downward when new shares are issued at a lower price than what they paid. Anti-dilution provisions protect investors from the economic impact of down rounds.",
+      "practical_use": "If an investor paid $1.00/share in Series A and the company raises a down round at $0.50/share, anti-dilution provisions adjust the Series A conversion price downward, giving Series A holders more common shares upon conversion — reducing the dilutive impact of the down round on their effective ownership.",
+      "why_it_matters": "Anti-dilution provisions transfer the economic pain of down rounds from preferred investors to common stockholders (founders and employees). The type of anti-dilution — full ratchet vs. weighted average — dramatically affects how severe this transfer is, making it one of the most important terms to negotiate in any term sheet.",
+      "related_terms": ["Full_Ratchet", "Weighted_Average_Anti_Dilution", "Down_Round", "Dilution", "Preferred_Return"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Full_Ratchet": {
+      "definition": "The most investor-friendly form of anti-dilution protection, which adjusts an investor's conversion price all the way down to the price of any new shares issued in a down round — regardless of how many new shares are issued at the lower price. Even a single share sold at a lower price triggers a full ratchet adjustment.",
+      "formula": "New Conversion Price = New Round Price Per Share (regardless of volume issued). Additional Shares Issued = (Original Investment / New Conversion Price) − Original Shares Received",
+      "practical_use": "If a Series A investor paid $2/share and the company later sells even one share at $1/share, full ratchet resets the Series A conversion price to $1/share — doubling the number of shares the Series A investor receives upon conversion. This can devastate common stockholder ownership in down rounds.",
+      "why_it_matters": "Full ratchet anti-dilution is considered extremely founder-unfriendly and is rare in standard venture deals, appearing more commonly in distressed or structured financings. Its presence in a term sheet is a significant red flag and negotiating point, as it can effectively wipe out founder and employee ownership in down round scenarios.",
+      "related_terms": ["Anti_Dilution", "Weighted_Average_Anti_Dilution", "Down_Round", "Dilution"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Weighted_Average_Anti_Dilution": {
+      "definition": "The most common form of anti-dilution protection, which adjusts an investor's conversion price based on a weighted average of the old and new share prices, taking into account the number of shares issued at each price. This is more balanced than full ratchet because it considers the magnitude of the down round, not just the lower price.",
+      "formula": "Broad-Based: New CP = CP_old × (A + B) / (A + C). Where A = fully diluted shares outstanding before new issue, B = shares issuable for total consideration received at old CP, C = new shares actually issued. Narrow-based uses only preferred shares (excluding options/warrants) in the denominator.",
+      "practical_use": "Broad-based weighted average (including options and warrants in the calculation) is the most founder-friendly version. Narrow-based weighted average uses a smaller denominator, giving investors a larger adjustment. Broad-based weighted average is the market standard for early-stage VC deals.",
+      "why_it_matters": "Weighted average anti-dilution is more equitable than full ratchet because the adjustment is proportional to the severity of the down round. A small down round on few shares creates a minor adjustment, while a large down round on many shares creates a more significant adjustment — better aligning incentives than full ratchet.",
+      "related_terms": ["Anti_Dilution", "Full_Ratchet", "Down_Round", "Dilution"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Pay_to_Play": {
+      "definition": "A provision requiring existing investors to participate pro-rata in subsequent financing rounds or face a penalty — typically conversion of their preferred stock to common stock, loss of anti-dilution rights, or conversion to a less-preferred share class. Pay-to-play provisions protect companies from investors who will not support follow-on rounds.",
+      "practical_use": "In a pay-to-play round, investors who do not invest their pro-rata share may have their preferred stock converted to common stock, eliminating their liquidation preference and anti-dilution rights. This is particularly relevant in bridge rounds or difficult fundraising environments where existing investor support is critical.",
+      "why_it_matters": "Pay-to-play provisions align investor incentives with company survival by penalizing non-participating investors. They are especially common in later-stage or distressed rounds where the company needs existing investor support. For founders, pay-to-play can be a valuable tool to clear out inactive investors from the preferred stock register.",
+      "related_terms": ["Pro_Rata", "Anti_Dilution", "Down_Round", "Bridge_Round", "Recap"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Liquidation_Preference": {
+      "definition": "The right of preferred stockholders to receive a specified amount of proceeds (typically 1x their investment) before common stockholders receive anything in a liquidation event — sale, merger, or bankruptcy. Liquidation preferences protect investors' downside in low-exit-value scenarios.",
+      "formula": "Non-Participating Payout = max(1x Investment, Exit Proceeds × Ownership%). Participating Payout = 1x Investment + (Remaining Proceeds After All Prefs × Ownership%). Preference Stack = Sum of all preferred liquidation preferences across all rounds.",
+      "practical_use": "In a $10M exit with $8M in 1x non-participating preferred liquidation preferences, preferred holders receive $8M and common stockholders split $2M. The 1x non-participating structure is the market standard for Series A and early-stage rounds, while participating preferred is less common.",
+      "why_it_matters": "Liquidation preferences fundamentally shape who gets paid what in exit scenarios. A large liquidation preference stack from multiple rounds can make a $100M acquisition effectively worth nothing to founders and employees holding common stock. Understanding the preference waterfall is essential for all exit modeling.",
+      "related_terms": ["Non_Participating_Pref", "Participating_Preferred", "Narrowly_Participating", "Cap_Table", "Dilution"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Non_Participating_Pref": {
+      "definition": "A liquidation preference structure (also called straight preferred) where investors receive their liquidation preference amount — typically 1x investment — OR convert to common and participate pro-rata in exit proceeds, whichever is greater, but not both. This is the most founder-friendly preferred stock structure and the market standard at Series A.",
+      "formula": "Payout = max(1x Investment, Exit Proceeds × Ownership%). Investors convert to common if: Exit Proceeds × Ownership% > Liquidation Preference. Conversion threshold = Liquidation Preference / Ownership%",
+      "practical_use": "A VC with $5M invested at 20% ownership with 1x non-participating pref will convert to common if exit value exceeds $25M ($5M / 20%). Below $25M they take the $5M preference; above $25M they convert and take their 20% pro-rata share. Both founder and investor benefit from a higher exit price.",
+      "why_it_matters": "Non-participating preferred aligns investor and founder incentives in high-value exits — both prefer a larger exit. This makes it more founder-friendly than participating preferred and is strongly preferred by founders and later-stage investors who recognize that full participation hurts exit multiples for common holders.",
+      "related_terms": ["Participating_Preferred", "Liquidation_Preference", "Narrowly_Participating"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Participating_Preferred": {
+      "definition": "A liquidation preference structure where investors receive their liquidation preference amount (typically 1x investment) AND then participate pro-rata alongside common stockholders in the remaining exit proceeds after preferences are paid. This double-dip structure is the most investor-friendly and founder-unfriendly liquidation preference structure.",
+      "formula": "Payout = Liquidation Preference + (Remaining Proceeds After All Liquidation Preferences × Ownership%). Common Payout = (Exit Value − All Liquidation Preferences) × Common Ownership%",
+      "practical_use": "A VC with $5M invested at 20% ownership with fully participating preferred on a $20M exit receives: $5M preference + 20% of $15M remaining = $8M total. Common stockholders share only $12M rather than $15M. The double-dip significantly reduces common stockholder returns compared to non-participating preferred.",
+      "why_it_matters": "Full participation is disfavored by founders and is becoming less common in competitive venture markets. Its presence signals either investor leverage, a distressed deal, or an unsophisticated investor. Founders should negotiate to eliminate participation or cap it at 2–3x to limit the downside impact on common stockholder returns.",
+      "related_terms": ["Non_Participating_Pref", "Liquidation_Preference", "Narrowly_Participating", "Dilution"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Narrowly_Participating": {
+      "definition": "A hybrid liquidation preference structure where investors receive their liquidation preference and participate pro-rata in remaining proceeds, but only up to a specified cap — typically 2x–3x the original investment. Once the cap is reached, the preferred converts to common and participates without a preference.",
+      "formula": "Payout = min(Liquidation Preference + Pro-Rata Participation, Cap Multiple × Investment). Above the cap: preferred converts to common and receives full pro-rata share of total proceeds without preference.",
+      "practical_use": "A $5M investment with 1x participating capped at 3x allows investors to receive up to $15M total before the cap structure dissolves and they convert to common for a straight pro-rata split. This structure is a compromise seen often in growth equity deals, balancing investor downside protection with founder upside.",
+      "why_it_matters": "The participation cap limits the double-dip harm to common stockholders in medium-value exits while still protecting investors in low-value exits. Understanding where the cap triggers is essential for exit modeling — the incentive alignment changes dramatically above and below the cap threshold.",
+      "related_terms": ["Participating_Preferred", "Non_Participating_Pref", "Liquidation_Preference"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Cumulative_Dividends": {
+      "definition": "A dividend right where unpaid dividends accumulate year over year and must be paid out (or included in liquidation preference calculations) before common stockholders receive any proceeds. Cumulative dividends effectively increase the liquidation preference over time even if never formally declared by the board.",
+      "formula": "Cumulative Dividend Balance = Investment Amount × Dividend Rate% × Years Outstanding. Effective Liquidation Preference = Original Preference + Accumulated Unpaid Dividends",
+      "practical_use": "A $10M preferred investment with 8% cumulative dividends accumulates $4M in unpaid dividends over 5 years, increasing the effective liquidation preference to $14M. This phantom liability grows silently and can significantly increase the exit value needed before common stockholders see any proceeds.",
+      "why_it_matters": "Cumulative dividends create a growing liquidation preference hurdle that compounds over time, making them extremely founder-unfriendly. They are more common in private equity and growth equity structures than early-stage VC. Founders should negotiate to eliminate or significantly reduce cumulative dividend rates.",
+      "related_terms": ["Non_Cumulative", "PIK_Dividends", "Liquidation_Preference", "Preferred_Return"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Non_Cumulative": {
+      "definition": "A dividend structure where dividends are only paid if and when declared by the board of directors. Unpaid dividends from prior periods do not accumulate or carry forward — if the board does not declare a dividend in a given year, that dividend is simply foregone and never owed to stockholders.",
+      "practical_use": "Most early-stage and Series A venture deals use non-cumulative dividends or include no dividend provision at all. Non-cumulative dividends are the market standard for venture-backed startups because they do not create a growing financial obligation that burdens the company or silently inflates liquidation preferences.",
+      "why_it_matters": "Non-cumulative dividend structures are founder-friendly because they eliminate the compounding liquidation preference growth that cumulative dividends create. When reviewing term sheets, confirming that any dividend provision is non-cumulative is an important but often overlooked detail that can prevent unintended preferred stock value accretion.",
+      "related_terms": ["Cumulative_Dividends", "PIK_Dividends", "Liquidation_Preference"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "PIK_Dividends": {
+      "definition": "Payment-in-Kind dividends — dividends paid not in cash but by issuing additional shares or by increasing the principal amount of a debt instrument. PIK dividends automatically compound the preferred liquidation preference without requiring cash outflows, similar in economic effect to cumulative dividends but settled in equity.",
+      "formula": "PIK Shares Issued = (Investment × PIK Rate%) / Current Share Price per period. For debt: PIK Interest = Principal × PIK Rate%, added to the outstanding principal balance each period, compounding over time.",
+      "practical_use": "PIK dividends are common in mezzanine financing, preferred equity for PE-backed companies, and some venture debt structures. A $10M preferred with 10% PIK dividend issues $1M worth of additional preferred shares annually, increasing the investor's stake and liquidation preference without the company spending cash.",
+      "why_it_matters": "PIK dividends accelerate ownership dilution of common stockholders and increase liquidation preference hurdles faster than cash dividends. They are particularly dangerous in capital-constrained companies because dilution compounds silently. PIK provisions should be carefully scrutinized in any preferred stock or debt instrument term sheet.",
+      "related_terms": ["Cumulative_Dividends", "Non_Cumulative", "Liquidation_Preference", "Dilution", "Venture_Debt"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Pro_Rata": {
+      "definition": "The contractual right of an investor to participate in future funding rounds in proportion to their current ownership percentage, allowing them to maintain their ownership stake and avoid dilution. Pro-rata rights are standard investor rights negotiated in term sheets and are often separated into major investor pro-rata (contractual) and minor investor pro-rata (best efforts).",
+      "formula": "Pro-Rata Allocation = Current Ownership % × New Round Size. Super Pro-Rata = right to invest more than current ownership percentage — e.g., 2× current ownership — in future rounds.",
+      "practical_use": "An investor with 10% ownership and pro-rata rights in a $10M Series B has the right to invest up to $1M to maintain their 10% stake. Lead investors often negotiate super pro-rata rights as a valuable way to increase allocation in breakout companies at later, higher-confidence stages.",
+      "why_it_matters": "Pro-rata rights are among the most economically valuable rights in venture investing — maintaining ownership in winners without dilution is critical for portfolio returns. For founders, granting too many pro-rata rights can make future rounds difficult to fill if existing investors exercise all their rights, crowding out new capital.",
+      "related_terms": ["Dilution", "Ownership", "Follow_On_Reserve", "Co_Investment", "Term_Sheet"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Drag_Along": {
+      "definition": "A shareholder agreement provision that allows a defined majority of shareholders — often majority preferred stockholders or a combination of majority preferred and common — to force all other shareholders to vote in favor of and sell their shares in a proposed sale transaction, dragging along minority shareholders who might otherwise block the deal.",
+      "practical_use": "Drag-along rights prevent minority shareholders (common stockholders, small preferred investors) from blocking an acquisition that a majority of shareholders support. Lead VCs negotiate drag-along provisions to ensure they can exit the company if a sufficient majority agrees to a sale.",
+      "why_it_matters": "Drag-along provisions are essential for deal certainty in M&A transactions — without them, a single minority shareholder could block a sale. For founders, the key negotiating points are the trigger threshold (majority of preferred vs. majority of all shares) and whether the drag price must meet certain minimums to protect common stockholders.",
+      "related_terms": ["Tag_Along", "ROFR", "ROFO", "Voting_Rights", "Protective_Provisions"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Tag_Along": {
+      "definition": "Also called co-sale rights — tag-along provisions give minority shareholders the right to join (tag along) when a majority shareholder sells their shares to a third party, on the same terms and conditions. Tag-along rights protect minority investors from being left behind when a major shareholder exits.",
+      "practical_use": "If a founder holding 40% of the company wants to sell their shares to a strategic buyer, tag-along rights allow all other shareholders to include their shares in the same sale at the same price and terms. This is particularly valuable for investors seeking liquidity if a founder decides to monetize their stake.",
+      "why_it_matters": "Tag-along rights prevent founders or majority shareholders from selling to a buyer at a premium while leaving minority investors stuck with illiquid shares. They are a standard investor protection in venture deals and ensure equitable treatment of all shareholders in secondary share transactions.",
+      "related_terms": ["Drag_Along", "ROFR", "ROFO"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "ROFR": {
+      "definition": "Right of First Refusal — gives the company and/or existing investors the right to purchase shares that a shareholder wishes to sell to a third party, at the same price and terms offered by the third party. The company typically has first right, followed by existing investors in order of priority, before the shareholder can sell to an outside buyer.",
+      "practical_use": "When an employee or early investor wants to sell shares on a secondary market, the ROFR process requires them to notify the company of the third-party offer. The company has 30–60 days to exercise its right to buy the shares at that price. If declined, the investor can proceed with the third-party sale.",
+      "why_it_matters": "ROFR gives the company control over who becomes a shareholder by preventing unwanted parties from acquiring equity on the secondary market. It also gives existing investors the opportunity to buy shares at market prices and increase their stake in successful companies through secondary purchases.",
+      "related_terms": ["ROFO", "Tag_Along", "Drag_Along"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "ROFO": {
+      "definition": "Right of First Offer — gives designated parties (company or investors) the right to make the first offer to purchase shares before a shareholder seeks third-party buyers. Unlike ROFR (which requires a third-party offer first), ROFO requires the selling shareholder to approach the ROFO holders first and give them the opportunity to bid.",
+      "practical_use": "ROFO is considered more seller-friendly than ROFR because it allows the seller to use ROFO bids as a price floor when negotiating with third parties. Companies sometimes prefer ROFO because it requires sellers to approach them first, giving the company early visibility into potential share transfers.",
+      "why_it_matters": "ROFO and ROFR serve similar economic purposes but with different procedural mechanics. ROFO gives the holder a preemptive bidding right, while ROFR gives a matching right after a third-party price is established. Understanding which right applies is critical in secondary transactions and share transfer negotiations.",
+      "related_terms": ["ROFR", "Tag_Along", "Drag_Along"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Vesting_Schedule": {
+      "definition": "A schedule defining when shares or stock options become fully owned (vested) by the recipient, typically used for founders and employees to align long-term incentives with company success. The standard startup vesting schedule is 4 years with a 1-year cliff, meaning 25% vests after year one and the remainder vests monthly over the following 36 months.",
+      "formula": "Standard: 25% at 12-month cliff, then 1/48th of total shares per month for 36 months thereafter. Monthly vest after cliff = (Total Shares − Cliff Shares) / 36",
+      "practical_use": "A founder with 1,000,000 shares on a 4-year/1-year cliff schedule will have 0 vested shares at month 11, 250,000 at month 12, and 291,667 at month 13 (250,000 + 41,667). Investors require founder vesting to ensure founders remain incentivized throughout the company-building period post-investment.",
+      "why_it_matters": "Vesting schedules are the primary mechanism for aligning founder and employee incentives with long-term company success. Without vesting, a co-founder could leave after 6 months and retain full ownership. Investors always check founder vesting status in due diligence and may require unvested shares to be put on a new vesting schedule post-investment.",
+      "related_terms": ["Founder_Vesting", "Cliffs", "Acceleration", "Good_Leaver", "Bad_Leaver"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Founder_Vesting": {
+      "definition": "Vesting schedules applied specifically to founder shares, typically imposed or renegotiated at the time of institutional fundraising. Institutional investors require founders' shares to vest over a multi-year schedule to ensure continued commitment — often resetting or layering new vesting requirements on top of existing founder share ownership.",
+      "practical_use": "At Series A, investors may require founders to enter a new 4-year vesting schedule on all their shares, or vest only unvested shares with credit for time already served. A founder who has been working for 18 months may receive 18 months of credit, making them 37.5% vested on day one of the new schedule.",
+      "why_it_matters": "Founder vesting is one of the most critical and sometimes contentious terms in early-stage financings. Founders who have been building for years resist putting all their shares on a new schedule. The negotiation of vesting credit for time served and acceleration provisions is essential for founder protection at financing.",
+      "related_terms": ["Vesting_Schedule", "Cliffs", "Acceleration", "Good_Leaver", "Bad_Leaver"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Cliffs": {
+      "definition": "A minimum employment or service duration requirement before any vesting occurs. The standard 1-year cliff means that an employee or founder must remain with the company for at least 12 months before any shares vest — upon reaching the cliff, the shares that would have vested monthly during that first year vest all at once.",
+      "practical_use": "Cliffs protect the company from situations where an employee leaves shortly after joining and retains a vested equity stake. At the 1-year cliff, 25% of total shares vest simultaneously. An employee who leaves at month 11 receives nothing; an employee who leaves at month 13 has vested their cliff shares plus one additional month.",
+      "why_it_matters": "Cliff provisions prevent equity fragmentation from short-tenured employees and incentivize at least one year of commitment. The cliff creates a binary outcome at month 12, which can cause retention issues just before or just after the cliff date — companies should monitor employee behavior changes around cliff dates.",
+      "related_terms": ["Vesting_Schedule", "Founder_Vesting", "Acceleration", "Good_Leaver"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Acceleration": {
+      "definition": "A provision that causes unvested shares to vest immediately — fully or partially — upon the occurrence of a specific trigger event, typically a change of control (acquisition) or termination without cause. Acceleration comes in two forms: single trigger (acquisition alone triggers acceleration) and double trigger (acquisition plus subsequent termination without cause).",
+      "practical_use": "Double trigger acceleration (acquisition + termination without cause within 12–18 months) is the market standard for founders and senior employees. If a company is acquired and the acquirer terminates the founder, 100% of unvested shares vest immediately. Single trigger acceleration is rare as it reduces the acquirer's ability to retain key talent.",
+      "why_it_matters": "Acceleration provisions protect founders and key employees from scenarios where an acquirer buys the company and then terminates them before their equity vests. Acquirers often negotiate to remove acceleration provisions to retain talent post-acquisition, making this an important deal point in M&A negotiations.",
+      "related_terms": ["Vesting_Schedule", "Founder_Vesting", "Cliffs", "Good_Leaver", "Bad_Leaver"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Good_Leaver": {
+      "definition": "A classification for an employee or founder who departs the company under circumstances deemed favorable — typically resignation for good reason, termination without cause, death, disability, or retirement. Good leavers typically retain their vested equity and may receive enhanced benefits such as extended option exercise periods.",
+      "practical_use": "A founder classified as a good leaver upon departure may retain full vested equity with a standard 90-day exercise window (or extended period negotiated at grant). Some agreements provide good leavers with accelerated vesting of a portion of unvested shares as a departure benefit.",
+      "why_it_matters": "Good leaver vs. bad leaver classifications determine the economic outcome for departing employees and founders. These provisions are heavily negotiated, particularly for senior hires and co-founders, as the definition of what constitutes good cause or good reason can be highly disputed in contentious departure situations.",
+      "related_terms": ["Bad_Leaver", "Vesting_Schedule", "Acceleration"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Bad_Leaver": {
+      "definition": "A classification for an employee or founder who departs under unfavorable circumstances — typically voluntary resignation without good reason, or termination for cause such as gross misconduct, fraud, or breach of fiduciary duty. Bad leavers may forfeit unvested equity and, in some jurisdictions, may be required to sell vested shares back to the company at a reduced price.",
+      "practical_use": "In UK and European venture deals, bad leaver provisions can require a departing co-founder to sell even their vested shares back at cost price or nominal value — a significant departure from US norms where vested equity is generally retained regardless of departure circumstances.",
+      "why_it_matters": "Bad leaver provisions deter harmful departures and protect the company and remaining shareholders from disgruntled former employees retaining significant ownership. The scope of bad leaver definitions — what constitutes cause — is one of the most heavily negotiated provisions in international venture deals.",
+      "related_terms": ["Good_Leaver", "Vesting_Schedule", "Founder_Vesting"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Redemption_Right": {
+      "definition": "The right of preferred stockholders to require the company to repurchase their shares at a specified price — usually original purchase price plus accrued dividends — after a certain period, typically 5–7 years from investment. Redemption rights give investors a potential exit mechanism if no IPO or M&A exit has occurred.",
+      "practical_use": "A Series A investor with redemption rights exercisable after 7 years can demand the company repurchase their shares if there has been no liquidity event. This creates a put option for investors but can force companies into financial distress if they lack the cash to honor redemptions. In practice, redemption rights are rarely exercised.",
+      "why_it_matters": "Redemption rights theoretically convert preferred equity into quasi-debt at the redemption date, creating a balance sheet liability. Delaware law limits enforcement in many cases, reducing practical impact, but they remain an important negotiating point and can influence company strategy around exit timelines.",
+      "related_terms": ["Liquidation_Preference", "Cumulative_Dividends", "Term_Sheet", "Information_Rights"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Information_Rights": {
+      "definition": "Contractual rights granted to investors to receive regular financial and operational information about the company, typically including monthly or quarterly financial statements, annual audited financials, and the annual budget or business plan. Information rights are standard provisions for major investors and are governed by the Investors' Rights Agreement.",
+      "practical_use": "Standard information rights packages include monthly financial statements within 30 days of month-end, quarterly reports within 45 days, annual audited financials within 120 days, and the annual budget before fiscal year start. Major investors above a defined ownership threshold receive full information rights; smaller investors receive limited or no rights.",
+      "why_it_matters": "Information rights give investors visibility into company performance and enable decisions about follow-on investment, board actions, or exercise of other contractual rights. For founders, managing information rights holders is an operational burden — more investors with information rights means more reporting overhead and greater exposure of sensitive business data.",
+      "related_terms": ["Board_Seat", "Voting_Rights", "Observer_Rights", "Protective_Provisions"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Voting_Rights": {
+      "definition": "The rights of shareholders to vote on significant company decisions, including the election of board members, approval of mergers or acquisitions, changes to the certificate of incorporation, and issuance of new share classes. Common and preferred stockholders typically have different voting rights — preferred usually votes on an as-converted-to-common basis for most matters.",
+      "practical_use": "Preferred stockholders typically vote on an as-converted basis for matters requiring a common stockholder vote, giving larger preferred investors significant voting influence. Certain matters — such as creating new preferred shares or changing liquidation preferences — require a separate class vote of preferred stockholders.",
+      "why_it_matters": "Voting rights determine who controls fundamental company decisions. Founders who have issued significant preferred stock may find their effective voting power diluted below 50%, potentially losing control of board elections and major corporate decisions. Dual-class share structures can preserve founder voting control despite significant equity dilution.",
+      "related_terms": ["Board_Seat", "Protective_Provisions", "Drag_Along", "Cap_Table"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Board_Seat": {
+      "definition": "The right of an investor — typically the lead investor in a round — to appoint one or more members to the company's board of directors. Board seats provide investors direct oversight and governance rights, including voting on major strategic decisions, CEO performance, and significant transactions.",
+      "practical_use": "A typical early-stage board is 5 members: 2 founders, 2 investor-appointed directors, and 1 mutually agreed independent. Lead Series A VCs almost always require a board seat as part of their investment. Multiple board seats for investors can create situations where founders are outvoted by investor-controlled directors on key matters.",
+      "why_it_matters": "Board composition is arguably the most important governance provision in a venture deal because board control determines the company's strategic direction and the ability to hire or fire the CEO. Founders should structure board composition to avoid losing effective control and ensure independent directors are genuinely independent from investor influence.",
+      "related_terms": ["Observer_Rights", "Voting_Rights", "Protective_Provisions", "Information_Rights"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Observer_Rights": {
+      "definition": "The right of an investor or other party to attend board meetings as a non-voting observer. Observers receive board materials and can participate in discussions but cannot vote on board resolutions. Observer rights are typically granted to smaller investors who don't meet the threshold for a formal board seat.",
+      "practical_use": "Seed investors who don't warrant a full board seat often negotiate for observer rights to maintain visibility into company operations and strategic decisions. Companies typically limit observer attendance to managing partners of the fund rather than any representative, and may exclude observers from sensitive discussions such as litigation or executive compensation.",
+      "why_it_matters": "While observers cannot vote, their presence and influence in board discussions can be significant. Too many observers can make board meetings unwieldy and expose sensitive information to more parties than necessary. Companies should negotiate the right to exclude observers from sensitive agenda items to preserve board deliberation quality.",
+      "related_terms": ["Board_Seat", "Information_Rights", "Voting_Rights", "Protective_Provisions"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Protective_Provisions": {
+      "definition": "Veto rights granted to preferred stockholders as a class over specific major corporate actions, regardless of the outcome of a general shareholder vote. Standard protective provisions cover actions like creating new preferred stock, changing liquidation preferences, amending the certificate of incorporation, selling the company, or incurring significant debt above defined thresholds.",
+      "practical_use": "Standard NVCA protective provisions require preferred stockholder approval — often majority of outstanding preferred shares voting as a single class — for actions including any liquidation or sale, changing the number of authorized shares, issuing new securities senior to existing preferred, and creating new board seats beyond agreed numbers.",
+      "why_it_matters": "Protective provisions give investors a veto on decisions that could impair their economic rights, even if they are outvoted on an as-converted basis. Overbroad protective provisions can constrain a company's operational flexibility significantly. Negotiating which actions require approval and at what threshold — majority vs. supermajority — is critical for maintaining founder agility.",
+      "related_terms": ["Voting_Rights", "Board_Seat", "Drag_Along", "Term_Sheet"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "No_Shop": {
+      "definition": "A binding provision in a term sheet prohibiting the company from soliciting, discussing, or negotiating alternative financing or acquisition proposals from other parties for a defined period — typically 30–60 days — after term sheet signing. The no-shop clause protects the investor's time and legal expense during due diligence.",
+      "practical_use": "Once a founder signs a term sheet with a no-shop clause, they cannot show the term sheet to other investors or accept competing offers during the exclusivity period. Violation of no-shop provisions can create legal liability and permanently damage relationships with the signing investor.",
+      "why_it_matters": "The no-shop clause is one of the few binding provisions in an otherwise non-binding term sheet. Founders should negotiate the shortest possible no-shop period — 30 days is reasonable, 90 days is too long — and ensure it terminates automatically if the investor fails to close within the agreed timeline.",
+      "related_terms": ["Exclusivity", "Term_Sheet", "MAC_Clause"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Exclusivity": {
+      "definition": "A broader term encompassing the no-shop obligation, giving a specific investor the exclusive right to negotiate and complete a transaction with the company during a defined period. Exclusivity provisions may extend beyond no-shop to prevent the company from engaging in any alternative transaction discussions, including M&A conversations.",
+      "practical_use": "Exclusivity periods in acquisition contexts are typically longer (45–90 days) than in financing contexts (30–45 days) to allow for full due diligence, regulatory review, and negotiation of definitive documents. Founders should negotiate carve-outs for unsolicited third-party approaches received during the exclusivity period.",
+      "why_it_matters": "Exclusivity provisions prevent founders from using competing offers as negotiating leverage during due diligence. Granting exclusivity before term sheet signing — unusual but sometimes requested — is particularly dangerous as it eliminates all negotiating leverage before key economic terms are even established.",
+      "related_terms": ["No_Shop", "Term_Sheet", "MAC_Clause"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "MAC_Clause": {
+      "definition": "Material Adverse Change (or Material Adverse Effect) clause — a provision allowing an investor or acquirer to withdraw from a transaction if a significant negative change occurs in the company's business, financial condition, operations, or prospects between signing and closing of the transaction.",
+      "practical_use": "MAC clauses are most relevant in M&A transactions and larger venture deals where there is a gap between signing and closing. Typical MAC definitions exclude general market conditions, industry-wide events, and macroeconomic changes — meaning events like a broad market downturn typically do not constitute a MAC under standard definitions.",
+      "why_it_matters": "MAC clauses give investors or acquirers a potential exit from signed deals but are rarely successfully invoked in practice — courts have set a very high bar for what constitutes a MAC. Nevertheless, their presence provides important negotiating leverage and contractual protection during diligence periods for major transactions.",
+      "related_terms": ["No_Shop", "Exclusivity", "Term_Sheet"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "FIRPTA": {
+      "definition": "Foreign Investment in Real Property Tax Act — a US tax law requiring withholding of 15% of the sales price when a foreign person sells a US real property interest or, in some cases, interests in US corporations that hold significant US real property. In venture, FIRPTA compliance is a standard closing requirement in M&A transactions involving foreign shareholders.",
+      "practical_use": "In venture M&A transactions, FIRPTA certificates — certifying that the seller is not a foreign person — are standard closing documents. Foreign investors in US companies with significant real property holdings may be subject to FIRPTA withholding on their M&A proceeds. FIRPTA compliance is typically coordinated by transaction counsel at closing.",
+      "why_it_matters": "Missing FIRPTA compliance in M&A transactions can create significant tax liability for buyers who may be held responsible for required withholding. Venture deals involving foreign LPs or foreign co-investors should involve qualified tax counsel to analyze FIRPTA applicability and ensure proper withholding or valid exemption certificates are obtained.",
+      "related_terms": ["Hart_Scott_Rodino", "MAC_Clause", "Term_Sheet"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Hart_Scott_Rodino": {
+      "definition": "The Hart-Scott-Rodino Antitrust Improvements Act (HSR) — a US federal law requiring parties to notify the FTC and DOJ before completing certain large mergers, acquisitions, or investments that meet specified size-of-transaction and size-of-person thresholds. HSR filings trigger a mandatory waiting period (typically 30 days) during which regulators review the transaction for antitrust concerns.",
+      "formula": "2024 HSR thresholds: Transaction must exceed ~$119.5M (size of transaction test) AND involve parties meeting the size-of-person test (one party with revenues/assets above ~$239M and the other above ~$23.9M) to require filing. Filing fees range from $30K to $280K+ depending on transaction size.",
+      "practical_use": "Large late-stage venture investments and M&A transactions exceeding HSR thresholds require filing and payment of HSR fees before closing. The 30-day waiting period must expire or receive early termination before the transaction can close. Transaction counsel identifies HSR applicability early and builds the review period into the deal timeline.",
+      "why_it_matters": "HSR compliance is a critical closing condition for large transactions. Failure to file when required can result in substantial civil penalties of $50,120 per day per violation. Identifying HSR applicability early prevents last-minute delays that can create MAC arguments or breach of transaction agreements.",
+      "related_terms": ["FIRPTA", "MAC_Clause", "Term_Sheet"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "J_Curve": {
+      "definition": "The characteristic performance pattern of private equity and venture capital funds, where returns are negative in the early years due to management fees, fund expenses, and the time required for portfolio companies to mature, and then curve upward as investments are realized in later years. Plotted on a return vs. time graph, the shape resembles the letter J.",
+      "practical_use": "During years 1–3, a fund typically shows negative net IRR because fees are charged on committed capital but no exits have occurred. By years 5–7, successful exits begin to return capital and push cumulative returns positive. LPs must be comfortable with multi-year negative returns when making long-duration fund commitments.",
+      "why_it_matters": "The J-curve creates a liquidity mismatch for LPs who need current-period returns — endowments and pensions must manage this against their spending and distribution needs. Fund-of-funds and secondary buyers help LPs manage J-curve exposure by buying stakes in existing funds that have already passed the early negative period.",
+      "related_terms": ["DPI", "TVPI", "RVPI", "Vintage_Year", "Management_Fee", "Carry"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Hurdle_Rate": {
+      "definition": "The minimum rate of return that a fund must achieve before the general partner is entitled to receive carried interest. The hurdle rate (or preferred return) is typically set at 6–8% per annum and ensures that LPs receive a meaningful baseline return on their invested capital before the GP begins participating in profits.",
+      "formula": "Hurdle Amount = LP Capital Contributions × (1 + Hurdle Rate%)^Years. GP earns carried interest only on returns above the hurdle amount, usually subject to a catch-up provision that allows the GP to receive a higher percentage of distributions until in balance.",
+      "practical_use": "A fund with an 8% hurdle rate must return 8% annual returns to LPs before the GP receives any carry. If a $100M fund returns $180M over 10 years — exactly 8% IRR — the GP earns no carry. Returns above 8% IRR are subject to the catch-up provision and then split 80/20 between LPs and GP.",
+      "why_it_matters": "Hurdle rates align GP and LP incentives by ensuring GPs only profit after delivering a meaningful baseline return to investors. Many venture funds (unlike PE funds) do not include a hurdle rate, arguing that venture risk and illiquidity make carry from dollar one appropriate. The presence or absence of a hurdle is a key LP negotiating point.",
+      "related_terms": ["Preferred_Return", "Catch_Up", "Carry", "Carried_Interest", "Management_Fee", "J_Curve"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Preferred_Return": {
+      "definition": "The cumulative return that limited partners receive on their invested capital before the general partner is entitled to any carried interest, equivalent to the hurdle rate expressed as a compounding annual return. The preferred return accumulates on unreturned capital until sufficient distributions are made to satisfy it fully.",
+      "formula": "Preferred Return Balance = Σ [Capital Call_t × (1 + Pref Rate%)^(Years Outstanding_t)]. Distributions must first satisfy the full preferred return balance before any carry is paid to the GP.",
+      "practical_use": "In a PE fund with an 8% preferred return, an LP's $10M commitment called over 3 years must be returned with 8% annual compounding before the GP earns any carry. Modeling the preferred return requires tracking the timing of each capital call and each distribution, as the compounding calculation is call-date sensitive.",
+      "why_it_matters": "The preferred return is the LP's baseline performance benchmark and the GP's minimum performance hurdle. It ensures investors are compensated for the time value and illiquidity risk of committing capital. The interaction between preferred return and catch-up provisions determines the effective economics of the carry arrangement at each return level.",
+      "related_terms": ["Hurdle_Rate", "Catch_Up", "Carry", "Carried_Interest", "DPI", "J_Curve"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Catch_Up": {
+      "definition": "A provision in a limited partnership agreement that allows the general partner to receive 100% (or a high percentage) of distributions after LPs have received their preferred return, until the GP has caught up to its target carried interest percentage of total fund profits. The catch-up ensures the GP ends up with the agreed carry percentage of all profits above the hurdle.",
+      "formula": "During catch-up: 100% of distributions go to GP. Catch-up ends when: GP Cumulative Carry / Total Fund Profit = Target Carry %. Then: distributions revert to 80/20 split (LP/GP) for all further profits.",
+      "practical_use": "In a 20% carry fund with 8% hurdle and 100% catch-up: after LPs receive their 8% preferred return, 100% of next distributions go to the GP until the GP has received 20% of all profits distributed to date. Once the GP is caught up, all further profits split 80/20. The catch-up is why fund economics are quoted as '2/20 with 8% hurdle, 100% catch-up'.",
+      "why_it_matters": "The catch-up provision is one of the most economically significant LP agreement terms because it determines how quickly the GP reaches their carry entitlement after the hurdle is met. A 100% catch-up is more GP-favorable than a 50% catch-up. Modeling the waterfall with and without catch-up reveals dramatically different LP and GP outcome distributions.",
+      "related_terms": ["Hurdle_Rate", "Preferred_Return", "Carry", "Carried_Interest", "DPI"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Carry": {
+      "definition": "Shorthand for carried interest — the GP's share of fund profits as performance compensation, typically 20% of profits above the hurdle rate. Carry is the primary incentive mechanism for fund managers and represents the bulk of economic upside for successful GPs. The standard industry structure is '2 and 20' — 2% management fee and 20% carry.",
+      "formula": "Carry = (Fund Profits Above Hurdle) × Carry %. Standard carry: 20%. Top-tier funds may charge 25–30% carry on new fund vintages.",
+      "practical_use": "On a $100M fund returning $300M (3x gross MOIC) with an 8% hurdle and 100% catch-up: LPs receive their 8% preferred return (~$185M), then the GP catches up, then remaining above-hurdle profits split 80/20. GP carry might total $23M+, representing a significant economic reward for strong performance.",
+      "why_it_matters": "Carry is the primary reason top fund managers choose venture and private equity over public market alternatives. A 20% carry on a $500M fund generating 3x returns yields $200M+ in carry for the GP team. Understanding carry mechanics helps LPs evaluate manager incentive alignment and expected net-of-fee returns.",
+      "related_terms": ["Carried_Interest", "Management_Fee", "Hurdle_Rate", "Preferred_Return", "Catch_Up", "GP"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Carried_Interest": {
+      "definition": "The legal and tax term for the GP's share of fund profits — typically 20% of profits above the hurdle rate. Carried interest is taxed as long-term capital gains (not ordinary income) in the US when the underlying fund holds assets for more than three years, representing a significant tax advantage for fund managers that has been an ongoing subject of legislative debate.",
+      "formula": "Carried Interest = (Realized + Unrealized Gains − Management Fees − Expenses − Hurdle Return) × Carry %. Taxed at long-term capital gains rates (20% federal + 3.8% NIIT for high earners, versus 37% ordinary income rate).",
+      "practical_use": "Fund managers receive carried interest as their primary performance compensation, often structured to pay out on a whole-fund basis (more LP-friendly) or deal-by-deal basis (more GP-friendly). Carry clawback provisions require GPs to return excess carry if later losses reduce overall fund performance below the carry threshold.",
+      "why_it_matters": "The long-term capital gains tax treatment of carried interest saves top fund managers millions annually relative to ordinary income taxation. The 3-year holding requirement introduced in 2017 has had minimal practical impact on most VC and PE funds with multi-year holding periods. Clawback provisions protect LP economics from premature carry payments.",
+      "related_terms": ["Carry", "Management_Fee", "Hurdle_Rate", "GP", "LP"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Management_Fee": {
+      "definition": "An annual fee paid by LPs to the GP to cover fund operating expenses including staff salaries, office costs, travel, legal fees, and fund administration. Typically 1.5–2% of committed capital during the investment period, transitioning to 1–1.5% of net asset value or invested capital during the harvest period.",
+      "formula": "Annual Fee (Investment Period) = Committed Capital × Fee Rate%. Annual Fee (Harvest Period) = Invested Capital (or NAV) × Step-Down Rate%. Total Lifetime Fees = Investment Period Fees + Harvest Period Fees",
+      "practical_use": "A $100M fund charging 2% management fees collects $2M annually during the 5-year investment period ($10M total) then steps down to 1.5% on invested capital during the harvest period (~$7.5M over 5 years). Total management fees over fund life may consume 15–18% of committed capital, which directly reduces LP net returns.",
+      "why_it_matters": "Management fees directly reduce LP net returns — a fund must generate above-fee returns to deliver positive outcomes to investors. The fee step-down structure is an important LP negotiating point. The '2 and 20' standard is being compressed to '1.5 and 20' for larger and more established funds as LPs gain negotiating leverage.",
+      "related_terms": ["Carry", "Carried_Interest", "Hurdle_Rate", "LP", "GP", "J_Curve"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "DPI": {
+      "definition": "Distributed to Paid-In — a fund performance metric measuring the ratio of total cash distributions returned to LPs relative to the total capital they have contributed (paid-in capital). DPI is the definitive measure of actual realized returns because it reflects only cash that has been returned, not unrealized paper gains.",
+      "formula": "DPI = Total Cash Distributions to LPs / Total LP Paid-In Capital (sum of all capital calls funded). DPI > 1.0x means LPs have received back more cash than they invested.",
+      "practical_use": "A fund that has called $100M and distributed $150M to LPs has a DPI of 1.5x, meaning LPs have received 1.5x their invested capital in cash. A mature fund (7+ years) should have DPI greater than 1.0x to have returned invested capital. Early-stage funds may have low DPI for 5–8 years as portfolio companies mature toward exits.",
+      "why_it_matters": "DPI is the gold standard for evaluating fund performance because it measures what investors have actually received in cash, not paper valuations that can change. A high TVPI with low DPI indicates unrealized gains that may never materialize. LPs evaluating fund managers should weight DPI heavily for funds 7+ years old.",
+      "related_terms": ["TVPI", "RVPI", "MOIC", "J_Curve", "Carried_Interest", "Vintage_Year"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "TVPI": {
+      "definition": "Total Value to Paid-In — a fund performance metric combining both distributed (realized) and unrealized (residual) value relative to total LP capital contributions. TVPI equals DPI plus RVPI, representing the total return multiple — realized and unrealized — on invested capital.",
+      "formula": "TVPI = (Total Cash Distributions + Residual Portfolio Fair Value) / Total Paid-In Capital. Equivalently: TVPI = DPI + RVPI",
+      "practical_use": "A fund that has called $100M, returned $80M (0.8x DPI), and has a remaining portfolio valued at $120M (1.2x RVPI) has a TVPI of 2.0x. This tells LPs the fund has created 2x total value but has not yet returned their full invested capital in cash (DPI still below 1.0x).",
+      "why_it_matters": "TVPI is the most commonly cited headline performance metric for VC and PE funds because it shows total value creation. However, TVPI dominated by RVPI (unrealized paper gains) can be misleading — high TVPI based mostly on paper gains may not persist to exit. TVPI should always be analyzed alongside DPI to understand the realization ratio.",
+      "related_terms": ["DPI", "RVPI", "MOIC", "J_Curve", "Vintage_Year", "Portfolio_Construction"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "MOIC": {
+      "definition": "Multiple on Invested Capital — a simple return metric expressing the total value returned (realized plus unrealized) as a multiple of capital invested, without accounting for the time taken to generate those returns. MOIC provides a clear absolute return picture but does not penalize for slow capital deployment or long holding periods.",
+      "formula": "MOIC = (Realized Value + Unrealized Value) / Total Invested Capital. Example: $5M invested, $12M total value = 2.4x MOIC. Net MOIC subtracts management fees and carried interest.",
+      "practical_use": "MOIC is used at both the individual investment level (how much has this company returned?) and the fund level (what is the fund's overall return multiple?). A 3x gross MOIC fund that took 12 years to generate returns is less impressive than a 3x fund that took 7 years — IRR captures this time difference while MOIC does not.",
+      "why_it_matters": "MOIC is the most intuitive return metric for founders and investors to communicate — a 3x return is immediately understood by any audience. However, comparing funds solely on MOIC without considering time (IRR) or the realized vs. unrealized mix (DPI vs. RVPI) can be deeply misleading. Top-performing VC funds target 3x+ net MOIC.",
+      "related_terms": ["DPI", "TVPI", "RVPI", "J_Curve", "Vintage_Year"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "RVPI": {
+      "definition": "Residual Value to Paid-In — a fund performance metric measuring the current fair value of unrealized investments (remaining portfolio value) relative to total LP capital contributions. RVPI represents the paper gains that have not yet been converted into cash distributions to LPs.",
+      "formula": "RVPI = Fair Value of Unrealized Portfolio Holdings / Total LP Paid-In Capital. TVPI = DPI + RVPI",
+      "practical_use": "A fund with $100M called, $40M distributed (0.4x DPI), and $120M in remaining portfolio value has an RVPI of 1.2x and TVPI of 1.6x. High RVPI is expected in early fund years; high RVPI in a mature fund (10+ years) may indicate the GP has been unable to generate liquidity and raises questions about portfolio quality.",
+      "why_it_matters": "RVPI is inherently subject to valuation uncertainty — unrealized portfolio values are based on appraisals, comparable transactions, or last-round pricing, not actual exit proceeds. LPs should apply a discount to RVPI-heavy TVPI figures to account for the risk that paper gains may not be fully realized, particularly in market downturns.",
+      "related_terms": ["DPI", "TVPI", "MOIC", "J_Curve", "Vintage_Year"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Vintage_Year": {
+      "definition": "The year in which a fund makes its first investment or officially closes and begins deploying capital. Vintage year is used to compare fund performance against peers that deployed capital in the same market environment, controlling for macroeconomic and valuation cycle conditions that affect all funds equally.",
+      "practical_use": "Vintage year comparisons are essential for fair benchmark analysis — a 2009 vintage fund benefited from investing at post-financial-crisis valuations, while a 2021 vintage fund invested at peak valuations. Institutional LPs use vintage year benchmarks from Cambridge Associates and Preqin to evaluate GPs against their peer cohort.",
+      "why_it_matters": "Macroeconomic environment at deployment dramatically affects fund performance regardless of GP skill. The 2009 and 2010 vintages were exceptional because companies were built on lean capital and exited into recovering markets. Understanding vintage year context is essential for fair fund performance attribution and accurate GP evaluation.",
+      "related_terms": ["J_Curve", "DPI", "TVPI", "MOIC", "Portfolio_Construction"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Portfolio_Construction": {
+      "definition": "The strategic framework a fund uses to allocate capital across investments, including decisions about check size, stage focus, sector focus, number of investments, reserve allocation for follow-ons, and concentration vs. diversification strategy. Portfolio construction directly determines the risk and return profile of the entire fund.",
+      "practical_use": "A $100M seed fund might construct a portfolio of 25 initial investments averaging $2M each, retaining $50M in reserves for follow-on investments in top performers. The number of investments, initial ownership targets (10–15%), and follow-on strategy must all be optimized together to maximize fund-level returns under power law dynamics.",
+      "why_it_matters": "Portfolio construction is where fund strategy meets fund economics. Power law dynamics in venture — a small number of investments return the entire fund — mean that diversification strategy is critical. Too few investments risk missing the next winner; too many dilutes focus and reserves. Initial ownership percentage and pro-rata rights significantly affect terminal outcomes.",
+      "related_terms": ["Diversification", "Dry_Powder", "Follow_On_Reserve", "Co_Investment", "Pro_Rata"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Diversification": {
+      "definition": "The practice of spreading investment capital across multiple companies, sectors, stages, geographies, or asset classes to reduce the risk that any single investment's failure materially harms overall portfolio performance. In venture, diversification must be balanced against concentration — too many small bets can dilute returns from winners.",
+      "practical_use": "A typical seed fund diversifies across 20–35 companies, knowing statistically that the portfolio will follow a power law distribution where 1–3 companies may return the entire fund. Sector diversification (not all fintech or all SaaS) and geographic diversification further reduce correlated risk within the portfolio.",
+      "why_it_matters": "The optimal diversification strategy in venture is counterintuitive — studies suggest funds need at least 20–25 investments to have statistical confidence of capturing power-law winners, but too many investments (50+) in a small fund can lead to insufficient follow-on reserves to support the winners that emerge. Diversification must be sized to the fund's capital base.",
+      "related_terms": ["Portfolio_Construction", "Dry_Powder", "Follow_On_Reserve", "Fund_of_Funds"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Dry_Powder": {
+      "definition": "Uninvested capital that a fund has available to deploy into new investments or follow-on investments. Dry powder represents committed but uncalled LP capital plus any fund-level cash reserves held. The total amount of industry-wide dry powder is a key indicator of competitive dynamics and valuation pressure in venture investing.",
+      "practical_use": "A fund manager tracks dry powder carefully to ensure sufficient capital to exercise pro-rata rights in follow-on rounds of top performers. Running out of dry powder before the end of the investment period — typically year 5 of a 10-year fund — can prevent a fund from participating in its best portfolio companies' later rounds, significantly reducing returns.",
+      "why_it_matters": "Industry-wide dry powder levels affect deal pricing and competition — high dry powder (as seen in 2020–2021) drives up valuations as multiple funds compete for the same opportunities. For individual fund managers, dry powder management is a critical skill: deploying too quickly leaves insufficient capital for follow-ons; deploying too slowly creates J-curve cash drag.",
+      "related_terms": ["Follow_On_Reserve", "Portfolio_Construction", "Diversification", "Management_Fee", "LP"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Follow_On_Reserve": {
+      "definition": "Capital set aside by a fund specifically for follow-on investments in existing portfolio companies in subsequent funding rounds. Follow-on reserves enable investors to exercise pro-rata rights, maintain ownership percentage, and double down on top performers as they demonstrate traction and scale.",
+      "formula": "Typical Reserve Ratio = 40–60% of fund size reserved for follow-ons. Example: $100M fund with 50% reserve = $50M for initial investments, $50M for follow-ons. Initial investment per company = $50M / 25 companies = $2M average initial check.",
+      "practical_use": "A VC investing $2M in a seed round might reserve $8M for follow-on investments in the same company through Series A, B, and C rounds to maintain their ownership percentage. Without follow-on reserves, ownership percentage is diluted in each subsequent round. Top-performing companies typically consume disproportionate follow-on reserves.",
+      "why_it_matters": "Follow-on reserve strategy is critical to fund performance — the ability to increase ownership in winners by exercising pro-rata rights is a primary return driver for VC funds. Funds that exhaust reserves in year 3 of a 10-year fund cannot participate in the most valuable later rounds of their breakout portfolio companies.",
+      "related_terms": ["Pro_Rata", "Portfolio_Construction", "Dry_Powder", "Co_Investment"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Co_Investment": {
+      "definition": "A direct investment made by an LP alongside a fund manager (GP) into a specific portfolio company, outside of the fund structure and without paying the fund's management fees or carry on that specific investment. Co-investments allow LPs to increase exposure to specific deals at significantly lower cost than through the fund vehicle.",
+      "practical_use": "A VC fund investing $10M in a company's Series B may offer LP co-investment rights for an additional $5M directly into the company. LPs typically pay no management fee and reduced or no carry (0–10%) on co-investments versus standard fund terms of 2% and 20%. Large institutional LPs often negotiate co-investment rights as a condition of fund commitment.",
+      "why_it_matters": "Co-investments can significantly enhance LP net returns by reducing fee drag on their best investments — concentrating capital in identified winners without the fee overhead of the fund structure. GPs use co-investment rights to win LP commitments and to close larger rounds in top portfolio companies without exceeding fund concentration limits.",
+      "related_terms": ["SPV", "Sidecar_Fund", "Pro_Rata", "Follow_On_Reserve", "LP", "GP"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "SPV": {
+      "definition": "Special Purpose Vehicle — a legal entity, typically an LLC, created for the purpose of pooling capital from multiple investors to make a single investment into a specific company. SPVs allow syndicates of investors to collectively participate in a deal that they could not or would not do individually, appearing as one consolidated entity on the portfolio company's cap table.",
+      "practical_use": "Platforms like AngelList and Assure enable GPs to create SPVs for specific deals, pooling $500K–$10M+ from 10–100 investors into a single entity. The SPV GP earns carry (typically 15–20%) on profits from that specific investment. SPVs are increasingly used for access to competitive late-stage rounds.",
+      "why_it_matters": "SPVs simplify cap tables by consolidating many individual investors into one entity, making the company more attractive to institutional lead investors who prefer clean, manageable shareholder registers. For investors, SPVs enable participation in deals at check sizes too small for direct inclusion but aggregated to meet company minimums.",
+      "related_terms": ["Sidecar_Fund", "Co_Investment", "Cap_Table", "Carry", "GP", "LP"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Sidecar_Fund": {
+      "definition": "A dedicated investment vehicle that runs alongside a main fund, allowing the GP to deploy additional capital into specific opportunities beyond the main fund's capacity or concentration limits. Sidecar funds typically have similar economics to the main fund but are raised specifically for a defined opportunity set or to capture overflow allocation.",
+      "practical_use": "A VC firm with a $100M main fund with 15% concentration limits might create a $20M sidecar fund focused exclusively on follow-on investments in the top 3 performers. Main fund LPs often have rights of first offer on sidecar fund allocation, allowing them to maintain proportional exposure to the best performers.",
+      "why_it_matters": "Sidecar funds allow GPs to capture value in breakout companies beyond what the main fund structure permits, aligning GP and LP interests in best-performing assets. Proper LP disclosure, advisory committee approval, and fairness opinions are essential governance requirements to avoid conflicts of interest in sidecar structures.",
+      "related_terms": ["SPV", "Co_Investment", "Follow_On_Reserve", "GP", "LP", "Portfolio_Construction"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Fund_of_Funds": {
+      "definition": "An investment fund that invests in a portfolio of other investment funds — VC funds, PE funds, hedge funds — rather than directly in companies or assets. Fund-of-funds provide LPs with diversification across multiple fund managers, strategies, and vintage years, but add an additional layer of fees on top of underlying fund fees.",
+      "practical_use": "Fund-of-funds (Hamilton Lane, HarbourVest, Pantheon) allow smaller investors — family offices, smaller pensions — to access top VC funds with high minimum commitments ($10M+) by pooling capital into a single vehicle. FoF managers charge an additional 0.5–1% management fee and 5–10% carry on top of the underlying fund economics.",
+      "why_it_matters": "Fund-of-funds add a second layer of fees that significantly reduces net returns to end investors — often 200–300bps annually. The J-curve is also effectively extended because the FoF's returns depend on multiple underlying funds' J-curves. Nevertheless, FoFs provide access, diversification, and manager selection expertise that smaller LPs cannot independently replicate.",
+      "related_terms": ["LP", "GP", "Diversification", "J_Curve", "Management_Fee", "Carry"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "Continuation_Fund": {
+      "definition": "A new fund vehicle created by a GP to hold one or more assets from an existing fund that has not been exited, allowing the GP to extend the holding period for high-quality assets while providing liquidity options to existing LPs who wish to exit. Continuation funds are a form of GP-led secondary transaction.",
+      "practical_use": "A 10-year fund approaching its end with a high-value private company that has not yet IPO'd may create a continuation fund to hold that asset for another 3–5 years. Existing LPs can sell their stake to secondary buyers at a negotiated price or roll their interest into the new fund and wait for a larger exit.",
+      "why_it_matters": "Continuation funds resolve the tension between fund lifecycle constraints and optimal holding periods for the best assets. They raise inherent conflict-of-interest concerns — the GP effectively sets the transfer price for assets moving from old to new fund. Third-party fairness opinions and LP advisory committee approval are standard governance requirements.",
+      "related_terms": ["Fund_of_Funds", "SPV", "Sidecar_Fund", "DPI", "RVPI", "GP", "LP"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "GP_Stake": {
+      "definition": "A direct equity stake in the general partner entity — the management company — of a fund manager, giving the GP stake investor ongoing economics from the GP's management fees and carried interest across current and future funds. GP stake investing has grown into a distinct and sizable asset class over the past decade.",
+      "practical_use": "GP stake investors (Goldman Sachs Petershill, Blue Owl Capital, Dyal Capital) buy minority stakes of 10–25% in established fund managers, typically paying 10–15x earnings on management fees and carry. GPs receive liquidity for early employees and partners, capital for co-investments, and institutional resources in exchange.",
+      "why_it_matters": "GP stakes allow established fund managers to provide liquidity to founding teams without selling the firm. For GP stake investors, the thesis is a diversified, fee-income-generating portfolio of minority stakes in top managers that is less correlated to public markets than direct fund or company investing. The growing GP stake market has also increased transparency in fund manager economics.",
+      "related_terms": ["Carry", "Management_Fee", "GP", "LP", "Carried_Interest", "Continuation_Fund"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "LP": {
+      "definition": "Limited Partner — an investor in a venture capital or private equity fund who contributes capital but has limited liability (capped at their investment amount) and no role in day-to-day fund management decisions. LPs are the capital providers of the fund and receive the majority of fund profits after GP economics are paid.",
+      "practical_use": "Typical LPs include university endowments (Harvard, Yale), pension funds (CalPERS, CPPIB), sovereign wealth funds (GIC, Temasek), family offices, foundations, insurance companies, and high-net-worth individuals. LP commitments are legally binding pledges to contribute capital when the GP issues capital calls over the fund's investment period.",
+      "why_it_matters": "LP relationships are the foundation of the venture capital ecosystem — GPs must deliver sufficient net returns to LPs to raise subsequent funds. LP satisfaction affects a GP's ability to raise capital, access deal flow, and maintain their franchise. The limited partnership agreement governs all aspects of the fund relationship including economics, governance, and reporting obligations.",
+      "related_terms": ["GP", "Carry", "Management_Fee", "J_Curve", "DPI", "TVPI", "Fund_of_Funds"],
+      "category": "Rounds_Instruments_Terms"
+    },
+    "GP": {
+      "definition": "General Partner — the fund manager responsible for making investment decisions, managing portfolio companies, and returning capital to LPs. The GP has unlimited liability for fund obligations (in theory, though typically structured through entities to limit personal liability), earns management fees for operations, and receives carried interest on profits above the hurdle rate.",
+      "practical_use": "A GP entity manages the fund on behalf of LPs, making all investment and portfolio management decisions. The GP team includes investment partners who source and lead deals, operating partners who support portfolio companies, and back-office staff managing administration, legal, and fund finance. GPs typically commit 1–2% of fund size as GP commitment to align their own capital with LP interests.",
+      "why_it_matters": "The GP is the architect of fund strategy, investment thesis, portfolio construction, and LP relations. GP quality is the single most important determinant of fund returns. Evaluating GP quality — track record, team stability, sourcing advantages, portfolio support capabilities, and governance track record — is the primary function of institutional LP investors conducting manager due diligence.",
+      "related_terms": ["LP", "Carry", "Carried_Interest", "Management_Fee", "GP_Stake", "Board_Seat", "Portfolio_Construction"],
+      "category": "Rounds_Instruments_Terms"
+    }
+  }
+}
