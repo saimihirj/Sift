@@ -14,7 +14,8 @@ type MessageBlock =
   | { kind: "paragraph"; text: string }
   | { kind: "label"; text: string }
   | { kind: "bullets"; items: string[] }
-  | { kind: "numbered"; items: string[] };
+  | { kind: "numbered"; items: string[] }
+  | { kind: "table"; headers: string[]; rows: string[][] };
 
 function normalizeMessageText(text: string): string {
   return (text || "")
@@ -23,6 +24,31 @@ function normalizeMessageText(text: string): string {
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/__(.+?)__/g, "$1")
     .trim();
+}
+
+function splitTableCells(line: string): string[] {
+  const trimmed = line.trim();
+  const rawCells = trimmed
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+  return rawCells;
+}
+
+function isMarkdownTable(lines: string[]): boolean {
+  if (lines.length < 2) {
+    return false;
+  }
+  const [header, divider, ...rows] = lines;
+  if (!header.includes("|") || !divider.includes("|")) {
+    return false;
+  }
+  const dividerCells = splitTableCells(divider);
+  if (!dividerCells.length || !dividerCells.every((cell) => /^:?-{3,}:?$/.test(cell))) {
+    return false;
+  }
+  return rows.length > 0 && rows.every((line) => line.includes("|"));
 }
 
 function parseMessageBlocks(text: string): MessageBlock[] {
@@ -36,6 +62,18 @@ function parseMessageBlocks(text: string): MessageBlock[] {
     .filter(Boolean)
     .map((chunk) => {
       const lines = chunk.split("\n").map((line) => line.trim()).filter(Boolean);
+      if (isMarkdownTable(lines)) {
+        const [header, , ...rowLines] = lines;
+        const headers = splitTableCells(header);
+        const rows = rowLines.map((line) => {
+          const cells = splitTableCells(line);
+          if (cells.length >= headers.length) {
+            return cells.slice(0, headers.length);
+          }
+          return [...cells, ...Array.from({ length: headers.length - cells.length }, () => "")];
+        });
+        return { kind: "table", headers, rows } satisfies MessageBlock;
+      }
       if (lines.length > 1 && lines.every((line) => /^[-*]\s+/.test(line))) {
         return { kind: "bullets", items: lines.map((line) => line.replace(/^[-*]\s+/, "")) } satisfies MessageBlock;
       }
@@ -69,6 +107,26 @@ function MessageContent({ content }: { content: string }) {
             <ol key={`numbered-${index}`} className="message-list-block numbered">
               {block.items.map((item, itemIndex) => <li key={`numbered-${index}-${itemIndex}`}>{item}</li>)}
             </ol>
+          );
+        }
+        if (block.kind === "table") {
+          return (
+            <div key={`table-${index}`} className="message-table-wrap">
+              <table className="message-table">
+                <thead>
+                  <tr>
+                    {block.headers.map((header, headerIndex) => <th key={`header-${index}-${headerIndex}`}>{header}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.rows.map((row, rowIndex) => (
+                    <tr key={`row-${index}-${rowIndex}`}>
+                      {row.map((cell, cellIndex) => <td key={`cell-${index}-${rowIndex}-${cellIndex}`}>{cell}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           );
         }
         return <p key={`paragraph-${index}`} className="message-paragraph">{block.text}</p>;

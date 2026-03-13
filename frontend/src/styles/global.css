@@ -1408,6 +1408,49 @@ a:focus-visible,
   padding-left: 22px;
 }
 
+.message-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-muted);
+}
+
+.message-table {
+  width: 100%;
+  min-width: 360px;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.message-table th,
+.message-table td {
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.message-table th {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.message-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.message.user .message-table-wrap {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.message.user .message-table th,
+.message.user .message-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.16);
+}
+
 .message.user {
   justify-self: end;
 }
