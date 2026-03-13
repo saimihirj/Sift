@@ -57,6 +57,142 @@ RECOMMENDED_DECK_MODELS = {
 }
 
 
+def _usage_record(
+    prompt_tokens: int = 0,
+    completion_tokens: int = 0,
+    total_tokens: int | None = None,
+    *,
+    estimated: bool,
+) -> dict[str, Any]:
+    prompt = max(int(prompt_tokens or 0), 0)
+    completion = max(int(completion_tokens or 0), 0)
+    total = max(int(total_tokens if total_tokens is not None else prompt + completion), 0)
+    return {
+        "promptTokens": prompt,
+        "completionTokens": completion,
+        "totalTokens": total,
+        "estimated": bool(estimated),
+    }
+
+
+def empty_runtime_usage() -> dict[str, Any]:
+    zero = _usage_record(estimated=False)
+    return {"last": dict(zero), "session": dict(zero)}
+
+
+def accumulate_runtime_usage(existing: dict[str, Any] | None, turn_usage: dict[str, Any] | None) -> dict[str, Any]:
+    current = existing if isinstance(existing, dict) else empty_runtime_usage()
+    current_last = current.get("last") if isinstance(current.get("last"), dict) else _usage_record(estimated=False)
+    current_session = current.get("session") if isinstance(current.get("session"), dict) else _usage_record(estimated=False)
+    next_last = normalize_usage(turn_usage)
+    next_session = _usage_record(
+        int(current_session.get("promptTokens", 0) or 0) + int(next_last.get("promptTokens", 0) or 0),
+        int(current_session.get("completionTokens", 0) or 0) + int(next_last.get("completionTokens", 0) or 0),
+        int(current_session.get("totalTokens", 0) or 0) + int(next_last.get("totalTokens", 0) or 0),
+        estimated=bool(current_session.get("estimated", False) or next_last.get("estimated", False)),
+    )
+    return {
+        "last": next_last or current_last,
+        "session": next_session,
+    }
+
+
+def normalize_usage(value: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return _usage_record(estimated=False)
+    return _usage_record(
+        prompt_tokens=int(value.get("promptTokens", 0) or 0),
+        completion_tokens=int(value.get("completionTokens", 0) or 0),
+        total_tokens=int(value.get("totalTokens", 0) or 0),
+        estimated=bool(value.get("estimated", False)),
+    )
+
+
+def _content_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if isinstance(item, dict):
+                if item.get("type") == "text" and item.get("text"):
+                    parts.append(str(item.get("text", "")))
+                elif item.get("text"):
+                    parts.append(str(item.get("text", "")))
+            elif isinstance(item, str):
+                parts.append(item)
+        return "\n".join(part for part in parts if part)
+    if isinstance(content, dict) and content.get("text"):
+        return str(content.get("text", ""))
+    return str(content or "")
+
+
+def _estimate_token_count(text: str) -> int:
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return 0
+    return max(1, (len(cleaned) + 3) // 4)
+
+
+def _estimated_usage_from_messages(system: str, messages: list[dict[str, Any]], completion_text: str) -> dict[str, Any]:
+    prompt_text = "\n".join(
+        bit
+        for bit in [system, *[_content_text(message.get("content", "")) for message in messages]]
+        if bit
+    )
+    return _usage_record(
+        _estimate_token_count(prompt_text),
+        _estimate_token_count(completion_text),
+        estimated=True,
+    )
+
+
+def _estimated_usage_from_prompt(system: str, prompt: str, completion_text: str) -> dict[str, Any]:
+    prompt_text = "\n".join(bit for bit in [system, prompt] if bit)
+    return _usage_record(
+        _estimate_token_count(prompt_text),
+        _estimate_token_count(completion_text),
+        estimated=True,
+    )
+
+
+def _usage_from_ollama(data: dict[str, Any], *, system: str, messages: list[dict[str, Any]], completion_text: str) -> dict[str, Any]:
+    prompt_tokens = int(data.get("prompt_eval_count", 0) or 0)
+    completion_tokens = int(data.get("eval_count", 0) or 0)
+    if prompt_tokens or completion_tokens:
+        return _usage_record(prompt_tokens, completion_tokens, estimated=False)
+    return _estimated_usage_from_messages(system, messages, completion_text)
+
+
+def _usage_from_openai_response(data: dict[str, Any], *, system: str, messages: list[dict[str, Any]], completion_text: str) -> dict[str, Any]:
+    usage = data.get("usage") if isinstance(data.get("usage"), dict) else {}
+    prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
+    completion_tokens = int(usage.get("completion_tokens", 0) or 0)
+    total_tokens = int(usage.get("total_tokens", 0) or 0)
+    if prompt_tokens or completion_tokens or total_tokens:
+        return _usage_record(prompt_tokens, completion_tokens, total_tokens, estimated=False)
+    return _estimated_usage_from_messages(system, messages, completion_text)
+
+
+def _usage_from_anthropic_response(data: dict[str, Any], *, system: str, messages: list[dict[str, Any]], completion_text: str) -> dict[str, Any]:
+    usage = data.get("usage") if isinstance(data.get("usage"), dict) else {}
+    prompt_tokens = int(usage.get("input_tokens", 0) or 0)
+    completion_tokens = int(usage.get("output_tokens", 0) or 0)
+    if prompt_tokens or completion_tokens:
+        return _usage_record(prompt_tokens, completion_tokens, estimated=False)
+    return _estimated_usage_from_messages(system, messages, completion_text)
+
+
+def _usage_from_gemini_response(data: dict[str, Any], *, system: str, messages: list[dict[str, Any]], completion_text: str) -> dict[str, Any]:
+    usage = data.get("usageMetadata") if isinstance(data.get("usageMetadata"), dict) else {}
+    prompt_tokens = int(usage.get("promptTokenCount", 0) or 0)
+    completion_tokens = int(usage.get("candidatesTokenCount", 0) or 0)
+    total_tokens = int(usage.get("totalTokenCount", 0) or 0)
+    if prompt_tokens or completion_tokens or total_tokens:
+        return _usage_record(prompt_tokens, completion_tokens, total_tokens, estimated=False)
+    return _estimated_usage_from_messages(system, messages, completion_text)
+
+
 def _env_float(name: str, default: float) -> float:
     raw = os.environ.get(name, "").strip()
     if not raw:
@@ -565,8 +701,9 @@ async def _stream_from_ollama(
                     yield "delta", {"delta": chunk}
                 if data.get("done"):
                     total_seconds = time.perf_counter() - start
+                    message_text = "".join(accumulated).strip()
                     yield "complete", {
-                        "message": "".join(accumulated).strip(),
+                        "message": message_text,
                         "responseProfile": config.key,
                         "model": config.model,
                         "provider": "ollama",
@@ -576,6 +713,7 @@ async def _stream_from_ollama(
                             "firstTokenSeconds": round(first_token_seconds or total_seconds, 3),
                             "totalSeconds": round(total_seconds, 3),
                         },
+                        "usage": _usage_from_ollama(data, system=system, messages=messages, completion_text=message_text),
                     }
                     return
 
@@ -606,6 +744,7 @@ async def _stream_from_openai_compatible(
     first_token_seconds = None
     accumulated: list[str] = []
     finish_reason = ""
+    usage_payload: dict[str, Any] | None = None
     timeout = httpx.Timeout(config.timeout_seconds, connect=3.0, read=config.timeout_seconds)
 
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -625,6 +764,13 @@ async def _stream_from_openai_compatible(
                 if data_blob == "[DONE]":
                     break
                 data = json.loads(data_blob)
+                if isinstance(data.get("usage"), dict):
+                    usage_payload = _usage_from_openai_response(
+                        data,
+                        system=system,
+                        messages=messages,
+                        completion_text="".join(accumulated).strip(),
+                    )
                 finish_reason = _normalize_finish_reason(data.get("choices", [{}])[0].get("finish_reason", finish_reason))
                 delta = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
                 if delta:
@@ -633,8 +779,9 @@ async def _stream_from_openai_compatible(
                         first_token_seconds = time.perf_counter() - start
                     yield "delta", {"delta": delta}
             total_seconds = time.perf_counter() - start
+            message_text = "".join(accumulated).strip()
             yield "complete", {
-                "message": "".join(accumulated).strip(),
+                "message": message_text,
                 "responseProfile": config.key,
                 "model": config.model,
                 "provider": provider,
@@ -644,6 +791,7 @@ async def _stream_from_openai_compatible(
                     "firstTokenSeconds": round(first_token_seconds or total_seconds, 3),
                     "totalSeconds": round(total_seconds, 3),
                 },
+                "usage": usage_payload or _estimated_usage_from_messages(system, messages, message_text),
             }
 
 
@@ -700,6 +848,7 @@ async def _stream_from_profile(
         "fallbackUsed": False,
         "finishReason": result.get("finishReason", "stop"),
         "timings": result["timings"],
+        "usage": result.get("usage", _usage_record(estimated=False)),
     }
 
 
@@ -767,6 +916,7 @@ async def stream_chat_completion(
     final_message = completion_payload.get("message", "").strip()
     final_finish_reason = completion_payload.get("finishReason", "stop")
     continuation_count = 0
+    aggregate_usage = normalize_usage(completion_payload.get("usage"))
     if allow_continuation:
         while continuation_count < max(int(continuation_limit), 0) and _needs_continuation(final_finish_reason, final_message):
             continuation_count += 1
@@ -785,6 +935,12 @@ async def stream_chat_completion(
             merged_message, delta = _merge_continuation_text(final_message, continuation_message)
             final_message = merged_message
             final_finish_reason = continuation.get("finishReason", final_finish_reason)
+            aggregate_usage = _usage_record(
+                aggregate_usage.get("promptTokens", 0) + int(continuation.get("usage", {}).get("promptTokens", 0) or 0),
+                aggregate_usage.get("completionTokens", 0) + int(continuation.get("usage", {}).get("completionTokens", 0) or 0),
+                aggregate_usage.get("totalTokens", 0) + int(continuation.get("usage", {}).get("totalTokens", 0) or 0),
+                estimated=bool(aggregate_usage.get("estimated", False) or continuation.get("usage", {}).get("estimated", False)),
+            )
             if delta:
                 yield "delta", {"delta": delta, "continuation": True}
             if not continuation_message.strip():
@@ -796,6 +952,7 @@ async def stream_chat_completion(
     completion_payload["finishReason"] = final_finish_reason or "stop"
     completion_payload["continuedAfterLengthLimit"] = continuation_count > 0
     completion_payload["continuationCount"] = continuation_count
+    completion_payload["usage"] = aggregate_usage
     if fallback_used:
         completion_payload["fallbackUsed"] = True
         completion_payload["requestedProfile"] = requested
@@ -830,13 +987,15 @@ async def _complete_ollama(
         response.raise_for_status()
         data = response.json()
     total_seconds = time.perf_counter() - start
+    message_text = data.get("message", {}).get("content", "").strip()
     return {
-        "message": data.get("message", {}).get("content", "").strip(),
+        "message": message_text,
         "finishReason": _normalize_finish_reason(data.get("done_reason") or data.get("doneReason") or "stop"),
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
         },
+        "usage": _usage_from_ollama(data, system=system, messages=messages, completion_text=message_text),
     }
 
 
@@ -865,13 +1024,15 @@ async def _complete_openai(
         data = response.json()
     total_seconds = time.perf_counter() - start
     content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    message_text = (content or "").strip()
     return {
-        "message": (content or "").strip(),
+        "message": message_text,
         "finishReason": _normalize_finish_reason(data.get("choices", [{}])[0].get("finish_reason", "stop")),
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
         },
+        "usage": _usage_from_openai_response(data, system=system, messages=messages, completion_text=message_text),
     }
 
 
@@ -907,13 +1068,15 @@ async def _complete_anthropic(
     for item in data.get("content", []):
         if item.get("type") == "text":
             text_parts.append(item.get("text", ""))
+    message_text = "".join(text_parts).strip()
     return {
-        "message": "".join(text_parts).strip(),
+        "message": message_text,
         "finishReason": _normalize_finish_reason(data.get("stop_reason", "stop")),
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
         },
+        "usage": _usage_from_anthropic_response(data, system=system, messages=messages, completion_text=message_text),
     }
 
 
@@ -953,13 +1116,15 @@ async def _complete_gemini(
             if part.get("text"):
                 parts.append(part["text"])
     finish_reason = _normalize_finish_reason((data.get("candidates", [{}]) or [{}])[0].get("finishReason", "stop"))
+    message_text = "".join(parts).strip()
     return {
-        "message": "".join(parts).strip(),
+        "message": message_text,
         "finishReason": finish_reason,
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
         },
+        "usage": _usage_from_gemini_response(data, system=system, messages=messages, completion_text=message_text),
     }
 
 
@@ -1010,6 +1175,7 @@ async def generate_provider_text(
         "provider": normalized_provider,
         "finishReason": result.get("finishReason", "stop"),
         "timings": result["timings"],
+        "usage": normalize_usage(result.get("usage")),
     }
 
 
@@ -1040,13 +1206,15 @@ async def _complete_ollama_multimodal(
         response.raise_for_status()
         data = response.json()
     total_seconds = time.perf_counter() - start
+    message_text = data.get("message", {}).get("content", "").strip()
     return {
-        "message": data.get("message", {}).get("content", "").strip(),
+        "message": message_text,
         "finishReason": _normalize_finish_reason(data.get("done_reason") or data.get("doneReason") or "stop"),
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
         },
+        "usage": _usage_from_ollama(data, system=system, messages=[{"role": "user", "content": prompt}], completion_text=message_text),
     }
 
 
@@ -1076,13 +1244,15 @@ async def _complete_openai_multimodal(
         data = response.json()
     total_seconds = time.perf_counter() - start
     content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    message_text = (content or "").strip()
     return {
-        "message": (content or "").strip(),
+        "message": message_text,
         "finishReason": _normalize_finish_reason(data.get("choices", [{}])[0].get("finish_reason", "stop")),
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
         },
+        "usage": _usage_from_openai_response(data, system=system, messages=[{"role": "user", "content": prompt}], completion_text=message_text),
     }
 
 
@@ -1119,13 +1289,15 @@ async def _complete_anthropic_multimodal(
     for item in data.get("content", []):
         if item.get("type") == "text":
             text_parts.append(item.get("text", ""))
+    message_text = "".join(text_parts).strip()
     return {
-        "message": "".join(text_parts).strip(),
+        "message": message_text,
         "finishReason": _normalize_finish_reason(data.get("stop_reason", "stop")),
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
         },
+        "usage": _usage_from_anthropic_response(data, system=system, messages=[{"role": "user", "content": prompt}], completion_text=message_text),
     }
 
 
@@ -1166,13 +1338,15 @@ async def _complete_gemini_multimodal(
             if part.get("text"):
                 parts.append(part["text"])
     finish_reason = _normalize_finish_reason((data.get("candidates", [{}]) or [{}])[0].get("finishReason", "stop"))
+    message_text = "".join(parts).strip()
     return {
-        "message": "".join(parts).strip(),
+        "message": message_text,
         "finishReason": finish_reason,
         "timings": {
             "firstTokenSeconds": round(total_seconds, 3),
             "totalSeconds": round(total_seconds, 3),
         },
+        "usage": _usage_from_gemini_response(data, system=system, messages=[{"role": "user", "content": prompt}], completion_text=message_text),
     }
 
 
@@ -1248,6 +1422,7 @@ async def generate_provider_multimodal_text(
         "provider": normalized_provider,
         "finishReason": result.get("finishReason", "stop"),
         "timings": result["timings"],
+        "usage": normalize_usage(result.get("usage")),
     }
 
 

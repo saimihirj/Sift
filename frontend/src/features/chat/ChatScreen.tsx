@@ -113,6 +113,14 @@ function defaultModelForProvider(providerOptions: ProviderOption[], provider: st
   return profile === "balanced" ? providerMeta.defaultBalancedModel : providerMeta.defaultSpeedModel;
 }
 
+function tokenStatus(runtimeUsage: SessionPayload["runtimeUsage"] | undefined): string {
+  const total = runtimeUsage?.last?.totalTokens ?? 0;
+  if (!total) {
+    return "";
+  }
+  return `${Math.round(total).toLocaleString()} tok${runtimeUsage?.last?.estimated ? " est." : ""}`;
+}
+
 function profileLabel(profile: ResponseProfile): string {
   return profile === "balanced" ? "Sharper" : "Fast";
 }
@@ -221,6 +229,7 @@ export function ChatScreen({
         ...previous,
         provider: response.provider as SessionPayload["provider"],
         model: response.model,
+        runtimeUsage: response.runtimeUsage,
       }));
       setStatusLine(`${selectedProvider?.label || response.provider} · ${response.model}`);
       setRuntimeOpen(false);
@@ -281,6 +290,7 @@ export function ChatScreen({
               ...previous,
               provider: provider as SessionPayload["provider"],
               model,
+              runtimeUsage: (data.runtimeUsage as SessionPayload["runtimeUsage"]) ?? previous.runtimeUsage,
             }));
             if (fallbackUsed) {
               setStatusLine(`${provider} fell back to ${model}`);
@@ -310,6 +320,7 @@ export function ChatScreen({
               activeUploads: data.activeUploads as UploadSummary[],
               provider,
               model,
+              runtimeUsage: (data.runtimeUsage as SessionPayload["runtimeUsage"]) ?? previous.runtimeUsage,
             }));
             if (runtimeApiKey.trim()) {
               saveSessionCredential(session.sessionId, {
@@ -319,8 +330,9 @@ export function ChatScreen({
               });
             }
             if (timings?.firstTokenSeconds !== undefined) {
+              const usageLabel = tokenStatus(data.runtimeUsage as SessionPayload["runtimeUsage"]);
               setStatusLine(
-                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s${stableWorkflow ? " · stable flow" : ""}`,
+                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s${usageLabel ? ` · ${usageLabel}` : ""}${stableWorkflow ? " · stable flow" : ""}`,
               );
             }
             setStreamingAssistant("");
@@ -478,6 +490,7 @@ export function ChatScreen({
         provider={runtimeProvider}
         model={runtimeModel}
         apiKey={runtimeApiKey}
+        runtimeUsage={session.runtimeUsage}
         responseProfile={session.responseProfile}
         applying={applyingRuntime}
         onClose={() => setRuntimeOpen(false)}

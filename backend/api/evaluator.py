@@ -25,13 +25,25 @@ from backend.services.evaluator import (
     present_evaluation_report,
     public_progress,
 )
-from backend.services.model_router import default_model_for_provider, model_supports_vision, normalize_provider
+from backend.services.model_router import (
+    accumulate_runtime_usage,
+    default_model_for_provider,
+    empty_runtime_usage,
+    model_supports_vision,
+    normalize_provider,
+    normalize_usage,
+)
 from backend.services.retrieval import build_retrieval_context
 from backend.services.state_engine import update_state_from_turn
 from backend.services.uploads import ingest_upload, list_active_uploads, retrieve_upload_context
 
 
 router = APIRouter(prefix="/api/evaluator", tags=["evaluator"])
+
+
+def _runtime_usage(metadata: dict) -> dict:
+    usage = metadata.get("runtimeUsage")
+    return usage if isinstance(usage, dict) else empty_runtime_usage()
 
 
 def _restore_state(session_row: dict, turns: list[dict]) -> ConversationState:
@@ -119,6 +131,8 @@ async def answer_question(
             metadata["deckReviewRuns"] = int(metadata.get("deckReviewRuns", 0) or 0) + 1
             metadata["deckReviewSummary"] = review_report.get("summary", "")
             metadata["deckReviewReport"] = review_report
+            run_usage = normalize_usage(review_report.get("runtimeUsage"))
+            metadata["runtimeUsage"] = accumulate_runtime_usage(metadata.get("runtimeUsage"), run_usage)
             updated_state = update_state_from_turn(
                 state,
                 answer_text or (f"I uploaded {upload_entry['name']}." if upload_entry else ""),
@@ -152,6 +166,7 @@ async def answer_question(
                     "reviewMode": review_report.get("reviewMode", "text_transcript"),
                     "reviewLimitations": review_report.get("reviewLimitations", []),
                     "supportsVision": supports_vision,
+                    "usage": run_usage,
                 },
             )
             if upload_entry is not None:
@@ -197,6 +212,7 @@ async def answer_question(
                 activeUploads=list_active_uploads(sessionId),
                 warning=metadata.get("website", {}).get("warning", ""),
                 supportsVision=supports_vision,
+                runtimeUsage=metadata.get("runtimeUsage", _runtime_usage(metadata)),
             )
 
         follow_up = await answer_deck_follow_up(
@@ -207,7 +223,10 @@ async def answer_question(
             model=chosen_model,
             api_key=apiKey or None,
         )
-        updated_state = update_state_from_turn(state, answer_text, assistant_message=follow_up)
+        follow_up_text = str(follow_up.get("message", "") or "")
+        follow_up_usage = normalize_usage(follow_up.get("runtimeUsage"))
+        metadata["runtimeUsage"] = accumulate_runtime_usage(metadata.get("runtimeUsage"), follow_up_usage)
+        updated_state = update_state_from_turn(state, answer_text, assistant_message=follow_up_text)
         memory.update_session(sessionId, updated_state)
         memory.update_session_metadata(sessionId, metadata)
         memory.store_turn(
@@ -228,6 +247,7 @@ async def answer_question(
                 "reviewMode": metadata.get("deckReviewReport", {}).get("reviewMode", "text_transcript"),
                 "reviewLimitations": metadata.get("deckReviewReport", {}).get("reviewLimitations", []),
                 "supportsVision": supports_vision,
+                "usage": follow_up_usage,
             },
         )
         return EvaluatorAnswerResponse(
@@ -236,12 +256,13 @@ async def answer_question(
             evaluationProgress=public_progress(metadata, updated_state),
             evaluationReport=None,
             deckEvaluationReport=present_deck_review_report(metadata),
-            reciprocal=follow_up,
+            reciprocal=follow_up_text,
             question=None,
             questionLabel="",
             activeUploads=list_active_uploads(sessionId),
             warning=metadata.get("website", {}).get("warning", ""),
             supportsVision=supports_vision,
+            runtimeUsage=metadata.get("runtimeUsage", _runtime_usage(metadata)),
         )
 
     if metadata.get("completed"):
@@ -410,6 +431,7 @@ async def answer_question(
         activeUploads=list_active_uploads(sessionId),
         warning=updated_metadata.get("website", {}).get("warning", ""),
         supportsVision=supports_vision,
+        runtimeUsage=updated_metadata.get("runtimeUsage", _runtime_usage(updated_metadata)),
     )
 
 
@@ -515,6 +537,7 @@ async def continue_deeper(session_id: str) -> EvaluatorAnswerResponse:
         activeUploads=list_active_uploads(session_id),
         warning=updated_metadata.get("website", {}).get("warning", ""),
         supportsVision=model_supports_vision(session_row.get("provider", "ollama"), session_row.get("model", "")),
+        runtimeUsage=updated_metadata.get("runtimeUsage", _runtime_usage(updated_metadata)),
     )
 
 
@@ -570,4 +593,5 @@ async def get_report(session_id: str) -> EvaluatorReportResponse:
         model=session_row.get("model", ""),
         supportsVision=model_supports_vision(session_row.get("provider", "ollama"), session_row.get("model", "")),
         websiteUrl=session_row.get("website_url", ""),
+        runtimeUsage=metadata.get("runtimeUsage", _runtime_usage(metadata)),
     )

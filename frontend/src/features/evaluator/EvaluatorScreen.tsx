@@ -32,6 +32,14 @@ function defaultModelForProvider(providerOptions: ProviderOption[], provider: st
   return profile === "balanced" ? providerMeta.defaultBalancedModel : providerMeta.defaultSpeedModel;
 }
 
+function tokenStatus(runtimeUsage: SessionPayload["runtimeUsage"] | undefined): string {
+  const total = runtimeUsage?.last?.totalTokens ?? 0;
+  if (!total) {
+    return "";
+  }
+  return `${Math.round(total).toLocaleString()} tok${runtimeUsage?.last?.estimated ? " est." : ""}`;
+}
+
 export function EvaluatorScreen({
   session,
   setSession,
@@ -144,12 +152,14 @@ export function EvaluatorScreen({
       provider: runtimeProvider as SessionPayload["provider"],
       model: effectiveModel,
       supportsVision: response.supportsVision,
+      runtimeUsage: response.runtimeUsage,
     }));
+    const usageLabel = tokenStatus(response.runtimeUsage);
     setStatusLine(
       response.warning
-        || (response.evaluatorMode === "deck_review"
+        || `${response.evaluatorMode === "deck_review"
           ? (response.deckEvaluationReport?.reviewMode === "multimodal" ? "Deck review ready." : "Deck transcript review ready.")
-          : (response.evaluationProgress.completed ? "Evaluation complete." : "Ready for the next step.")),
+          : (response.evaluationProgress.completed ? "Evaluation complete." : "Ready for the next step.")}${usageLabel ? ` · ${usageLabel}` : ""}`,
     );
     onSessionActivity();
     if (response.evaluationProgress.completed && response.evaluatorMode !== "deck_review") {
@@ -187,6 +197,7 @@ export function EvaluatorScreen({
         provider: response.provider as SessionPayload["provider"],
         model: response.model,
         supportsVision: response.supportsVision,
+        runtimeUsage: response.runtimeUsage,
       }));
       setStatusLine(`${selectedProvider?.label || response.provider} · ${response.model}`);
       setRuntimeOpen(false);
@@ -448,6 +459,7 @@ export function EvaluatorScreen({
         provider={runtimeProvider}
         model={runtimeModel}
         apiKey={runtimeApiKey}
+        runtimeUsage={session.runtimeUsage}
         responseProfile="speed"
         applying={applyingRuntime}
         onClose={() => setRuntimeOpen(false)}

@@ -82,6 +82,15 @@ function profileLabel(profile: ResponseProfile): string {
 }
 
 
+function tokenStatus(runtimeUsage: SessionPayload["runtimeUsage"] | undefined): string {
+  const total = runtimeUsage?.last?.totalTokens ?? 0;
+  if (!total) {
+    return "";
+  }
+  return `${Math.round(total).toLocaleString()} tok${runtimeUsage?.last?.estimated ? " est." : ""}`;
+}
+
+
 function laneLabel(lane: string): string {
   if (!lane) {
     return "General";
@@ -212,6 +221,7 @@ export function ExpertScreen({
         ...previous,
         provider: response.provider as SessionPayload["provider"],
         model: response.model,
+        runtimeUsage: response.runtimeUsage,
       }));
       setStatusLine(`${selectedProvider?.label || response.provider} · ${response.model}`);
       setRuntimeOpen(false);
@@ -313,6 +323,7 @@ export function ExpertScreen({
               helpMode: (data.helpMode as HelpMode) ?? helpMode,
               liveWebEnabled: true,
               analysisSnapshot: (data.analysisSnapshot as SessionPayload["analysisSnapshot"]) ?? previous.analysisSnapshot,
+              runtimeUsage: (data.runtimeUsage as SessionPayload["runtimeUsage"]) ?? previous.runtimeUsage,
             }));
             if (runtimeApiKey.trim()) {
               saveSessionCredential(session.sessionId, {
@@ -322,8 +333,9 @@ export function ExpertScreen({
               });
             }
             if (timings?.firstTokenSeconds !== undefined) {
+              const usageLabel = tokenStatus(data.runtimeUsage as SessionPayload["runtimeUsage"]);
               setStatusLine(
-                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s${stableWorkflow ? " · stable flow" : ""}`,
+                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s${usageLabel ? ` · ${usageLabel}` : ""}${stableWorkflow ? " · stable flow" : ""}`,
               );
             }
             setStreamingAssistant("");
@@ -643,6 +655,7 @@ export function ExpertScreen({
         provider={runtimeProvider}
         model={runtimeModel}
         apiKey={runtimeApiKey}
+        runtimeUsage={session.runtimeUsage}
         responseProfile={session.responseProfile}
         applying={applyingRuntime}
         onClose={() => setRuntimeOpen(false)}

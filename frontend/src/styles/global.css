@@ -1982,6 +1982,15 @@ a:focus-visible,
   line-height: 1.3;
 }
 
+.runtime-usage-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.runtime-usage-summary small {
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
 .report-doc-stack {
   display: grid;
   gap: 10px;

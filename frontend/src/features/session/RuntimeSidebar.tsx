@@ -1,4 +1,4 @@
-import type { ProviderOption, ResponseProfile } from "../../app/types";
+import type { ProviderOption, ResponseProfile, RuntimeUsageSummary } from "../../app/types";
 
 type Props = {
   isOpen: boolean;
@@ -7,6 +7,7 @@ type Props = {
   provider: string;
   model: string;
   apiKey: string;
+  runtimeUsage?: RuntimeUsageSummary;
   responseProfile: ResponseProfile;
   onResponseProfileChange?: (profile: ResponseProfile) => void;
   applying: boolean;
@@ -25,6 +26,7 @@ export function RuntimeSidebar({
   provider,
   model,
   apiKey,
+  runtimeUsage,
   responseProfile,
   onResponseProfileChange,
   applying,
@@ -45,6 +47,9 @@ export function RuntimeSidebar({
       && modelValue !== selectedProvider.defaultSpeedModel
       && modelValue !== selectedProvider.defaultBalancedModel,
   );
+  const formatTokens = (value: number) => `${Math.max(0, Math.round(value || 0)).toLocaleString()} tok`;
+  const lastUsage = runtimeUsage?.last;
+  const sessionUsage = runtimeUsage?.session;
 
   return (
     <div className={isOpen ? "floating-panel is-open align-right" : "floating-panel align-right"} aria-hidden={!isOpen}>
@@ -127,6 +132,30 @@ export function RuntimeSidebar({
               placeholder={`Required for ${selectedProvider?.label || provider}`}
             />
           </label>
+        ) : null}
+
+        {runtimeUsage ? (
+          <div className="drawer-card">
+            <span className="rail-label">Token usage</span>
+            <div className="report-doc-summary runtime-usage-summary">
+              <div>
+                <span className="rail-label">Last response</span>
+                <strong>{formatTokens(lastUsage?.totalTokens ?? 0)}</strong>
+                <small className="muted-copy">
+                  {formatTokens(lastUsage?.promptTokens ?? 0)} in · {formatTokens(lastUsage?.completionTokens ?? 0)} out
+                  {lastUsage?.estimated ? " · estimated" : ""}
+                </small>
+              </div>
+              <div>
+                <span className="rail-label">Session total</span>
+                <strong>{formatTokens(sessionUsage?.totalTokens ?? 0)}</strong>
+                <small className="muted-copy">
+                  {formatTokens(sessionUsage?.promptTokens ?? 0)} in · {formatTokens(sessionUsage?.completionTokens ?? 0)} out
+                  {sessionUsage?.estimated ? " · mixed exact/estimated" : ""}
+                </small>
+              </div>
+            </div>
+          </div>
         ) : null}
 
         <p className="muted-copy">

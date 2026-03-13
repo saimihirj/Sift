@@ -38,7 +38,13 @@ from backend.services.evaluator import (
     public_progress,
     select_next_question,
 )
-from backend.services.model_router import default_model_for_provider, model_supports_vision, normalize_provider, provider_catalog
+from backend.services.model_router import (
+    default_model_for_provider,
+    empty_runtime_usage,
+    model_supports_vision,
+    normalize_provider,
+    provider_catalog,
+)
 from backend.services.prompting import DEFAULT_RESPONSE_PROFILE, build_personalized_opening, get_chip_suggestions
 from backend.services.refinement import empty_answer_record, refine_founder_input, update_answer_record
 from backend.services.retrieval import infer_retrieval_needs
@@ -144,6 +150,7 @@ def _response_extensions(metadata: dict) -> dict:
         "helpMode": str(metadata.get("helpMode", "coach_me") or "coach_me"),
         "liveWebEnabled": bool(metadata.get("liveWebEnabled", False)),
         "analysisSnapshot": metadata.get("activeAnalysis") or _empty_analysis_snapshot(),
+        "runtimeUsage": metadata.get("runtimeUsage") if isinstance(metadata.get("runtimeUsage"), dict) else empty_runtime_usage(),
     }
 
 
@@ -308,6 +315,7 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
                 opening = f"{phrased['reciprocal']}\n\n{first_public_question['text']}"
         else:
             opening = "Hi. What are you building? Paste the pitch, deck notes, or URL. Half-baked answers are fine. I'll only ask what is missing."
+        metadata.setdefault("runtimeUsage", empty_runtime_usage())
     else:
         metadata = _seed_session_refinement_metadata(
             state,
@@ -327,6 +335,7 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
                 "usedLiveWeb": False,
                 "followUpMode": "",
                 "activeAnalysis": _empty_analysis_snapshot(),
+                "runtimeUsage": empty_runtime_usage(),
             }
         )
         if session_type == "expert":
@@ -529,4 +538,5 @@ async def update_runtime(session_id: str, payload: SessionRuntimeUpdateRequest) 
         provider=provider,
         model=model,
         supportsVision=model_supports_vision(provider, model),
+        runtimeUsage=_response_extensions(_session_metadata(memory.get_session(session_id)))["runtimeUsage"],
     )

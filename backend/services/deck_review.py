@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any
 
-from backend.services.model_router import generate_provider_multimodal_text, generate_provider_text, model_supports_vision
+from backend.services.model_router import empty_runtime_usage, generate_provider_multimodal_text, generate_provider_text, model_supports_vision, normalize_usage
 from backend.services.uploads import load_deck_artifact
 
 
@@ -132,6 +132,7 @@ def empty_deck_report(*, review_mode: str = "text_transcript", limitations: list
         "topFixes": [],
         "londonWhaleAssessment": "",
         "stopReason": "",
+        "runtimeUsage": empty_runtime_usage()["last"],
     }
 
 
@@ -606,6 +607,7 @@ def _fallback_review_payload(
             "Make the implementation plan concrete with milestones, testing, and timing.",
         ],
         "londonWhaleAssessment": "Not shown in the current deck or context, so there is nothing to assess yet.",
+        "runtimeUsage": empty_runtime_usage()["last"],
     }
 
 
@@ -653,6 +655,7 @@ def _normalize_model_review(raw: dict[str, Any], slides: list[dict[str, Any]], t
         "slideReviews": slide_reviews,
         "topFixes": [str(value) for value in raw.get("topFixes", []) if str(value).strip()],
         "londonWhaleAssessment": str(raw.get("londonWhaleAssessment", "") or ""),
+        "runtimeUsage": normalize_usage(raw.get("runtimeUsage")),
     }
 
 
@@ -690,6 +693,7 @@ async def review_deck_session(
     )
 
     raw_review: dict[str, Any] = {}
+    response_usage = empty_runtime_usage()["last"]
     try:
         if review_mode == "multimodal":
             image_paths = [slide.get("imagePath", "") for slide in slides if slide.get("imagePath")]
@@ -715,6 +719,7 @@ async def review_deck_session(
                 temperature=0.2,
                 timeout_seconds=120.0,
             )
+        response_usage = normalize_usage(response.get("usage"))
         raw_review = _extract_json_object(response.get("message", ""))
     except Exception:
         raw_review = {}
@@ -747,6 +752,7 @@ async def review_deck_session(
         "topFixes": normalized["topFixes"][:5],
         "londonWhaleAssessment": normalized["londonWhaleAssessment"] or "Not shown in the current deck or context.",
         "stopReason": "Deck review complete.",
+        "runtimeUsage": response_usage,
     }
 
 
@@ -758,10 +764,10 @@ async def answer_deck_follow_up(
     provider: str,
     model: str,
     api_key: str | None = None,
-) -> str:
+) -> dict[str, Any]:
     artifact = load_deck_artifact(session_id)
     if artifact is None:
-        return "There is no deck artifact available in this session yet."
+        return {"message": "There is no deck artifact available in this session yet.", "runtimeUsage": empty_runtime_usage()["last"]}
 
     prompt = "\n\n".join(
         [
@@ -788,4 +794,7 @@ async def answer_deck_follow_up(
         temperature=0.25,
         timeout_seconds=75.0,
     )
-    return (response.get("message", "") or "").strip()
+    return {
+        "message": (response.get("message", "") or "").strip(),
+        "runtimeUsage": normalize_usage(response.get("usage")),
+    }

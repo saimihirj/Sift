@@ -226,6 +226,18 @@ export type DeckEvaluationReport = {
   stopReason: string;
 };
 
+export type RuntimeUsageSnapshot = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimated: boolean;
+};
+
+export type RuntimeUsageSummary = {
+  last: RuntimeUsageSnapshot;
+  session: RuntimeUsageSnapshot;
+};
+
 export type ProviderOption = {
   key: Provider;
   label: string;
@@ -282,6 +294,7 @@ export type SessionPayload = {
   helpMode: HelpMode;
   liveWebEnabled: boolean;
   analysisSnapshot: ExpertAnalysisSnapshot;
+  runtimeUsage: RuntimeUsageSummary;
   evaluationProgress?: EvaluationProgress | null;
   evaluationReport?: EvaluationReport | null;
   deckEvaluationReport?: DeckEvaluationReport | null;
@@ -327,6 +340,7 @@ export type StartSessionPayload = {
   helpMode: HelpMode;
   liveWebEnabled: boolean;
   analysisSnapshot: ExpertAnalysisSnapshot;
+  runtimeUsage: RuntimeUsageSummary;
   evaluationProgress?: EvaluationProgress | null;
   evaluationReport?: EvaluationReport | null;
   deckEvaluationReport?: DeckEvaluationReport | null;
@@ -341,6 +355,7 @@ export type SessionRuntimePayload = {
   provider: string;
   model: string;
   supportsVision?: boolean;
+  runtimeUsage: RuntimeUsageSummary;
 };
 
 export type OutlinePayload = {
@@ -365,6 +380,7 @@ export type EvaluatorAnswerPayload = {
   activeUploads: UploadSummary[];
   warning: string;
   supportsVision: boolean;
+  runtimeUsage: RuntimeUsageSummary;
 };
 
 export type EvaluatorReportPayload = {
@@ -377,6 +393,7 @@ export type EvaluatorReportPayload = {
   model: string;
   supportsVision: boolean;
   websiteUrl: string;
+  runtimeUsage: RuntimeUsageSummary;
 };
 
 export type AdminOverview = {

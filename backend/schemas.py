@@ -176,6 +176,18 @@ class DeckEvaluationReport(BaseModel):
     stopReason: str = ""
 
 
+class RuntimeUsageSnapshot(BaseModel):
+    promptTokens: int = 0
+    completionTokens: int = 0
+    totalTokens: int = 0
+    estimated: bool = False
+
+
+class RuntimeUsageSummary(BaseModel):
+    last: RuntimeUsageSnapshot = Field(default_factory=RuntimeUsageSnapshot)
+    session: RuntimeUsageSnapshot = Field(default_factory=RuntimeUsageSnapshot)
+
+
 class StartSessionRequest(BaseModel):
     founderType: FounderType = "unknown"
     userRole: FounderType | None = None
@@ -237,6 +249,7 @@ class SessionResponse(BaseModel):
     helpMode: HelpMode = "coach_me"
     liveWebEnabled: bool = False
     analysisSnapshot: ExpertAnalysisSnapshot = Field(default_factory=ExpertAnalysisSnapshot)
+    runtimeUsage: RuntimeUsageSummary = Field(default_factory=RuntimeUsageSummary)
     evaluationProgress: EvaluationProgress | None = None
     evaluationReport: EvaluationReport | None = None
     deckEvaluationReport: DeckEvaluationReport | None = None
@@ -266,6 +279,7 @@ class StartSessionResponse(BaseModel):
     helpMode: HelpMode = "coach_me"
     liveWebEnabled: bool = False
     analysisSnapshot: ExpertAnalysisSnapshot = Field(default_factory=ExpertAnalysisSnapshot)
+    runtimeUsage: RuntimeUsageSummary = Field(default_factory=RuntimeUsageSummary)
     evaluationProgress: EvaluationProgress | None = None
     evaluationReport: EvaluationReport | None = None
     deckEvaluationReport: DeckEvaluationReport | None = None
@@ -285,6 +299,7 @@ class SessionRuntimeResponse(BaseModel):
     provider: str = "ollama"
     model: str = ""
     supportsVision: bool = False
+    runtimeUsage: RuntimeUsageSummary = Field(default_factory=RuntimeUsageSummary)
 
 
 class ClearHistoryRequest(BaseModel):
@@ -334,6 +349,7 @@ class EvaluatorAnswerResponse(BaseModel):
     activeUploads: list[dict[str, Any]] = Field(default_factory=list)
     warning: str = ""
     supportsVision: bool = False
+    runtimeUsage: RuntimeUsageSummary = Field(default_factory=RuntimeUsageSummary)
 
 
 class EvaluatorReportResponse(BaseModel):
@@ -346,6 +362,7 @@ class EvaluatorReportResponse(BaseModel):
     model: str = ""
     supportsVision: bool = False
     websiteUrl: str = ""
+    runtimeUsage: RuntimeUsageSummary = Field(default_factory=RuntimeUsageSummary)
 
 
 class AnalyticsEventRequest(BaseModel):

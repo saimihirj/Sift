@@ -21,7 +21,14 @@ from backend.services.expert_agent import (
     classify_expert_turn,
     get_expert_quick_actions,
 )
-from backend.services.model_router import default_model_for_provider, normalize_provider, stream_chat_completion
+from backend.services.model_router import (
+    accumulate_runtime_usage,
+    default_model_for_provider,
+    empty_runtime_usage,
+    normalize_provider,
+    normalize_usage,
+    stream_chat_completion,
+)
 from backend.services.prompting import (
     DEFAULT_RESPONSE_PROFILE,
     build_system_prompt,
@@ -142,6 +149,11 @@ def _empty_analysis_snapshot() -> dict:
         "recommendedNextActions": [],
         "concepts": [],
     }
+
+
+def _runtime_usage(metadata: dict) -> dict:
+    usage = metadata.get("runtimeUsage")
+    return usage if isinstance(usage, dict) else empty_runtime_usage()
 
 
 def _normalize_assistant_output(text: str) -> str:
@@ -479,6 +491,7 @@ async def chat(
                 "finishReason": completion_payload.get("finishReason", "stop"),
                 "continuedAfterLengthLimit": completion_payload.get("continuedAfterLengthLimit", False),
                 "continuationCount": completion_payload.get("continuationCount", 0),
+                "usage": normalize_usage(completion_payload.get("usage")),
             }
             assistant_metadata = {
                 "responseProfile": completion_payload["responseProfile"],
@@ -493,6 +506,7 @@ async def chat(
                 "finishReason": completion_payload.get("finishReason", "stop"),
                 "continuedAfterLengthLimit": completion_payload.get("continuedAfterLengthLimit", False),
                 "continuationCount": completion_payload.get("continuationCount", 0),
+                "usage": normalize_usage(completion_payload.get("usage")),
                 "activeUploads": active_uploads,
                 "researchSources": retrieval.get("researchSources", []),
                 "historyChars": history_chars,
@@ -509,6 +523,7 @@ async def chat(
             if assistant_metadata["timings"].get("firstTokenSeconds", 0) >= 6 or assistant_metadata["timings"].get("totalSeconds", 0) >= 18:
                 runtime_health["slowTurns"] += 1
             session_metadata["runtimeHealth"] = runtime_health
+            session_metadata["runtimeUsage"] = accumulate_runtime_usage(session_metadata.get("runtimeUsage"), assistant_metadata["usage"])
             session_metadata.update(
                 {
                     "conversationMove": conversation_metadata.get("conversationMove", ""),
@@ -565,6 +580,7 @@ async def chat(
                     "finishReason": completion_payload.get("finishReason", "stop"),
                     "continuedAfterLengthLimit": completion_payload.get("continuedAfterLengthLimit", False),
                     "continuationCount": completion_payload.get("continuationCount", 0),
+                    "usage": assistant_metadata["usage"],
                 },
             )
 
@@ -584,6 +600,8 @@ async def chat(
                     "finishReason": completion_payload.get("finishReason", "stop"),
                     "continuedAfterLengthLimit": completion_payload.get("continuedAfterLengthLimit", False),
                     "continuationCount": completion_payload.get("continuationCount", 0),
+                    "usage": assistant_metadata["usage"],
+                    "runtimeUsage": session_metadata.get("runtimeUsage", _runtime_usage(session_metadata)),
                     "activeUploads": active_uploads,
                     "historyChars": history_chars,
                     "systemPromptChars": system_prompt_chars,

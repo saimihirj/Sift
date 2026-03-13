@@ -25,6 +25,7 @@ import { saveSessionCredential } from "../lib/sessionCredentials";
 declare const __APP_BUILD__: string;
 
 const SESSION_STORAGE_KEY = "signalx-session-id";
+const DISPLAY_NAME_STORAGE_KEY = "signalx-display-name";
 const LEGACY_SESSION_STORAGE_KEY = "vishwakarma-session-id";
 const LEGACY_DISPLAY_NAME_STORAGE_KEY = "vishwakarma-display-name";
 const THEME_STORAGE_KEY = "vishwakarma-theme";
@@ -74,6 +75,26 @@ function getClientId(): string {
   return generated;
 }
 
+function getStoredDisplayName(): string {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  return localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) || "";
+}
+
+function setStoredDisplayName(displayName: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const nextValue = displayName.trim();
+  if (nextValue) {
+    localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, nextValue);
+  } else {
+    localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY);
+  }
+  localStorage.removeItem(LEGACY_DISPLAY_NAME_STORAGE_KEY);
+}
+
 function getStoredSessionId(): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -115,6 +136,7 @@ function applyBuildResetIfNeeded(): boolean {
     return false;
   }
   clearStoredSessionId();
+  localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY);
   localStorage.removeItem(LEGACY_DISPLAY_NAME_STORAGE_KEY);
   localStorage.setItem(APP_BUILD_STORAGE_KEY, currentBuild);
   return true;
@@ -134,7 +156,7 @@ function AppBody() {
   const [recentSessions, setRecentSessions] = useState<SessionSummary[]>([]);
   const [clearingHistory, setClearingHistory] = useState(false);
   const [anonymousClientId] = useState<string>(() => getClientId());
-  const [displayName, setDisplayName] = useState<string>("");
+  const [displayName, setDisplayName] = useState<string>(() => getStoredDisplayName());
   const [theme, setTheme] = useState<ThemeMode>(
     () => (localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null) ?? "dark",
   );
@@ -163,8 +185,8 @@ function AppBody() {
   }, [theme]);
 
   useEffect(() => {
-    localStorage.removeItem(LEGACY_DISPLAY_NAME_STORAGE_KEY);
-  }, []);
+    setStoredDisplayName(displayName);
+  }, [displayName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -289,6 +311,7 @@ function AppBody() {
       helpMode: payload.helpMode,
       liveWebEnabled: payload.liveWebEnabled,
       analysisSnapshot: payload.analysisSnapshot,
+      runtimeUsage: payload.runtimeUsage,
       evaluationProgress: payload.evaluationProgress,
       evaluationReport: payload.evaluationReport,
       deckEvaluationReport: payload.deckEvaluationReport,
@@ -390,8 +413,13 @@ function AppBody() {
     clearStoredSessionId();
     setSession(null);
     setSetupError("");
-    setEntryScreen("setup");
-    setSetupStep(LAST_SETUP_STEP);
+    if (effectiveDisplayName) {
+      setEntryScreen("setup");
+      setSetupStep(LAST_SETUP_STEP);
+    } else {
+      setEntryScreen("landing");
+      setSetupStep(0);
+    }
     void refreshSessions();
     navigate("/");
   };
@@ -400,8 +428,13 @@ function AppBody() {
     clearStoredSessionId();
     setSession(null);
     setSetupError("");
-    setEntryScreen("setup");
-    setSetupStep(LAST_SETUP_STEP);
+    if (effectiveDisplayName) {
+      setEntryScreen("setup");
+      setSetupStep(LAST_SETUP_STEP);
+    } else {
+      setEntryScreen("landing");
+      setSetupStep(0);
+    }
     void refreshSessions();
     navigate("/");
   };
@@ -417,7 +450,6 @@ function AppBody() {
     await logoutAuth();
     setAuthUser(null);
     setAuthError("");
-    setDisplayName("");
   };
 
   if (loadingSession) {
