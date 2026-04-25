@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Upgraded
+
+- Runtime catalog now marks server-configured provider keys so public users can run hosted providers without pasting their own API key.
+- Fast hosted open-weight defaults now prioritize GPT-OSS on Groq/Cerebras.
+- Local Ollama defaults now start on `qwen3:8b`, with `qwen3:30b` as the sharper local option.
+- OpenAI defaults now expose `gpt-5.4-mini` for fast mode and `gpt-5.5` for sharper frontier mode.
+- Setup and runtime panels now show provider readiness, latency intent, model presets, and end-to-end response timing.
+
 ## v0.2.0 - 2026-03-06
 
 Adaptive evaluator release for `SignalX`.

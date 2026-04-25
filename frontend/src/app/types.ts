@@ -242,10 +242,18 @@ export type ProviderOption = {
   key: Provider;
   label: string;
   requiresApiKey: boolean;
+  serverConfigured?: boolean;
   defaultSpeedModel: string;
   defaultBalancedModel: string;
   supportsVisionModels?: boolean;
   recommendedDeckModel?: string;
+  latencyHint?: string;
+  bestFor?: string;
+  speedLabel?: string;
+  balancedLabel?: string;
+  publicReadiness?: string;
+  openWeight?: boolean;
+  docsUrl?: string;
 };
 
 export type AuthProviderOption = {

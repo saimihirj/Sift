@@ -39,6 +39,7 @@ export function RuntimeSidebar({
 }: Props) {
   const selectedProvider = providerOptions.find((item) => item.key === provider) ?? providerOptions[0] ?? null;
   const requiresApiKey = Boolean(selectedProvider?.requiresApiKey);
+  const requiresClientApiKey = Boolean(selectedProvider?.requiresApiKey && !selectedProvider.serverConfigured);
   const profileLabel = responseProfile === "speed" ? "Fast" : "Sharper";
   const modelValue = model.trim();
   const isCustomModel = Boolean(
@@ -50,6 +51,13 @@ export function RuntimeSidebar({
   const formatTokens = (value: number) => `${Math.max(0, Math.round(value || 0)).toLocaleString()} tok`;
   const lastUsage = runtimeUsage?.last;
   const sessionUsage = runtimeUsage?.session;
+  const accessLabel = selectedProvider
+    ? selectedProvider.requiresApiKey
+      ? selectedProvider.serverConfigured
+        ? "Server key ready"
+        : "Needs session key"
+      : "Local key-free"
+    : "Runtime";
 
   return (
     <div className={isOpen ? "floating-panel is-open align-right" : "floating-panel align-right"} aria-hidden={!isOpen}>
@@ -57,7 +65,7 @@ export function RuntimeSidebar({
       <aside className={isOpen ? "floating-card runtime-card is-open" : "floating-card runtime-card"}>
         <div className="floating-head">
           <div>
-            <span className="rail-label">Runtime</span>
+            <span className="rail-label">Model</span>
             <strong>{title}</strong>
           </div>
           <button type="button" className="ghost-button compact" onClick={onClose}>
@@ -67,7 +75,7 @@ export function RuntimeSidebar({
 
         {onResponseProfileChange ? (
           <div className="identity-field">
-            <span className="rail-label">Quality mode</span>
+            <span className="rail-label">Mode</span>
             <div className="segmented runtime-segmented">
               {(["speed", "balanced"] as ResponseProfile[]).map((profile) => (
                 <button
@@ -94,11 +102,21 @@ export function RuntimeSidebar({
                 onClick={() => onProviderChange(item.key)}
               >
                 <span>{item.label}</span>
-                <small>{item.requiresApiKey ? "API key" : "Local"}</small>
+                <small>{item.requiresApiKey ? (item.serverConfigured ? "Server key" : "Bring key") : "Local"}</small>
               </button>
             ))}
           </div>
         </div>
+
+        {selectedProvider ? (
+          <div className="runtime-recommendation-card compact-runtime-card">
+            <div>
+              <span className="rail-label">{accessLabel}</span>
+              <strong>{selectedProvider.label}</strong>
+            </div>
+            <p>{selectedProvider.publicReadiness || selectedProvider.bestFor || "Ready for this session."}</p>
+          </div>
+        ) : null}
 
         <label className="identity-field">
           <span className="rail-label">Model</span>
@@ -108,29 +126,28 @@ export function RuntimeSidebar({
             placeholder={selectedProvider?.defaultSpeedModel || "Enter a model id"}
           />
           {isCustomModel ? <small className="muted-copy">Custom model</small> : null}
-          {selectedProvider?.recommendedDeckModel ? (
-            <small className="muted-copy">Deck review recommendation: {selectedProvider.recommendedDeckModel}</small>
-          ) : null}
         </label>
 
         <div className="runtime-chip-row">
           <button type="button" className="ghost-button compact" onClick={() => onUseDefaultModel("speed")}>
-            Use Fast default
+            Fast
           </button>
           <button type="button" className="ghost-button compact" onClick={() => onUseDefaultModel("balanced")}>
-            Use Sharper default
+            Sharper
           </button>
         </div>
 
         {requiresApiKey ? (
           <label className="identity-field">
-            <span className="rail-label">Session API key</span>
+            <span className="rail-label">{selectedProvider?.serverConfigured ? "Session API key override" : "Session API key"}</span>
             <input
               type="password"
               value={apiKey}
               onChange={(event) => onApiKeyChange(event.target.value)}
-              placeholder={`Required for ${selectedProvider?.label || provider}`}
+              placeholder={selectedProvider?.serverConfigured ? "Optional override for this browser session" : `Required for ${selectedProvider?.label || provider}`}
             />
+            {selectedProvider?.serverConfigured ? <small className="muted-copy">Server key ready.</small> : null}
+            {requiresClientApiKey ? <small className="muted-copy">Required for this session.</small> : null}
           </label>
         ) : null}
 
@@ -160,8 +177,8 @@ export function RuntimeSidebar({
 
         <p className="muted-copy">
           {requiresApiKey
-            ? "The key stays only in this browser session. Provider and model are saved for the session."
-            : `Current quality mode is ${profileLabel}. Local Ollama remains key-free.`}
+            ? (selectedProvider?.serverConfigured ? "Server key is used unless you override it." : "Your key stays in this browser session.")
+            : `${profileLabel} local mode.`}
         </p>
 
         <div className="floating-actions">

@@ -38,6 +38,8 @@ SIGNALX_EXPERT_DATA_DIR=/app/knowledge_base/expert
 VK_SESSION_SECRET=<strong-random-secret>
 VK_COOKIE_SECURE=true
 GROQ_API_KEY=<your-key>
+GROQ_MODEL_SPEED=openai/gpt-oss-20b
+GROQ_MODEL_BALANCED=openai/gpt-oss-120b
 VK_ADMIN_TOKEN=<optional-admin-token>
 ```
 
@@ -85,12 +87,14 @@ npm run mvp:api
 
 Then:
 - choose `Use API key` in setup
-- pick a provider such as `Groq` or `OpenAI`
-- paste a session key or export it in the shell before launch
+- pick a provider such as `Groq`, `Cerebras`, or `OpenAI`
+- paste a session key, or export it in the shell before launch so the UI shows the provider as server-ready
 
 Example:
 
 ```bash
 export GROQ_API_KEY=...
+export GROQ_MODEL_SPEED=openai/gpt-oss-20b
+export GROQ_MODEL_BALANCED=openai/gpt-oss-120b
 npm run mvp:api
 ```

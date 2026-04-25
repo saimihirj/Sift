@@ -171,7 +171,7 @@ export function ChatScreen({
     () => providerOptions.find((item) => item.key === runtimeProvider) ?? providerOptions[0] ?? null,
     [providerOptions, runtimeProvider],
   );
-  const requiresApiKey = Boolean(selectedProvider?.requiresApiKey);
+  const requiresClientApiKey = Boolean(selectedProvider?.requiresApiKey && !selectedProvider.serverConfigured);
   const effectiveModel = runtimeModel.trim() || defaultModelForProvider(providerOptions, runtimeProvider, session.responseProfile);
 
   const coverageSummary = useMemo(
@@ -204,8 +204,8 @@ export function ChatScreen({
     if (!runtimeProvider) {
       return;
     }
-    if (requiresApiKey && !runtimeApiKey.trim()) {
-      setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} before switching.`);
+    if (requiresClientApiKey && !runtimeApiKey.trim()) {
+      setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} before switching, or configure one on the server.`);
       return;
     }
 
@@ -246,7 +246,7 @@ export function ChatScreen({
     if ((!message && !selectedFile) || pending) {
       return;
     }
-    if (requiresApiKey && !runtimeApiKey.trim()) {
+    if (requiresClientApiKey && !runtimeApiKey.trim()) {
       setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} to use this runtime.`);
       setRuntimeOpen(true);
       return;
@@ -331,8 +331,9 @@ export function ChatScreen({
             }
             if (timings?.firstTokenSeconds !== undefined) {
               const usageLabel = tokenStatus(data.runtimeUsage as SessionPayload["runtimeUsage"]);
+              const totalSeconds = typeof timings.totalBackendSeconds === "number" ? timings.totalBackendSeconds : timings.totalSeconds;
               setStatusLine(
-                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s${usageLabel ? ` · ${usageLabel}` : ""}${stableWorkflow ? " · stable flow" : ""}`,
+                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s${typeof totalSeconds === "number" ? ` · total ${totalSeconds}s` : ""}${usageLabel ? ` · ${usageLabel}` : ""}${stableWorkflow ? " · stable flow" : ""}`,
               );
             }
             setStreamingAssistant("");
@@ -367,16 +368,16 @@ export function ChatScreen({
           <div className="status-stack">
             <div className="header-actions">
               <button type="button" className="ghost-button compact" onClick={() => setSessionsOpen(true)}>
-                Sessions
+                History
               </button>
               <button type="button" className="ghost-button compact" onClick={() => setRuntimeOpen(true)}>
-                Runtime
+                Model
               </button>
               <button type="button" className="ghost-button compact" onClick={() => setProgressOpen(true)}>
-                Progress
+                Map
               </button>
               <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
-                Themes
+                Theme
               </button>
               {session.activeUploads.length > 0 ? (
                 <button type="button" className="ghost-button compact" onClick={() => setFilesOpen(true)}>
@@ -387,7 +388,7 @@ export function ChatScreen({
                 New
               </button>
               <button type="button" className="ghost-button compact" onClick={() => navigate(`/outline/${session.sessionId}`)}>
-                Pitch
+                Draft
               </button>
               <button type="button" className="ghost-button compact" onClick={onExitSession}>
                 Exit
@@ -485,7 +486,7 @@ export function ChatScreen({
 
       <RuntimeSidebar
         isOpen={runtimeOpen}
-        title="Switch model live"
+        title="Model"
         providerOptions={providerOptions}
         provider={runtimeProvider}
         model={runtimeModel}

@@ -86,8 +86,10 @@ It does not yet include:
 - `OpenRouter`
 - `Anthropic`
 - `Gemini`
-- default speed model: `llama3.2:latest`
-- optional balanced model: `qwen3:8b`
+- default local speed model: `llama3.2:latest`
+- optional local balanced model: `qwen3:8b`
+- hosted public default: `Groq` with `openai/gpt-oss-20b` for fast turns and `openai/gpt-oss-120b` for sharper turns
+- frontier OpenAI lane: `gpt-5.4-mini` for fast turns and `gpt-5.5` for sharper turns
 
 ### Persistence
 
@@ -552,7 +554,7 @@ The local launcher auto-starts Ollama when needed.
 If using open-source local mode, pull the local models:
 
 ```bash
-ollama pull llama3.2:latest
+ollama pull llama3.2
 ollama pull qwen3:8b
 ```
 

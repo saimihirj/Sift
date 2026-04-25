@@ -11,7 +11,7 @@ from pptx import Presentation
 
 from backend.services import uploads
 from backend.services.deck_review import review_deck_session
-from backend.services.model_router import model_supports_vision, stream_chat_completion
+from backend.services.model_router import model_supports_vision, provider_catalog, stream_chat_completion
 
 
 class DeckReviewTests(unittest.TestCase):
@@ -42,8 +42,16 @@ class DeckReviewTests(unittest.TestCase):
     def test_model_supports_vision_heuristics(self) -> None:
         self.assertTrue(model_supports_vision("ollama", "qwen2.5vl:7b"))
         self.assertTrue(model_supports_vision("openai", "gpt-4o"))
+        self.assertTrue(model_supports_vision("openai", "gpt-5.5"))
         self.assertFalse(model_supports_vision("ollama", "qwen3:8b"))
         self.assertFalse(model_supports_vision("cerebras", "gpt-oss-120b"))
+
+    def test_provider_catalog_marks_server_configured_keys(self) -> None:
+        with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}, clear=False):
+            groq = next(item for item in provider_catalog() if item["key"] == "groq")
+        self.assertTrue(groq["serverConfigured"])
+        self.assertTrue(groq["defaultSpeedModel"])
+        self.assertTrue(groq["openWeight"])
 
     def test_ingest_upload_builds_pptx_deck_artifact(self) -> None:
         upload = UploadFile(filename="deck.pptx", file=BytesIO(self._pptx_bytes()))

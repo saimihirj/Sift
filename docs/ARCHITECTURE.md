@@ -23,7 +23,7 @@ For the best current MVP deployment:
 - `Database`: SQLite on persistent disk
 - `File storage`: persistent disk
 - `Auth`: optional OAuth later
-- `Model inference`: Groq or another API provider in production, Ollama locally
+- `Model inference`: Groq GPT-OSS or another server-configured API provider in production, Ollama locally
 - `Monitoring`: Render metrics + logs, in-app usage tracking
 
 ## 1. Current Local Architecture
@@ -95,7 +95,8 @@ flowchart LR
 - one deployed service is simpler than splitting frontend and backend too early
 - Render fits the current Dockerized FastAPI app well
 - persistent disk keeps the current SQLite and upload model intact
-- Groq removes the need to run Ollama on the internet-facing deployment
+- a server-configured Groq key removes the need for visitors to paste their own API keys
+- GPT-OSS hosted on Groq or Cerebras gives the MVP a fast open-weight path before paying for frontier models
 
 ## 3. Request Workflow
 

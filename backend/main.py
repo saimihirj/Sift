@@ -26,19 +26,32 @@ from backend.api.evaluator import router as evaluator_router
 from backend.api.outline import router as outline_router
 from backend.api.session import router as session_router
 from backend.services.expert_knowledge import expert_card_count, expert_data_dir
-from backend.services.model_router import active_provider
+from backend.services.model_router import active_provider, provider_catalog
 from backend.services.runtime_state import auto_stop_monitor
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
 FRONTEND_ASSETS = FRONTEND_DIST / "assets"
+DEFAULT_CORS_ORIGINS = (
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:5174",
+    "http://localhost:5174",
+)
+
+
+def cors_origins() -> list[str]:
+    configured = os.environ.get("VK_CORS_ORIGINS", "")
+    origins = [origin.strip() for origin in configured.split(",") if origin.strip()]
+    return origins or list(DEFAULT_CORS_ORIGINS)
 
 app = FastAPI(title="SignalX API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins(),
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -60,10 +73,16 @@ async def on_startup() -> None:
 
 @app.get("/api/health")
 async def health() -> dict:
+    providers = provider_catalog()
     return {
         "status": "ok",
         "app": "SignalX",
         "modelProvider": active_provider(),
+        "configuredProviders": [
+            provider["key"]
+            for provider in providers
+            if not provider.get("requiresApiKey") or provider.get("serverConfigured")
+        ],
         "dataDir": str(memory.DATA_DIR),
         "expertDataDir": str(expert_data_dir()),
         "expertCardCount": expert_card_count(),

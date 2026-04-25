@@ -87,7 +87,7 @@ export function EvaluatorScreen({
     () => providerOptions.find((item) => item.key === runtimeProvider) ?? providerOptions[0] ?? null,
     [providerOptions, runtimeProvider],
   );
-  const requiresApiKey = Boolean(selectedProvider?.requiresApiKey);
+  const requiresClientApiKey = Boolean(selectedProvider?.requiresApiKey && !selectedProvider.serverConfigured);
   const effectiveModel = runtimeModel.trim() || defaultModelForProvider(providerOptions, runtimeProvider, "speed");
 
   const progress = session.evaluationProgress;
@@ -171,8 +171,8 @@ export function EvaluatorScreen({
     if (!runtimeProvider) {
       return;
     }
-    if (requiresApiKey && !runtimeApiKey.trim()) {
-      setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} before switching.`);
+    if (requiresClientApiKey && !runtimeApiKey.trim()) {
+      setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} before switching, or configure one on the server.`);
       return;
     }
 
@@ -219,7 +219,7 @@ export function EvaluatorScreen({
     if ((!draft.trim() && !selectedFile) || pending) {
       return;
     }
-    if (requiresApiKey && !runtimeApiKey.trim()) {
+    if (requiresClientApiKey && !runtimeApiKey.trim()) {
       setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} to continue.`);
       setRuntimeOpen(true);
       return;
@@ -291,16 +291,16 @@ export function EvaluatorScreen({
           <div className="status-stack">
             <div className="header-actions">
               <button type="button" className="ghost-button compact" onClick={() => setSessionsOpen(true)}>
-                Sessions
+                History
               </button>
               <button type="button" className="ghost-button compact" onClick={() => setRuntimeOpen(true)}>
-                Runtime
+                Model
               </button>
               <button type="button" className="ghost-button compact" onClick={() => setProgressOpen(true)}>
-                Progress
+                Status
               </button>
               <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
-                Themes
+                Theme
               </button>
               {progress?.completed ? (
                 <button type="button" className="ghost-button compact" onClick={() => navigate(`/evaluate/${session.sessionId}/report`)}>

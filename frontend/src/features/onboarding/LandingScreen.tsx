@@ -36,60 +36,42 @@ export function LandingScreen({
   const apple = providerState("apple", authProviders);
   const canContinue = Boolean(displayName.trim() || authUser);
   const providerLabel = authUser?.provider === "google" ? "Google" : authUser?.provider === "apple" ? "Apple" : "";
+  const hasAuthProvider = google.configured || apple.configured;
   const authNote = authError
     || (authUser
-      ? `Connected with ${providerLabel}. You can still change the display name below.`
-      : "Use a local profile or connect an account. Runtime and provider come next.");
+      ? `${providerLabel} connected`
+      : "");
 
   return (
     <section className="landing-shell professional-entry-shell">
       <div className="landing-panel entry-frame">
         <section className="entry-brand-panel">
           <div className="landing-topbar">
-            <div className="plain-header-block">
-              <span className="eyebrow">SignalX</span>
-              <strong>Startup and finance workbench</strong>
-            </div>
-            <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
-              Themes
+            <h1 className="signal-wordmark">SignalX</h1>
+            <button type="button" className="ghost-button compact theme-trigger" onClick={() => setThemeOpen(true)}>
+              Theme
             </button>
           </div>
 
-          <div className="entry-hero-copy">
-            <h1>Research, evaluate, decide.</h1>
-            <p>One workspace for idea shaping, structured evaluation, and expert analysis. Built for local models or API-key runtimes.</p>
-          </div>
-
-          <div className="entry-feature-grid">
-            <article className="entry-feature-card">
-              <span className="eyebrow">Workflows</span>
-              <strong>Ideate, Evaluate, Expert</strong>
-              <p>Move from rough thinking to pressure tests and source-backed domain analysis without switching tools.</p>
+          <div className="entry-primary-actions" aria-label="SignalX workflows">
+            <article className="entry-action-card">
+              <strong>Ideate</strong>
+              <span>Shape an idea</span>
             </article>
-            <article className="entry-feature-card">
-              <span className="eyebrow">Runtime</span>
-              <strong>Open source or API</strong>
-              <p>Use Ollama locally, or connect providers like Groq, Cerebras, OpenAI, OpenRouter, Anthropic, and Gemini.</p>
+            <article className="entry-action-card">
+              <strong>Evaluate</strong>
+              <span>Get a report</span>
             </article>
-            <article className="entry-feature-card">
-              <span className="eyebrow">Evidence</span>
-              <strong>Local corpus first, web when needed</strong>
-              <p>SignalX uses the bundled knowledge base and can pull fresher web context when the local evidence is thin.</p>
+            <article className="entry-action-card">
+              <strong>Expert</strong>
+              <span>Ask with evidence</span>
             </article>
-          </div>
-
-          <div className="entry-runtime-row">
-            <span className="landing-badge">Local models</span>
-            <span className="landing-badge">API keys</span>
-            <span className="landing-badge">Source-backed answers</span>
           </div>
         </section>
 
         <section className="entry-access-panel">
           <div className="entry-access-head">
-            <span className="eyebrow">Open workspace</span>
-            <h2>{authUser ? `Continue as ${authUser.displayName}` : "Access your workspace"}</h2>
-            <p>Start with a local profile or sign in. You will choose the workflow and runtime in the next step.</p>
+            <h2>{authUser ? authUser.displayName : "Start"}</h2>
           </div>
 
           {authUser ? (
@@ -121,38 +103,26 @@ export function LandingScreen({
             />
           </label>
 
-          <div className="social-row entry-social-row">
-            <a
-              className={google.configured ? "ghost-button social-button" : "ghost-button social-button disabled-link"}
-              href={google.configured ? authLoginUrl("google", "/") : undefined}
-              aria-disabled={!google.configured}
-              onClick={(event) => {
-                if (!google.configured) {
-                  event.preventDefault();
-                }
-              }}
-            >
-              Continue with Google
-            </a>
-            <a
-              className={apple.configured ? "ghost-button social-button" : "ghost-button social-button disabled-link"}
-              href={apple.configured ? authLoginUrl("apple", "/") : undefined}
-              aria-disabled={!apple.configured}
-              onClick={(event) => {
-                if (!apple.configured) {
-                  event.preventDefault();
-                }
-              }}
-            >
-              Continue with Apple
-            </a>
-          </div>
-
-          <small className="muted-copy entry-auth-note">{authNote}</small>
-
           <button type="button" className="solid-button entry-continue" onClick={onContinue} disabled={!canContinue}>
-            Continue to setup
+            Continue
           </button>
+
+          {hasAuthProvider ? (
+            <div className="entry-auth-links" aria-label="Account sign in">
+              {google.configured ? (
+                <a className="text-link" href={authLoginUrl("google", "/")}>
+                  Google
+                </a>
+              ) : null}
+              {apple.configured ? (
+                <a className="text-link" href={authLoginUrl("apple", "/")}>
+                  Apple
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+
+          {authNote ? <small className="muted-copy entry-auth-note">{authNote}</small> : null}
         </section>
       </div>
 
@@ -161,7 +131,7 @@ export function LandingScreen({
         <aside className={themeOpen ? "floating-card is-open theme-card" : "floating-card theme-card"}>
           <div className="floating-head">
             <div>
-              <span className="rail-label">Themes</span>
+              <span className="rail-label">Theme</span>
               <strong>Display</strong>
             </div>
             <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(false)}>

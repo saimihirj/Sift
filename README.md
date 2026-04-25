@@ -37,7 +37,8 @@ Open `http://127.0.0.1:7860`, choose `Use API key`, then pick your provider.
 If you want the app to stay local and avoid paid APIs, use the same setup steps above, then:
 
 ```bash
-ollama pull llama3.2:latest
+ollama pull llama3.2
+# Optional sharper local model if your machine can handle it:
 ollama pull qwen3:8b
 npm run mvp
 ```
@@ -97,6 +98,8 @@ Frontend and backend split for active development.
 
 ### Open-source local
 - `ollama`
+- recommended local fast model: `llama3.2:latest`
+- optional sharper local model: `qwen3:8b`
 
 ### API-key providers
 - `groq`
@@ -107,6 +110,7 @@ Frontend and backend split for active development.
 - `gemini`
 
 API keys can be entered in the UI for a session or exported in the shell before launch.
+For public deployments, set the provider key on the server so visitors do not need to bring their own key.
 
 Example:
 
@@ -114,6 +118,13 @@ Example:
 export GROQ_API_KEY=...
 npm run mvp:api
 ```
+
+Fast hosted open-weight defaults:
+- `Groq`: `openai/gpt-oss-20b` for Fast, `openai/gpt-oss-120b` for Sharper
+- `Cerebras`: `gpt-oss-120b`
+
+Frontier OpenAI defaults:
+- `OpenAI`: `gpt-5.4-mini` for Fast, `gpt-5.5` for Sharper
 
 ## Deck Review
 
@@ -191,6 +202,7 @@ npm run knowledge:vc
 - local API-key mode works without Ollama
 - `Evaluate` supports both `Idea review` and structured `Deck review`
 - long analytical answers auto-continue once when providers stop on length
+- hosted provider keys can now be configured server-side for public demos
 - session history, uploads, and reports persist locally
 
 ## Docs

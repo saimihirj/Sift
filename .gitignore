@@ -2,6 +2,7 @@
 .venv/
 .claude/
 .DS_Store
+.pytest_cache/
 __pycache__/
 backend/__pycache__/
 *.pyc
@@ -10,3 +11,5 @@ frontend/node_modules/
 frontend/dist/
 data/
 *.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts

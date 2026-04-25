@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import type { HelpMode, Provider, ProviderOption, SetupDraft } from "../../app/types";
 
@@ -59,14 +59,14 @@ const stageOptions: Array<{ value: SetupDraft["stage"]; label: string }> = [
 ];
 
 const modeOptions: Array<{ value: SetupDraft["mode"]; label: string; note: string }> = [
-  { value: "think_it_through", label: "Guided build", note: "Calmer coaching with more teaching." },
-  { value: "quick_stress_test", label: "Pressure test", note: "Sharper follow-ups and less cushioning." },
+  { value: "think_it_through", label: "Guided", note: "Build with help." },
+  { value: "quick_stress_test", label: "Direct", note: "Find weak spots." },
 ];
 
 const workflowOptions: Array<{ value: SetupDraft["sessionType"]; label: string; note: string }> = [
-  { value: "mentor", label: "Ideate", note: "Open-ended refinement, back and forth." },
-  { value: "evaluator", label: "Evaluate", note: "Adaptive interview, final score and report at the end." },
-  { value: "expert", label: "Expert", note: "Discuss concepts, compare options, analyze decks, and pre-screen ideas." },
+  { value: "mentor", label: "Ideate", note: "Sharper pitch draft." },
+  { value: "evaluator", label: "Evaluate", note: "Score and report." },
+  { value: "expert", label: "Expert", note: "Evidence-backed answer." },
 ];
 
 const geographyOptions: Array<{ value: string; label: string }> = [
@@ -76,40 +76,35 @@ const geographyOptions: Array<{ value: string; label: string }> = [
   { value: "global", label: "Global" },
 ];
 
-const helpModeOptions: Array<{ value: HelpMode; label: string; note: string }> = [
-  { value: "coach_me", label: "Coach me", note: "Answer, then ask one sharp follow-up." },
-  { value: "challenge_me", label: "Challenge me", note: "Push harder on weak assumptions." },
-  { value: "explain_directly", label: "Explain directly", note: "Give the straight answer first." },
-];
+function providerAccessLabel(option: ProviderOption | undefined): string {
+  if (!option) {
+    return "Runtime";
+  }
+  if (!option.requiresApiKey) {
+    return "Local";
+  }
+  return option.serverConfigured ? "Server ready" : "Bring key";
+}
 
-const workflowGuides: Record<SetupDraft["sessionType"], { label: string; title: string; body: string }> = {
-  mentor: {
-    label: "Ideate flow",
-    title: "Open-ended shaping",
-    body: "Best when the idea is still rough and you want a sharper back-and-forth on the problem, wedge, customer, and pitch story.",
-  },
-  evaluator: {
-    label: "Evaluate flow",
-    title: "Structured pressure test",
-    body: "Best when you want the platform to interview the idea, stop when it has enough evidence, and produce a report with fixes.",
-  },
-  expert: {
-    label: "Expert flow",
-    title: "Domain discussion and analysis",
-    body: "Best when you want concept explanations, comparisons, pre-screening, or evidence-backed discussion over startup, VC, finance, or regulation.",
-  },
-};
+function modelPresetLabel(option: ProviderOption | undefined, profile: "speed" | "balanced"): string {
+  if (!option) {
+    return profile === "speed" ? "Fast" : "Sharper";
+  }
+  return profile === "speed"
+    ? option.speedLabel || "Fast"
+    : option.balancedLabel || "Sharper";
+}
 
 function stepTitle(step: number) {
-  if (step === 0) return "Pick a model";
-  if (step === 1) return "Set your context";
-  return "Choose the workflow";
+  if (step === 0) return "Choose a workspace";
+  if (step === 1) return "Add context";
+  return "Pick a runtime";
 }
 
 function stepSubtitle(step: number) {
-  if (step === 0) return "Stay local or use your own API key for this session.";
-  if (step === 1) return "Role, scope, and geography make the workbench sharper from the first turn.";
-  return "Pick how SignalX should work with you on this session.";
+  if (step === 0) return "Start with the output you need.";
+  if (step === 1) return "Only the basics.";
+  return "Local or hosted.";
 }
 
 function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
@@ -133,7 +128,7 @@ function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
 
 export function SetupWizard({ providerOptions, loading, error, canStart, step, draft, onStepChange, onDraftChange, onBack, onStart }: Props) {
   const [optionalContextOpen, setOptionalContextOpen] = useState(false);
-  const [advancedControlsOpen, setAdvancedControlsOpen] = useState(false);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const filteredProviders = useMemo(
     () => (draft.runtimeKind === "local" ? providerOptions.filter((item) => item.key === "ollama") : providerOptions.filter((item) => item.key !== "ollama")),
     [providerOptions, draft.runtimeKind],
@@ -151,13 +146,16 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
       ? providerMeta?.defaultSpeedModel
       : providerMeta?.defaultBalancedModel || providerMeta?.defaultSpeedModel)
     || "";
-  const canAdvanceRuntime = Boolean(resolvedModel) && (draft.runtimeKind === "local" || draft.apiKey.trim());
-  const workflowGuide = workflowGuides[draft.sessionType];
-  const showAdvancedControls = draft.sessionType === "expert" || advancedControlsOpen;
+  const requiresClientApiKey = Boolean(providerMeta?.requiresApiKey && !providerMeta.serverConfigured);
+  const canAdvanceRuntime = Boolean(resolvedModel) && (draft.runtimeKind === "local" || !requiresClientApiKey || draft.apiKey.trim());
+
+  useEffect(() => {
+    cardRef.current?.scrollTo({ top: 0 });
+  }, [step]);
 
   return (
     <section className="onboarding-shell">
-      <div className="onboarding-card clean-wizard-card">
+      <div className="onboarding-card clean-wizard-card" ref={cardRef}>
         <div className="onboarding-meta">
           <div className="plain-header-block">
             <span className="eyebrow">Setup</span>
@@ -177,7 +175,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
 
         {error ? <div className="setup-alert" role="alert">{error}</div> : null}
 
-        {step === 0 ? (
+        {step === 2 ? (
           <>
             <div className="workflow-row" onKeyDown={handleArrowSelection}>
               <button
@@ -194,14 +192,15 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                   }));
                 }}
               >
-                <span>Local open source</span>
-                <small>Runs through Ollama on this machine.</small>
+                <span>Local</span>
+                <small>Runs on this machine.</small>
               </button>
               <button
                 type="button"
                 className={draft.runtimeKind === "external" ? "choice-card active" : "choice-card"}
                 onClick={() => {
-                  const firstExternal = providerOptions.find((item) => item.key !== "ollama");
+                  const firstExternal = providerOptions.find((item) => item.key !== "ollama" && item.serverConfigured)
+                    ?? providerOptions.find((item) => item.key !== "ollama");
                   onDraftChange((current) => ({
                     ...current,
                     runtimeKind: "external",
@@ -210,8 +209,8 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                   }));
                 }}
               >
-                <span>Use API key</span>
-                <small>Switch to another provider for this session only.</small>
+                <span>Hosted</span>
+                <small>Use API models.</small>
               </button>
             </div>
 
@@ -234,13 +233,38 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                     }}
                   >
                     <span>{option.label}</span>
-                    <small>{option.requiresApiKey ? "API key" : "Local"}</small>
+                    <small>{providerAccessLabel(option)}</small>
                   </button>
                 ))}
               </div>
             </div>
 
             <div className="drawer-card">
+              <div className="runtime-recommendation-card">
+                <div>
+                  <span className="rail-label">{providerAccessLabel(providerMeta)}</span>
+                  <strong>{providerMeta?.label || "Runtime"}</strong>
+                </div>
+                <p>{draft.runtimeKind === "local" ? "Private by default." : "Best for public demos."}</p>
+              </div>
+              <div className="runtime-preset-row">
+                <button
+                  type="button"
+                  className={resolvedModel === providerMeta?.defaultSpeedModel ? "runtime-preset active" : "runtime-preset"}
+                  onClick={() => onDraftChange((current) => ({ ...current, model: providerMeta?.defaultSpeedModel || current.model }))}
+                >
+                  <span>Fast</span>
+                  <strong>{modelPresetLabel(providerMeta, "speed")}</strong>
+                </button>
+                <button
+                  type="button"
+                  className={resolvedModel === providerMeta?.defaultBalancedModel ? "runtime-preset active" : "runtime-preset"}
+                  onClick={() => onDraftChange((current) => ({ ...current, model: providerMeta?.defaultBalancedModel || current.model }))}
+                >
+                  <span>Sharper</span>
+                  <strong>{modelPresetLabel(providerMeta, "balanced")}</strong>
+                </button>
+              </div>
               <div className="field-grid">
                 <label className="identity-field">
                   <span className="rail-label">Model</span>
@@ -252,19 +276,20 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                 </label>
                 {draft.runtimeKind === "external" ? (
                   <label className="identity-field">
-                    <span className="rail-label">API key</span>
+                    <span className="rail-label">{providerMeta?.serverConfigured ? "Session API key override" : "API key"}</span>
                     <input
                       type="password"
                       value={draft.apiKey}
                       onChange={(event) => onDraftChange((current) => ({ ...current, apiKey: event.target.value }))}
-                      placeholder="Paste the key for this session"
+                      placeholder={providerMeta?.serverConfigured ? "Optional override" : "Paste key"}
                     />
+                    {providerMeta?.serverConfigured ? <small className="muted-copy">Server key ready.</small> : null}
                   </label>
                 ) : (
                   <div className="starter-preview">
                     <span className="rail-label">Runtime</span>
-                    <strong>Zero-key local mode</strong>
-                    <small>Stays on-device and keeps setup light.</small>
+                    <strong>Key-free</strong>
+                    <small>Ollama</small>
                   </div>
                 )}
               </div>
@@ -377,7 +402,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
           </>
         ) : null}
 
-        {step === 2 ? (
+        {step === 0 ? (
           <>
             <div className="workflow-row" onKeyDown={handleArrowSelection}>
               {workflowOptions.map((option) => (
@@ -394,15 +419,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
             </div>
 
             <div className="drawer-card">
-              <span className="rail-label">{workflowGuide.label}</span>
-              <div className="focus-card">
-                <strong>{workflowGuide.title}</strong>
-                <p>{workflowGuide.body}</p>
-              </div>
-            </div>
-
-            <div className="drawer-card">
-              <span className="rail-label">Conversation style</span>
+              <span className="rail-label">Style</span>
               <div className="workflow-row" onKeyDown={handleArrowSelection}>
                 {modeOptions.map((option) => (
                   <button
@@ -418,57 +435,6 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
               </div>
             </div>
 
-            {showAdvancedControls ? (
-              <>
-                <div className="drawer-card">
-                  <div className="setup-section-head">
-                    <div>
-                      <span className="rail-label">Mode of help</span>
-                      {draft.sessionType !== "expert" ? <strong>Advanced control</strong> : null}
-                    </div>
-                    {draft.sessionType !== "expert" ? (
-                      <button type="button" className="ghost-button compact" onClick={() => setAdvancedControlsOpen(false)}>
-                        Hide
-                      </button>
-                    ) : null}
-                  </div>
-                  <div className="workflow-row" onKeyDown={handleArrowSelection}>
-                    {helpModeOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={draft.helpMode === option.value ? "choice-card active" : "choice-card"}
-                        onClick={() => onDraftChange((current) => ({ ...current, helpMode: option.value }))}
-                      >
-                        <span>{option.label}</span>
-                        <small>{option.note}</small>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="drawer-card">
-                  <span className="rail-label">Research behavior</span>
-                  <div className="focus-card">
-                    <strong>Automatic in Expert</strong>
-                    <p>SignalX uses the local corpus first and pulls in labeled live-web context when the local evidence is weak or stale. This is no longer a user toggle.</p>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="drawer-card">
-                <div className="setup-section-head">
-                  <div>
-                    <span className="rail-label">Advanced controls</span>
-                    <strong>Help mode</strong>
-                  </div>
-                  <button type="button" className="ghost-button compact" onClick={() => setAdvancedControlsOpen(true)}>
-                    Show
-                  </button>
-                </div>
-                <p className="muted-copy">Defaults are safe for Ideate and Evaluate. Expert handles research automatically and keeps help style visible because it changes the conversation directly.</p>
-              </div>
-            )}
           </>
         ) : null}
 
@@ -492,7 +458,6 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
               type="button"
               className="solid-button"
               onClick={() => onStepChange(step + 1)}
-              disabled={step === 0 && !canAdvanceRuntime}
             >
               Continue
             </button>
@@ -500,7 +465,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
             <button
               type="button"
               className="solid-button"
-              disabled={loading || !canStart}
+              disabled={loading || !canStart || !canAdvanceRuntime}
               onClick={() =>
                 void onStart({
                   sessionType: draft.sessionType,

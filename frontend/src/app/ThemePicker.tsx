@@ -6,10 +6,10 @@ type Props = {
 };
 
 const OPTIONS: Array<{ key: ThemeMode; label: string; note: string }> = [
-  { key: "light", label: "Paper", note: "Warm black and white" },
-  { key: "dark", label: "Midnight", note: "Soft dark focus" },
-  { key: "dusk", label: "Dusk", note: "Muted evening contrast" },
-  { key: "neon", label: "Neon", note: "Sharper electric glow" },
+  { key: "light", label: "Light", note: "Bright workspace" },
+  { key: "dark", label: "Graphite", note: "Low glare" },
+  { key: "dusk", label: "Warm", note: "Soft contrast" },
+  { key: "neon", label: "Focus", note: "High contrast" },
 ];
 
 export function ThemePicker({ theme, onChange }: Props) {

@@ -22,11 +22,13 @@ CONTINUE_PROMPT = (
 VISION_MODEL_HINTS = (
     "qwen2.5vl",
     "qwen2.5-vl",
+    "qwen3-vl",
     "qwen-vl",
     "gemma3",
     "llava",
     "bakllava",
     "moondream",
+    "gpt-5",
     "gpt-4o",
     "gpt-4.1",
     "o4-mini",
@@ -50,10 +52,10 @@ RECOMMENDED_DECK_MODELS = {
     "ollama": "qwen2.5vl:7b",
     "groq": "",
     "cerebras": "",
-    "openai": "gpt-4o",
-    "openrouter": "anthropic/claude-3.5-sonnet",
+    "openai": "gpt-5.5",
+    "openrouter": "openai/gpt-5.5",
     "anthropic": "claude-3-7-sonnet-latest",
-    "gemini": "gemini-1.5-pro",
+    "gemini": "gemini-2.0-flash",
 }
 
 
@@ -240,8 +242,8 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="openai",
         base_url=os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
         env_api_key_var="GROQ_API_KEY",
-        default_speed_model=os.environ.get("GROQ_MODEL_SPEED", "llama-3.1-8b-instant"),
-        default_balanced_model=os.environ.get("GROQ_MODEL_BALANCED", "llama-3.3-70b-versatile"),
+        default_speed_model=os.environ.get("GROQ_MODEL_SPEED", "openai/gpt-oss-20b"),
+        default_balanced_model=os.environ.get("GROQ_MODEL_BALANCED", "openai/gpt-oss-120b"),
         requires_api_key=True,
     ),
     "cerebras": ProviderConfig(
@@ -250,7 +252,7 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="openai",
         base_url=os.environ.get("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1"),
         env_api_key_var="CEREBRAS_API_KEY",
-        default_speed_model=os.environ.get("CEREBRAS_MODEL_SPEED", "llama3.1-8b"),
+        default_speed_model=os.environ.get("CEREBRAS_MODEL_SPEED", "gpt-oss-120b"),
         default_balanced_model=os.environ.get("CEREBRAS_MODEL_BALANCED", "gpt-oss-120b"),
         requires_api_key=True,
     ),
@@ -260,8 +262,8 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="openai",
         base_url=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
         env_api_key_var="OPENAI_API_KEY",
-        default_speed_model=os.environ.get("OPENAI_MODEL_SPEED", "gpt-4o-mini"),
-        default_balanced_model=os.environ.get("OPENAI_MODEL_BALANCED", "gpt-4.1"),
+        default_speed_model=os.environ.get("OPENAI_MODEL_SPEED", "gpt-5.4-mini"),
+        default_balanced_model=os.environ.get("OPENAI_MODEL_BALANCED", "gpt-5.5"),
         requires_api_key=True,
     ),
     "openrouter": ProviderConfig(
@@ -270,8 +272,8 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="openai",
         base_url=os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
         env_api_key_var="OPENROUTER_API_KEY",
-        default_speed_model=os.environ.get("OPENROUTER_MODEL_SPEED", "openai/gpt-4o-mini"),
-        default_balanced_model=os.environ.get("OPENROUTER_MODEL_BALANCED", "anthropic/claude-3.5-sonnet"),
+        default_speed_model=os.environ.get("OPENROUTER_MODEL_SPEED", "openai/gpt-oss-20b"),
+        default_balanced_model=os.environ.get("OPENROUTER_MODEL_BALANCED", "openai/gpt-oss-120b"),
         requires_api_key=True,
     ),
     "anthropic": ProviderConfig(
@@ -294,6 +296,72 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         default_balanced_model=os.environ.get("GEMINI_MODEL_BALANCED", "gemini-1.5-pro"),
         requires_api_key=True,
     ),
+}
+
+PROVIDER_PUBLIC_META: dict[str, dict[str, Any]] = {
+    "ollama": {
+        "latencyHint": "Best when privacy matters and the user can run local models.",
+        "bestFor": "Local-first demos, private notes, and zero-key use.",
+        "speedLabel": "Llama 3.2 fast",
+        "balancedLabel": "Qwen3 sharper",
+        "publicReadiness": "Local install required",
+        "openWeight": True,
+        "docsUrl": "https://ollama.com/library/qwen3",
+    },
+    "groq": {
+        "latencyHint": "Very fast hosted open-weight lane for public MVP traffic.",
+        "bestFor": "Low-latency public launch with GPT-OSS or Llama-class models.",
+        "speedLabel": "GPT-OSS 20B",
+        "balancedLabel": "GPT-OSS 120B",
+        "publicReadiness": "Recommended hosted default",
+        "openWeight": True,
+        "docsUrl": "https://console.groq.com/docs/models",
+    },
+    "cerebras": {
+        "latencyHint": "Fastest hosted open-weight throughput when the account tier supports it.",
+        "bestFor": "High-speed expert and evaluation turns on GPT-OSS 120B.",
+        "speedLabel": "GPT-OSS 120B",
+        "balancedLabel": "GPT-OSS 120B",
+        "publicReadiness": "Performance lane",
+        "openWeight": True,
+        "docsUrl": "https://inference-docs.cerebras.ai/models/overview",
+    },
+    "openai": {
+        "latencyHint": "Frontier quality for complex synthesis, deck reasoning, and polish.",
+        "bestFor": "Highest-quality public mode when cost is acceptable.",
+        "speedLabel": "GPT-5.4 mini",
+        "balancedLabel": "GPT-5.5",
+        "publicReadiness": "Frontier quality lane",
+        "openWeight": False,
+        "docsUrl": "https://developers.openai.com/api/docs/models/gpt-5.5",
+    },
+    "openrouter": {
+        "latencyHint": "Flexible broker for comparing open-weight and closed frontier models.",
+        "bestFor": "Provider experiments without changing the app.",
+        "speedLabel": "GPT-OSS 20B",
+        "balancedLabel": "GPT-OSS 120B",
+        "publicReadiness": "Experiment lane",
+        "openWeight": True,
+        "docsUrl": "https://openrouter.ai/models",
+    },
+    "anthropic": {
+        "latencyHint": "Strong long-form synthesis with hosted API latency.",
+        "bestFor": "Careful narrative analysis and investor-style memo work.",
+        "speedLabel": "Haiku",
+        "balancedLabel": "Sonnet",
+        "publicReadiness": "Quality lane",
+        "openWeight": False,
+        "docsUrl": "https://docs.anthropic.com/en/docs/about-claude/models",
+    },
+    "gemini": {
+        "latencyHint": "Fast hosted multimodal fallback for broad consumer access.",
+        "bestFor": "Affordable hosted analysis and deck-adjacent workflows.",
+        "speedLabel": "Flash",
+        "balancedLabel": "Pro",
+        "publicReadiness": "Multimodal lane",
+        "openWeight": False,
+        "docsUrl": "https://ai.google.dev/gemini-api/docs/models",
+    },
 }
 
 
@@ -361,15 +429,18 @@ def normalize_provider(provider: str | None) -> str:
 def provider_catalog() -> list[dict[str, Any]]:
     catalog = []
     for provider in PROVIDER_CONFIGS.values():
+        meta = PROVIDER_PUBLIC_META.get(provider.key, {})
         catalog.append(
             {
                 "key": provider.key,
                 "label": provider.label,
                 "requiresApiKey": provider.requires_api_key,
+                "serverConfigured": bool(_provider_api_key(provider.key)),
                 "defaultSpeedModel": provider.default_speed_model,
                 "defaultBalancedModel": provider.default_balanced_model,
                 "supportsVisionModels": PROVIDER_VISION_SUPPORT.get(provider.key, False),
                 "recommendedDeckModel": RECOMMENDED_DECK_MODELS.get(provider.key, ""),
+                **meta,
             }
         )
     return catalog
@@ -458,12 +529,13 @@ def _provider_api_key(provider: str, api_key: str | None = None) -> str:
 
 
 def active_provider() -> str:
-    if MODEL_PROVIDER == "groq":
-        return "groq"
-    if MODEL_PROVIDER == "ollama":
-        return "ollama"
-    if _provider_api_key("groq"):
-        return "groq"
+    if MODEL_PROVIDER in PROVIDER_CONFIGS:
+        chosen = normalize_provider(MODEL_PROVIDER)
+        if not provider_requires_api_key(chosen) or _provider_api_key(chosen):
+            return chosen
+    for provider in ("groq", "cerebras", "openai", "openrouter", "anthropic", "gemini"):
+        if _provider_api_key(provider):
+            return provider
     return "ollama"
 
 
@@ -771,8 +843,12 @@ async def _stream_from_openai_compatible(
                         messages=messages,
                         completion_text="".join(accumulated).strip(),
                     )
-                finish_reason = _normalize_finish_reason(data.get("choices", [{}])[0].get("finish_reason", finish_reason))
-                delta = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                choices = data.get("choices") if isinstance(data.get("choices"), list) else []
+                if not choices:
+                    continue
+                first_choice = choices[0] if isinstance(choices[0], dict) else {}
+                finish_reason = _normalize_finish_reason(first_choice.get("finish_reason", finish_reason))
+                delta = first_choice.get("delta", {}).get("content", "")
                 if delta:
                     accumulated.append(delta)
                     if first_token_seconds is None:

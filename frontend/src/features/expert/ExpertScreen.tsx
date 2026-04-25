@@ -187,7 +187,7 @@ export function ExpertScreen({
     () => providerOptions.find((item) => item.key === runtimeProvider) ?? providerOptions[0] ?? null,
     [providerOptions, runtimeProvider],
   );
-  const requiresApiKey = Boolean(selectedProvider?.requiresApiKey);
+  const requiresClientApiKey = Boolean(selectedProvider?.requiresApiKey && !selectedProvider.serverConfigured);
   const effectiveModel = runtimeModel.trim() || defaultModelForProvider(providerOptions, runtimeProvider, session.responseProfile);
   const quickActions = session.chips.length > 0 ? session.chips : DEFAULT_QUICK_ACTIONS;
   const confidenceText = confidenceLabel(session.confidence);
@@ -197,8 +197,8 @@ export function ExpertScreen({
     if (!runtimeProvider) {
       return;
     }
-    if (requiresApiKey && !runtimeApiKey.trim()) {
-      setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} before switching.`);
+    if (requiresClientApiKey && !runtimeApiKey.trim()) {
+      setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} before switching, or configure one on the server.`);
       return;
     }
     setApplyingRuntime(true);
@@ -238,7 +238,7 @@ export function ExpertScreen({
     if ((!message && !selectedFile) || pending) {
       return;
     }
-    if (requiresApiKey && !runtimeApiKey.trim()) {
+    if (requiresClientApiKey && !runtimeApiKey.trim()) {
       setStatusLine(`Add an API key for ${selectedProvider?.label || runtimeProvider} to use this runtime.`);
       setRuntimeOpen(true);
       return;
@@ -334,8 +334,9 @@ export function ExpertScreen({
             }
             if (timings?.firstTokenSeconds !== undefined) {
               const usageLabel = tokenStatus(data.runtimeUsage as SessionPayload["runtimeUsage"]);
+              const totalSeconds = typeof timings.totalBackendSeconds === "number" ? timings.totalBackendSeconds : timings.totalSeconds;
               setStatusLine(
-                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s${usageLabel ? ` · ${usageLabel}` : ""}${stableWorkflow ? " · stable flow" : ""}`,
+                `${profileLabel(((data.responseProfile as ResponseProfile) ?? session.responseProfile))} · first token ${timings.firstTokenSeconds}s${typeof totalSeconds === "number" ? ` · total ${totalSeconds}s` : ""}${usageLabel ? ` · ${usageLabel}` : ""}${stableWorkflow ? " · stable flow" : ""}`,
               );
             }
             setStreamingAssistant("");
@@ -420,7 +421,7 @@ export function ExpertScreen({
           <header className="pane-header expert-pane-header">
             <div>
               <span className="eyebrow">Expert</span>
-              <h2>{session.state.company_name || "Expert Workbench"}</h2>
+              <h2>{session.state.company_name || "Expert"}</h2>
               <small className="expert-header-subline">
                 {laneLabel(session.knowledgeLane)} · {session.sources.length} source{session.sources.length === 1 ? "" : "s"} · {session.usedLiveWeb ? "web + local evidence" : "local corpus led this turn"}
               </small>
@@ -428,13 +429,13 @@ export function ExpertScreen({
             <div className="status-stack">
               <div className="header-actions">
                 <button type="button" className="ghost-button compact" onClick={() => setSessionsOpen(true)}>
-                  Sessions
+                  History
                 </button>
                 <button type="button" className="ghost-button compact" onClick={() => setRuntimeOpen(true)}>
-                  Runtime
+                  Model
                 </button>
                 <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
-                  Themes
+                  Theme
                 </button>
                 {session.activeUploads.length > 0 ? (
                   <button type="button" className="ghost-button compact" onClick={() => setFilesOpen(true)}>
@@ -650,7 +651,7 @@ export function ExpertScreen({
 
       <RuntimeSidebar
         isOpen={runtimeOpen}
-        title="Switch model live"
+        title="Model"
         providerOptions={providerOptions}
         provider={runtimeProvider}
         model={runtimeModel}

@@ -21,9 +21,9 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL_SPEED
-        value: llama-3.1-8b-instant
+        value: openai/gpt-oss-20b
       - key: GROQ_MODEL_BALANCED
-        value: llama-3.3-70b-versatile
+        value: openai/gpt-oss-120b
       - key: VK_ADMIN_TOKEN
         sync: false
     disk:

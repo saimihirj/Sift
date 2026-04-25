@@ -36,7 +36,7 @@ Optional:
 Recommended local models:
 
 ```bash
-ollama pull llama3.2:latest
+ollama pull llama3.2
 ollama pull qwen3:8b
 ```
 

@@ -580,7 +580,7 @@ def get_admin_overview() -> dict:
         ).fetchone()[0]
         provider_breakdown = dict(
             con.execute(
-                "SELECT provider, COUNT(*) FROM sessions WHERE session_type = 'evaluator' GROUP BY provider"
+                "SELECT provider, COUNT(*) FROM sessions GROUP BY provider"
             ).fetchall()
         )
 
