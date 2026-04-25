@@ -1,20 +1,20 @@
 services:
   - type: web
-    name: signalx
+    name: sift
     runtime: docker
     plan: starter
     autoDeploy: true
     healthCheckPath: /api/health
     envVars:
-      - key: VK_MODEL_PROVIDER
+      - key: SIFT_MODEL_PROVIDER
         value: groq
-      - key: VK_DATA_DIR
-        value: /var/data/signalx
-      - key: SIGNALX_EXPERT_DATA_DIR
+      - key: SIFT_DATA_DIR
+        value: /var/data/sift
+      - key: SIFT_EXPERT_DATA_DIR
         value: /app/knowledge_base/expert
-      - key: VK_SESSION_SECRET
+      - key: SIFT_SESSION_SECRET
         sync: false
-      - key: VK_COOKIE_SECURE
+      - key: SIFT_COOKIE_SECURE
         value: "true"
       - key: OLLAMA_BASE_URL
         value: http://127.0.0.1:11434
@@ -24,9 +24,9 @@ services:
         value: openai/gpt-oss-20b
       - key: GROQ_MODEL_BALANCED
         value: openai/gpt-oss-120b
-      - key: VK_ADMIN_TOKEN
+      - key: SIFT_ADMIN_TOKEN
         sync: false
     disk:
-      name: signalx-data
+      name: sift-data
       mountPath: /var/data
       sizeGB: 2

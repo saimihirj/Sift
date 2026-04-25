@@ -1,6 +1,6 @@
 # Execution Guide
 
-This document is the accurate runbook for the current SignalX app.
+This document is the accurate runbook for the current Sift app.
 
 It covers:
 - local setup
@@ -13,14 +13,14 @@ It covers:
 - runtime behavior
 - troubleshooting
 
-SignalX supports two normal local paths:
+Sift supports two normal local paths:
 - open-source local runtime through `Ollama`
 - API-key runtime through providers like `Groq`, `Cerebras`, `OpenAI`, `OpenRouter`, `Anthropic`, and `Gemini`
 
 If you want open-source-only with no paid services, use the local and LAN modes below and keep:
 
 ```env
-VK_MODEL_PROVIDER=ollama
+SIFT_MODEL_PROVIDER=ollama
 ```
 
 ## 1. Prerequisites
@@ -62,7 +62,7 @@ Default runtime values live in `.env.example`.
 Current keys:
 
 ```env
-SIGNALX_EXPERT_DATA_DIR=knowledge_base/expert
+SIFT_EXPERT_DATA_DIR=knowledge_base/expert
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL_SPEED=llama3.2:latest
 OLLAMA_MODEL_BALANCED=qwen3:8b
@@ -98,7 +98,7 @@ For API-key mode without Ollama.
 Best default for normal use.
 
 ```bash
-python3 signalx_app.py --build
+python3 sift_app.py --build
 ```
 
 Shortcut:
@@ -122,9 +122,9 @@ http://127.0.0.1:7860
 Useful flags:
 
 ```bash
-python3 signalx_app.py --build --port 7870
-python3 signalx_app.py --build --no-open
-python3 signalx_app.py --build --idle-timeout 90
+python3 sift_app.py --build --port 7870
+python3 sift_app.py --build --no-open
+python3 sift_app.py --build --idle-timeout 90
 ```
 
 ### B. LAN Test Mode
@@ -132,7 +132,7 @@ python3 signalx_app.py --build --idle-timeout 90
 Use this to let another person test on the same Wi-Fi network.
 
 ```bash
-python3 signalx_app.py --host 0.0.0.0 --port 7860 --build
+python3 sift_app.py --host 0.0.0.0 --port 7860 --build
 ```
 
 Shortcut:
@@ -212,8 +212,8 @@ Important:
 For container-style deployment:
 
 ```bash
-docker build -t signalx .
-docker run -p 8000:8000 signalx
+docker build -t sift .
+docker run -p 8000:8000 sift
 ```
 
 App URL:
@@ -235,13 +235,13 @@ Recommended deploy path:
 1. Create a new Render service from the repo
 2. Use the included `render.yaml`
 3. Set `GROQ_API_KEY`
-4. Set `VK_SESSION_SECRET`
-5. Set `VK_ADMIN_TOKEN`
+4. Set `SIFT_SESSION_SECRET`
+5. Set `SIFT_ADMIN_TOKEN`
 6. Deploy
 
 Important:
 - the current blueprint uses a persistent disk
-- app data is written under `/var/data/signalx`
+- app data is written under `/var/data/sift`
 - the bundled Expert corpus is read from `/app/knowledge_base/expert`
 - admin monitoring is available at `/admin`
 
@@ -249,7 +249,7 @@ If you want zero paid dependencies, skip this section and stay on local / LAN mo
 
 ## 5. VC Firm Knowledge Cluster
 
-SignalX can build a dedicated `vc_firms` retrieval cluster from:
+Sift can build a dedicated `vc_firms` retrieval cluster from:
 
 ```text
 knowledge_inbox/Investor.xlsx
@@ -315,7 +315,7 @@ And backend routes:
 /api/admin/events
 ```
 
-If `VK_ADMIN_TOKEN` is set, the admin API requires the `x-admin-token` header.
+If `SIFT_ADMIN_TOKEN` is set, the admin API requires the `x-admin-token` header.
 
 ### Uploads
 
@@ -354,7 +354,7 @@ Typical local flow:
 
 ### Ollama is not reachable
 
-SignalX normally starts Ollama for you. If it still cannot reach Ollama, check:
+Sift normally starts Ollama for you. If it still cannot reach Ollama, check:
 
 Check:
 - `OLLAMA_BASE_URL`
@@ -375,7 +375,7 @@ If it is still unavailable, the app should fall back to `speed`.
 That auto-stop behavior only applies to:
 
 ```bash
-python3 signalx_app.py
+python3 sift_app.py
 ```
 
 It does not apply to:
@@ -408,7 +408,7 @@ npm --prefix frontend run build
 Then restart:
 
 ```bash
-python3 signalx_app.py --build
+python3 sift_app.py --build
 ```
 
 ## 8. Key Commands
@@ -426,13 +426,13 @@ npm --prefix frontend install
 Run local app:
 
 ```bash
-python3 signalx_app.py --build
+python3 sift_app.py --build
 ```
 
 Run LAN share:
 
 ```bash
-python3 signalx_app.py --host 0.0.0.0 --port 7860 --build
+python3 sift_app.py --host 0.0.0.0 --port 7860 --build
 ```
 
 Run dev:
@@ -450,6 +450,6 @@ npm --prefix frontend run build
 Run Docker:
 
 ```bash
-docker build -t signalx .
-docker run -p 8000:8000 signalx
+docker build -t sift .
+docker run -p 8000:8000 sift
 ```

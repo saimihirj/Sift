@@ -1,6 +1,6 @@
-# SignalX
+# Sift
 
-SignalX is a local-first startup and finance workbench with three workflows:
+Sift is a local-first startup and finance workbench with three workflows:
 - `Ideate` for shaping rough ideas and reasoning
 - `Evaluate` for structured pressure-testing and reports
 - `Expert` for domain discussion, concept learning, pre-screening, and deck analysis
@@ -20,7 +20,7 @@ Best path if you want the easiest local setup and prefer providers like `Groq`, 
 
 ```bash
 git clone <your-repo-url>
-cd signalx
+cd sift
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -43,7 +43,7 @@ ollama pull qwen3:8b
 npm run mvp
 ```
 
-SignalX will auto-start Ollama if it is installed and not already running.
+Sift will auto-start Ollama if it is installed and not already running.
 
 ## What You Get
 
@@ -143,7 +143,7 @@ What it does:
 
 Important runtime behavior:
 - if the active model supports vision and the deck has renderable slide/page images, the review can assess slides more directly
-- if the active model is text-only, SignalX runs a bounded transcript review from extracted deck text and explicitly avoids fake visual claims
+- if the active model is text-only, Sift runs a bounded transcript review from extracted deck text and explicitly avoids fake visual claims
 - `Qwen2.5-VL` is the recommended local Ollama path for stronger deck review
 - `Gemma 3` is a lighter local fallback when you want multimodal support on a smaller setup
 
@@ -165,18 +165,24 @@ That means:
 - `knowledge_base/expert/` - bundled Expert corpus
 - `data/` - local runtime state, sessions, uploads, exports
 - `memory.py` - SQLite persistence
-- `signalx_app.py` - single-port launcher
+- `sift_app.py` - single-port launcher
 - `docs/` - runbook, architecture, and deployment notes
 
 ## Deployment
 
-For the current codebase, the cleanest first public deployment is `Render`.
+For the current codebase, the cleanest full-app deployment is `Render`.
 
 Why:
 - the app is a single long-running `React + FastAPI` service
 - it uses SQLite and uploaded files on disk
 - it expects same-origin frontend and API behavior
 - the repo already includes `render.yaml` plus a deployment checklist
+
+Vercel is now supported for the frontend:
+- `vercel.json` builds `frontend/` and serves `frontend/dist`
+- set `VITE_API_BASE_URL` in Vercel to the hosted FastAPI backend URL
+- set `SIFT_CORS_ORIGINS` on the backend to the Vercel app URL
+- keep the backend on Render or another long-running Python host
 
 Use:
 - [Execution Guide](docs/EXECUTION.md) for local and dev commands
@@ -196,7 +202,7 @@ npm run knowledge:vc
 
 ## Current State
 
-- `SignalX` is now a three-workflow MVP: `Ideate`, `Evaluate`, `Expert`
+- `Sift` is now a three-workflow MVP: `Ideate`, `Evaluate`, `Expert`
 - both open-source and API-key runtime paths are supported
 - the Expert corpus is bundled in the repo
 - local API-key mode works without Ollama

@@ -112,6 +112,22 @@ function confidenceLabel(confidence: number): string {
   return "Thin";
 }
 
+function sourceQualityClass(confidence: string): "high" | "medium" | "low" {
+  const normalized = confidence.toLowerCase();
+  if (normalized.includes("high") || normalized.includes("strong")) {
+    return "high";
+  }
+  if (normalized.includes("low") || normalized.includes("thin")) {
+    return "low";
+  }
+  return "medium";
+}
+
+function sourceQualityLabel(confidence: string): string {
+  const quality = sourceQualityClass(confidence);
+  return quality === "high" ? "High" : quality === "low" ? "Low" : "Medium";
+}
+
 
 function workflowLabel(sessionType: SessionPayload["sessionType"]) {
   if (sessionType === "expert") {
@@ -166,6 +182,7 @@ export function ExpertScreen({
   const [runtimeOpen, setRuntimeOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(true);
   const [applyingRuntime, setApplyingRuntime] = useState(false);
   const [runtimeProvider, setRuntimeProvider] = useState<SessionPayload["provider"]>(session.provider);
   const [runtimeModel, setRuntimeModel] = useState(session.model);
@@ -362,7 +379,7 @@ export function ExpertScreen({
 
   return (
     <div className="app-shell expert-workbench-shell">
-      <div className="expert-workbench-grid">
+      <div className={sourcesOpen ? "expert-workbench-grid" : "expert-workbench-grid sources-collapsed"}>
         <aside className="expert-left-column">
           <section className="expert-panel-card">
             <div className="expert-panel-head">
@@ -437,6 +454,9 @@ export function ExpertScreen({
                 <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
                   Theme
                 </button>
+                <button type="button" className="ghost-button compact" onClick={() => setSourcesOpen((current) => !current)}>
+                  {sourcesOpen ? "Hide sources" : "Show sources"}
+                </button>
                 {session.activeUploads.length > 0 ? (
                   <button type="button" className="ghost-button compact" onClick={() => setFilesOpen(true)}>
                     Files
@@ -497,7 +517,7 @@ export function ExpertScreen({
             </div>
             <div className="interaction-hint expert-research-note">
               <strong>Auto research</strong>
-              <small>{session.usedLiveWeb ? "This answer used live web because local coverage was weak or stale." : "SignalX will pull in live web only when it improves answer quality."}</small>
+              <small>{session.usedLiveWeb ? "This answer used live web because local coverage was weak or stale." : "Sift will pull in live web only when it improves answer quality."}</small>
             </div>
           </div>
 
@@ -566,7 +586,10 @@ export function ExpertScreen({
                         target={source.url ? "_blank" : undefined}
                         rel={source.url ? "noreferrer" : undefined}
                       >
-                        <strong>{source.title}</strong>
+                        <div className="expert-source-card-head">
+                          <strong>{source.title}</strong>
+                          <span className={`src-quality ${sourceQualityClass(source.confidence)}`}>{sourceQualityLabel(source.confidence)}</span>
+                        </div>
                         <span>{source.label || source.domain}</span>
                         <small>{source.geographyScope} · {source.confidence}</small>
                       </a>
@@ -586,6 +609,7 @@ export function ExpertScreen({
           )}
         </main>
 
+        {sourcesOpen ? (
         <aside className="expert-right-column">
           <section className="expert-panel-card">
             <div className="expert-panel-head">
@@ -603,7 +627,10 @@ export function ExpertScreen({
                     target={source.url ? "_blank" : undefined}
                     rel={source.url ? "noreferrer" : undefined}
                   >
-                    <strong>{source.title}</strong>
+                    <div className="expert-source-card-head">
+                      <strong>{source.title}</strong>
+                      <span className={`src-quality ${sourceQualityClass(source.confidence)}`}>{sourceQualityLabel(source.confidence)}</span>
+                    </div>
                     <span>{source.label || source.domain}</span>
                     <small>{source.geographyScope} · {source.confidence}</small>
                   </a>
@@ -631,6 +658,7 @@ export function ExpertScreen({
             empty="Knowledge gaps, contradictions, and next questions will surface here."
           />
         </aside>
+        ) : null}
       </div>
 
       <SessionSidebar

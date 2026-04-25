@@ -1,4 +1,4 @@
-"""Session and analytics persistence for Vishwakarma.
+"""Session and analytics persistence for Sift.
 
 Uses SQLite (stdlib — no extra install). Stores:
   sessions         — founder profile + coverage state per user
@@ -20,7 +20,7 @@ from functools import lru_cache
 from pathlib import Path
 
 
-DATA_DIR = Path(os.environ.get("VK_DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("SIFT_DATA_DIR", "data"))
 DB_PATH = DATA_DIR / "sessions.db"
 EXPORTS_DIR = DATA_DIR / "exports"
 _DB_READY = False
@@ -109,7 +109,7 @@ def _conn() -> sqlite3.Connection:
 
 @lru_cache(maxsize=1)
 def _current_app_build() -> str:
-    explicit = os.environ.get("VK_APP_BUILD", "").strip()
+    explicit = os.environ.get("SIFT_APP_BUILD", "").strip()
     if explicit:
         return explicit
     try:

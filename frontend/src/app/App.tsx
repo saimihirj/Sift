@@ -24,13 +24,11 @@ import { saveSessionCredential } from "../lib/sessionCredentials";
 
 declare const __APP_BUILD__: string;
 
-const SESSION_STORAGE_KEY = "signalx-session-id";
-const DISPLAY_NAME_STORAGE_KEY = "signalx-display-name";
-const LEGACY_SESSION_STORAGE_KEY = "vishwakarma-session-id";
-const LEGACY_DISPLAY_NAME_STORAGE_KEY = "vishwakarma-display-name";
-const THEME_STORAGE_KEY = "vishwakarma-theme";
-const CLIENT_STORAGE_KEY = "vishwakarma-client-id";
-const APP_BUILD_STORAGE_KEY = "signalx-app-build";
+const SESSION_STORAGE_KEY = "sift-session-id";
+const DISPLAY_NAME_STORAGE_KEY = "sift-display-name";
+const THEME_STORAGE_KEY = "sift-theme";
+const CLIENT_STORAGE_KEY = "sift-client-id";
+const APP_BUILD_STORAGE_KEY = "sift-app-build";
 const DEFAULT_AUTH_PROVIDERS: AuthProviderOption[] = [
   { key: "google", label: "Google", configured: false },
   { key: "apple", label: "Apple", configured: false },
@@ -115,9 +113,9 @@ const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
   { key: "gemini", label: "Gemini", requiresApiKey: true, defaultSpeedModel: "gemini-2.0-flash", defaultBalancedModel: "gemini-1.5-pro", supportsVisionModels: true, recommendedDeckModel: "gemini-2.0-flash", latencyHint: "Fast hosted multimodal fallback for broad consumer access.", bestFor: "Affordable hosted analysis and deck-adjacent workflows.", speedLabel: "Flash", balancedLabel: "Pro", publicReadiness: "Multimodal lane" },
 ];
 const DEFAULT_SETUP_DRAFT: SetupDraft = {
-  runtimeKind: "local",
-  provider: "ollama",
-  model: "llama3.2:latest",
+  runtimeKind: "external",
+  provider: "groq",
+  model: "openai/gpt-oss-20b",
   apiKey: "",
   founderType: "founder",
   sector: "saas",
@@ -162,7 +160,6 @@ function setStoredDisplayName(displayName: string): void {
   } else {
     localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY);
   }
-  localStorage.removeItem(LEGACY_DISPLAY_NAME_STORAGE_KEY);
 }
 
 function getStoredSessionId(): string | null {
@@ -173,8 +170,6 @@ function getStoredSessionId(): string | null {
   if (activeSessionId) {
     return activeSessionId;
   }
-  localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
-  sessionStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
   return null;
 }
 
@@ -182,8 +177,6 @@ function setStoredSessionId(sessionId: string): void {
   if (typeof window === "undefined") {
     return;
   }
-  localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
-  sessionStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
   sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId);
 }
 
@@ -192,8 +185,6 @@ function clearStoredSessionId(): void {
     return;
   }
   sessionStorage.removeItem(SESSION_STORAGE_KEY);
-  localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
-  sessionStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
 }
 
 function applyBuildResetIfNeeded(): boolean {
@@ -207,7 +198,6 @@ function applyBuildResetIfNeeded(): boolean {
   }
   clearStoredSessionId();
   localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY);
-  localStorage.removeItem(LEGACY_DISPLAY_NAME_STORAGE_KEY);
   localStorage.setItem(APP_BUILD_STORAGE_KEY, currentBuild);
   return true;
 }
@@ -523,7 +513,7 @@ function AppBody() {
   };
 
   if (loadingSession) {
-    return <div className="loading-screen">Loading SignalX...</div>;
+    return <div className="loading-screen">Loading Sift...</div>;
   }
 
   return (

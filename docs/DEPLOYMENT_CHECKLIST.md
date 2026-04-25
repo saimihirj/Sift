@@ -1,17 +1,60 @@
 # Deployment Checklist
 
-This is the shortest safe checklist for sharing SignalX with external users.
+This is the shortest safe checklist for sharing Sift with external users.
 
 ## Recommended Host
 
 - Use `Render` for the first proper deployment.
-- Do not deploy the full app on `Vercel` in its current shape.
+- Use `Vercel` for the frontend if you want Vercel previews and a public web URL.
+- Do not deploy the full backend on `Vercel` in its current shape.
 
 Why:
 - the app is a single `React + FastAPI` service
 - it uses SQLite plus uploaded files on disk
 - it uses cookie-backed auth/session routes
 - it serves the built frontend and API from one long-running process
+
+## Vercel Frontend + Render Backend
+
+The repo now includes `vercel.json` for a frontend-only Vercel deploy.
+
+Use this setup:
+
+1. Deploy the FastAPI service on Render first.
+2. Copy the Render backend URL, for example `https://sift-api.onrender.com`.
+3. In Vercel, set:
+
+```text
+VITE_API_BASE_URL=https://your-backend-host
+```
+
+4. On the backend host, allow the Vercel origin:
+
+```text
+SIFT_CORS_ORIGINS=https://your-vercel-app.vercel.app
+```
+
+5. If you enable OAuth across separate frontend/backend domains, also set:
+
+```text
+SIFT_FRONTEND_URL=https://your-vercel-app.vercel.app
+SIFT_COOKIE_SECURE=true
+SIFT_COOKIE_SAMESITE=none
+```
+
+6. Deploy from the repo root. Vercel will run:
+
+```bash
+npm --prefix frontend ci
+npm --prefix frontend run build
+```
+
+7. Keep OAuth callback URLs pointed at the backend host:
+
+```text
+https://your-backend-host/api/auth/callback/google
+https://your-backend-host/api/auth/callback/apple
+```
 
 ## What Is Bundled
 
@@ -32,15 +75,16 @@ Use `/api/health` after deploy to verify the corpus actually loaded.
 Set these in production:
 
 ```text
-VK_MODEL_PROVIDER=groq
-VK_DATA_DIR=/var/data/signalx
-SIGNALX_EXPERT_DATA_DIR=/app/knowledge_base/expert
-VK_SESSION_SECRET=<strong-random-secret>
-VK_COOKIE_SECURE=true
+SIFT_MODEL_PROVIDER=groq
+SIFT_DATA_DIR=/var/data/sift
+SIFT_EXPERT_DATA_DIR=/app/knowledge_base/expert
+SIFT_SESSION_SECRET=<strong-random-secret>
+SIFT_COOKIE_SECURE=true
+SIFT_COOKIE_SAMESITE=lax
 GROQ_API_KEY=<your-key>
 GROQ_MODEL_SPEED=openai/gpt-oss-20b
 GROQ_MODEL_BALANCED=openai/gpt-oss-120b
-VK_ADMIN_TOKEN=<optional-admin-token>
+SIFT_ADMIN_TOKEN=<optional-admin-token>
 ```
 
 Optional OAuth:

@@ -626,7 +626,7 @@ async def chat(
             yield _sse(
                 "error",
                 {
-                    "message": "The local model took too long to respond. SignalX will use the simpler stable workflow on the next turn.",
+                    "message": "The local model took too long to respond. Sift will use the simpler stable workflow on the next turn.",
                 },
             )
         except Exception as exc:

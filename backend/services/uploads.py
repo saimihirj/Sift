@@ -13,7 +13,7 @@ from pathlib import Path
 from fastapi import UploadFile
 
 
-DATA_DIR = Path(os.environ.get("VK_DATA_DIR", "data"))
+DATA_DIR = Path(os.environ.get("SIFT_DATA_DIR", "data"))
 UPLOADS_DIR = DATA_DIR / "session_uploads"
 CHUNK_SIZE = 900
 CHUNK_OVERLAP = 150

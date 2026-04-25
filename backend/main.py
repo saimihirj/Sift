@@ -1,4 +1,4 @@
-"""FastAPI entrypoint for SignalX."""
+"""FastAPI entrypoint for Sift."""
 
 from __future__ import annotations
 
@@ -42,11 +42,18 @@ DEFAULT_CORS_ORIGINS = (
 
 
 def cors_origins() -> list[str]:
-    configured = os.environ.get("VK_CORS_ORIGINS", "")
+    configured = os.environ.get("SIFT_CORS_ORIGINS", "")
     origins = [origin.strip() for origin in configured.split(",") if origin.strip()]
     return origins or list(DEFAULT_CORS_ORIGINS)
 
-app = FastAPI(title="SignalX API", version="0.2.0")
+
+def cookie_same_site() -> str:
+    configured = os.environ.get("SIFT_COOKIE_SAMESITE", "lax").strip().lower()
+    if configured in {"lax", "strict", "none"}:
+        return configured
+    return "lax"
+
+app = FastAPI(title="Sift API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -58,9 +65,9 @@ app.add_middleware(
 if SessionMiddleware is not None:
     app.add_middleware(
         SessionMiddleware,
-        secret_key=os.environ.get("VK_SESSION_SECRET", "signalx-local-dev-secret"),
-        same_site="lax",
-        https_only=os.environ.get("VK_COOKIE_SECURE", "false").strip().lower() == "true",
+        secret_key=os.environ.get("SIFT_SESSION_SECRET", "sift-local-dev-secret"),
+        same_site=cookie_same_site(),
+        https_only=os.environ.get("SIFT_COOKIE_SECURE", "false").strip().lower() == "true",
         max_age=60 * 60 * 24 * 30,
     )
 
@@ -76,7 +83,7 @@ async def health() -> dict:
     providers = provider_catalog()
     return {
         "status": "ok",
-        "app": "SignalX",
+        "app": "Sift",
         "modelProvider": active_provider(),
         "configuredProviders": [
             provider["key"]
@@ -106,7 +113,7 @@ if FRONTEND_ASSETS.exists():
 async def frontend_app(full_path: str):
     if full_path.startswith("api/"):
         return JSONResponse(status_code=404, content={"detail": "Not found"})
-    if full_path == "admin" and os.environ.get("VK_ADMIN_MODE", "false").strip().lower() != "true":
+    if full_path == "admin" and os.environ.get("SIFT_ADMIN_MODE", "false").strip().lower() != "true":
         return RedirectResponse("/", status_code=302)
     if FRONTEND_DIST.exists():
         return FileResponse(FRONTEND_DIST / "index.html")

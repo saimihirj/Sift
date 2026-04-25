@@ -1,6 +1,6 @@
-# SignalX Platform Overview
+# Sift Platform Overview
 
-This is the single handoff document for the current SignalX platform.
+This is the single handoff document for the current Sift platform.
 
 It explains:
 - what the product is
@@ -13,9 +13,9 @@ It explains:
 
 This document is written for product, technical, and operator review.
 
-## 1. What SignalX Is
+## 1. What Sift Is
 
-SignalX is a startup and finance workbench with three workflows:
+Sift is a startup and finance workbench with three workflows:
 - `Ideate` for open-ended, two-way idea shaping
 - `Evaluate` for sharper, evidence-driven assessment
 - `Expert` for domain discussion, concept learning, pre-screening, and deck analysis
@@ -163,7 +163,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    B["Browser"] --> APP["signalx_app.py single-port app"]
+    B["Browser"] --> APP["sift_app.py single-port app"]
     APP --> FAST["FastAPI"]
     FAST --> DIST["Built React frontend"]
     FAST --> MODEL["Ollama or API Provider"]
@@ -514,25 +514,25 @@ Examples:
 Use this in `.env` for fully local open-source mode:
 
 ```env
-VK_MODEL_PROVIDER=ollama
-VK_DATA_DIR=data
+SIFT_MODEL_PROVIDER=ollama
+SIFT_DATA_DIR=data
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL_SPEED=llama3.2:latest
 OLLAMA_MODEL_BALANCED=qwen3:8b
-VK_ADMIN_TOKEN=
+SIFT_ADMIN_TOKEN=
 ```
 
 For API-key mode, use:
 
 ```env
-VK_MODEL_PROVIDER=groq
-SIGNALX_EXPERT_DATA_DIR=knowledge_base/expert
+SIFT_MODEL_PROVIDER=groq
+SIFT_EXPERT_DATA_DIR=knowledge_base/expert
 ```
 
 If you want admin protected locally or on LAN, set:
 
 ```env
-VK_ADMIN_TOKEN=your_secret_token
+SIFT_ADMIN_TOKEN=your_secret_token
 ```
 
 ## 14. One-Time Setup Commands
@@ -540,7 +540,7 @@ VK_ADMIN_TOKEN=your_secret_token
 Run from the project root:
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
+cd /Users/saimihirj/Desktop/Ideas/sift
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -563,7 +563,7 @@ ollama pull qwen3:8b
 ### Normal MVP app
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
+cd /Users/saimihirj/Desktop/Ideas/sift
 source .venv/bin/activate
 npm run mvp
 ```
@@ -577,7 +577,7 @@ http://127.0.0.1:7860
 ### Admin directly
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
+cd /Users/saimihirj/Desktop/Ideas/sift
 source .venv/bin/activate
 npm run admin
 ```
@@ -591,7 +591,7 @@ http://127.0.0.1:7860/admin
 ### LAN share
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
+cd /Users/saimihirj/Desktop/Ideas/sift
 source .venv/bin/activate
 npm run mvp:lan
 ```
@@ -607,7 +607,7 @@ http://YOUR-LAN-IP:7860/admin
 ### Dev mode
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
+cd /Users/saimihirj/Desktop/Ideas/sift
 source .venv/bin/activate
 npm run dev
 ```
@@ -621,9 +621,9 @@ http://127.0.0.1:5173
 ### Docker
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
-docker build -t signalx .
-docker run -p 8000:8000 --env-file .env signalx
+cd /Users/saimihirj/Desktop/Ideas/sift
+docker build -t sift .
+docker run -p 8000:8000 --env-file .env sift
 ```
 
 Open:

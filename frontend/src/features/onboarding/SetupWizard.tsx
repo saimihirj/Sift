@@ -96,15 +96,15 @@ function modelPresetLabel(option: ProviderOption | undefined, profile: "speed" |
 }
 
 function stepTitle(step: number) {
-  if (step === 0) return "Choose a workspace";
-  if (step === 1) return "Add context";
-  return "Pick a runtime";
+  if (step === 0) return "What do you want to do?";
+  if (step === 1) return "About you";
+  return "AI engine";
 }
 
 function stepSubtitle(step: number) {
-  if (step === 0) return "Start with the output you need.";
-  if (step === 1) return "Only the basics.";
-  return "Local or hosted.";
+  if (step === 0) return "Pick the output you need right now.";
+  if (step === 1) return "A little context improves the result.";
+  return "Groq is the fastest hosted open-weight path; Ollama stays local.";
 }
 
 function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {

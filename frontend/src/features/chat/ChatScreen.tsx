@@ -84,6 +84,47 @@ function coverageStatus(score: number) {
   return "Strong";
 }
 
+function pitchHealthColor(score: number) {
+  if (score >= 60) {
+    return "#22c55e";
+  }
+  if (score >= 35) {
+    return "#f59e0b";
+  }
+  return "#ef4444";
+}
+
+function PitchHealthRing({ coverage }: { coverage: CoverageItem[] }) {
+  const average = coverage.length
+    ? Math.round(coverage.reduce((total, item) => total + item.score, 0) / coverage.length)
+    : 0;
+  const radius = 26;
+  const circumference = 2 * Math.PI * radius;
+  const dash = (average / 100) * circumference;
+  const color = pitchHealthColor(average);
+
+  return (
+    <div className="health-ring-wrap">
+      <svg className="health-ring-svg" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+        <circle className="track" cx="32" cy="32" r={radius} />
+        <circle
+          className="fill"
+          cx="32"
+          cy="32"
+          r={radius}
+          strokeDasharray={`${dash.toFixed(2)} ${(circumference - dash).toFixed(2)}`}
+          style={{ stroke: color }}
+        />
+      </svg>
+      <div className="health-ring-info">
+        <span className="health-ring-score" style={{ color }}>{average}%</span>
+        <span className="health-ring-label">Pitch health</span>
+        <span className="health-ring-sub">{coverage.length} sections tracked</span>
+      </div>
+    </div>
+  );
+}
+
 function promptHelper(founderType: string, nextGap: string) {
   if (founderType === "student" || founderType === "professional") {
     if (nextGap === "Problem") {
@@ -123,6 +164,30 @@ function tokenStatus(runtimeUsage: SessionPayload["runtimeUsage"] | undefined): 
 
 function profileLabel(profile: ResponseProfile): string {
   return profile === "balanced" ? "Sharper" : "Fast";
+}
+
+function formatSessionTime(raw?: string | null): string {
+  if (!raw) {
+    return "Recent";
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Recent";
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+  }).format(parsed);
+}
+
+function workflowLabel(sessionType: SessionSummary["sessionType"]): string {
+  if (sessionType === "evaluator") {
+    return "Evaluate";
+  }
+  if (sessionType === "expert") {
+    return "Expert";
+  }
+  return "Ideate";
 }
 
 export function ChatScreen({
@@ -199,6 +264,7 @@ export function ChatScreen({
     }
     return session.chips.slice(0, 3);
   }, [session.chips, session.history.length]);
+  const visibleSessions = useMemo(() => recentSessions.slice(0, 6), [recentSessions]);
 
   const applyRuntime = async () => {
     if (!runtimeProvider) {
@@ -358,7 +424,72 @@ export function ChatScreen({
   };
 
   return (
-    <div className="app-shell compact-workspace-shell">
+    <div className="app-shell">
+      <aside className="left-rail">
+        <div className="rail-card">
+          <div className="rail-stack-head">
+            <div>
+              <span className="eyebrow">Ideate</span>
+              <strong>{session.state.company_name || "Workspace"}</strong>
+            </div>
+            <span className="brand-dot" aria-hidden="true" />
+          </div>
+          <dl className="meta-list dense-meta-list">
+            <div>
+              <dt>Stage</dt>
+              <dd>{session.state.stage}</dd>
+            </div>
+            <div>
+              <dt>Sector</dt>
+              <dd>{session.state.sector}</dd>
+            </div>
+            <div>
+              <dt>Mode</dt>
+              <dd>{session.state.mode === "think_it_through" ? "Guided" : "Direct"}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="rail-card rail-session-card">
+          <div className="rail-stack-head">
+            <span className="rail-label">Sessions</span>
+            <button type="button" className="ghost-button compact" onClick={() => setSessionsOpen(true)}>
+              All
+            </button>
+          </div>
+          <div className="session-list rail-session-list">
+            {visibleSessions.length === 0 ? (
+              <p className="muted-copy">Recent work will appear here.</p>
+            ) : (
+              visibleSessions.map((item) => (
+                <button
+                  key={item.sessionId}
+                  type="button"
+                  className={item.sessionId === session.sessionId ? "session-card active" : "session-card"}
+                  onClick={() => void onOpenSession(item.sessionId)}
+                >
+                  <strong>{item.title}</strong>
+                  <span>{item.subtitle}</span>
+                  <span>{workflowLabel(item.sessionType)} · {formatSessionTime(item.lastActive)}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="rail-footer">
+          <div className="rail-action-grid">
+            <button type="button" className="ghost-button" onClick={onNewSession}>
+              New
+            </button>
+            <button type="button" className="ghost-button" onClick={() => setSessionsOpen(true)}>
+              Clear
+            </button>
+          </div>
+          <p className="ws-model-tag">{session.provider} · {session.model}</p>
+        </div>
+      </aside>
+
       <main className={mobilePane === "chat" ? "main-pane mobile-chat" : "main-pane mobile-coverage"}>
         <header className="pane-header">
           <div>
@@ -427,6 +558,7 @@ export function ChatScreen({
           <div className="mobile-coverage-panel">
             <div className="drawer-card">
               <span className="rail-label">Deck progress</span>
+              <PitchHealthRing coverage={session.coverage} />
               <div className="focus-card">
                 <span className="focus-tag">Next focus</span>
                 <strong>{nextGapMeta.title}</strong>
@@ -467,6 +599,52 @@ export function ChatScreen({
           </div>
         )}
       </main>
+
+      <aside className="right-drawer">
+        <div className="drawer-card">
+          <span className="rail-label">Deck progress</span>
+          <PitchHealthRing coverage={session.coverage} />
+          <div className="focus-card">
+            <span className="focus-tag">Next focus</span>
+            <strong>{nextGapMeta.title}</strong>
+            <p>{nextGapMeta.hint}</p>
+          </div>
+          <div className="coverage-list">
+            {coverageCompactSections.map((item) => (
+              <div key={item.section} className="coverage-item deck-item compact-deck-item">
+                <div className="coverage-head">
+                  <strong>{item.meta.title}</strong>
+                  <span>{item.score}%</span>
+                </div>
+                <div className="coverage-bar">
+                  <div style={{ width: `${item.score}%` }} />
+                </div>
+                <small>{item.status}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="drawer-card">
+          <span className="rail-label">Files in context</span>
+          {session.activeUploads.length === 0 ? (
+            <p className="muted-copy">No files added yet.</p>
+          ) : (
+            <ul className="upload-list">
+              {session.activeUploads.map((upload) => (
+                <li key={`${upload.name}-${upload.uploadedAt}`}>
+                  <strong>{upload.name}</strong>
+                  <span>{upload.docType}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <button type="button" className="ghost-button rail-action-wide" onClick={() => navigate(`/outline/${session.sessionId}`)}>
+          Open refined pitch
+        </button>
+      </aside>
 
       <SessionSidebar
         isOpen={sessionsOpen}

@@ -58,7 +58,7 @@ export function OutlineScreen({ theme, onThemeChange, onExitSession, clientId, d
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `signalx-refined-pitch-${sessionId || "session"}.md`;
+    link.download = `sift-refined-pitch-${sessionId || "session"}.md`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

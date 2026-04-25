@@ -14,7 +14,7 @@ import httpx
 
 
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-MODEL_PROVIDER = os.environ.get("VK_MODEL_PROVIDER", "auto").lower()
+MODEL_PROVIDER = os.environ.get("SIFT_MODEL_PROVIDER", "auto").lower()
 CONTINUE_PROMPT = (
     "Continue exactly from where you stopped. Do not restart, summarize, apologize, or repeat headings already covered. "
     "Resume with the unfinished point and finish the answer cleanly."
@@ -809,8 +809,8 @@ async def _stream_from_openai_compatible(
     )
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     if provider == "openrouter":
-        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://signalx.local")
-        headers["X-Title"] = "SignalX"
+        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://sift.local")
+        headers["X-Title"] = "Sift"
 
     start = time.perf_counter()
     first_token_seconds = None
@@ -1090,8 +1090,8 @@ async def _complete_openai(
     payload = _openai_payload(model, system, messages, max_tokens, temperature, top_p, False)
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     if provider == "openrouter":
-        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://signalx.local")
-        headers["X-Title"] = "SignalX"
+        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://sift.local")
+        headers["X-Title"] = "Sift"
     timeout = httpx.Timeout(timeout_seconds, connect=3.0, read=timeout_seconds)
     start = time.perf_counter()
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -1310,8 +1310,8 @@ async def _complete_openai_multimodal(
     payload = _openai_multimodal_payload(model, system, prompt, image_paths, max_tokens, temperature, top_p)
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     if provider == "openrouter":
-        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://signalx.local")
-        headers["X-Title"] = "SignalX"
+        headers["HTTP-Referer"] = os.environ.get("OPENROUTER_REFERER", "https://sift.local")
+        headers["X-Title"] = "Sift"
     timeout = httpx.Timeout(timeout_seconds, connect=3.0, read=timeout_seconds)
     start = time.perf_counter()
     async with httpx.AsyncClient(timeout=timeout) as client:

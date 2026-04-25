@@ -28,7 +28,7 @@ VC_CACHE_DIR = VC_DATA_DIR / "cache"
 VC_MANIFEST = VC_DATA_DIR / "manifest.json"
 
 XLSX_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
-USER_AGENT = "SignalX/0.2 VC Knowledge Builder"
+USER_AGENT = "Sift/0.2 VC Knowledge Builder"
 
 DISCOVERY_KEYWORDS = (
     "about",

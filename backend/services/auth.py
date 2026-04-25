@@ -1,4 +1,4 @@
-"""OAuth provider helpers for Vishwakarma."""
+"""OAuth provider helpers for Sift."""
 
 from __future__ import annotations
 

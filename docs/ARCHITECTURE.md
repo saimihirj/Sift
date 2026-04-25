@@ -1,12 +1,12 @@
-# SignalX Architecture
+# Sift Architecture
 
-This document explains how SignalX works today, how it should run for a shareable MVP, and what to monitor.
+This document explains how Sift works today, how it should run for a shareable MVP, and what to monitor.
 
 It is written for product and technical review.
 
 ## Product Goal
 
-SignalX is a domain workbench, not a generic chatbot.
+Sift is a domain workbench, not a generic chatbot.
 
 The product should:
 - help users clarify the real problem
@@ -58,7 +58,7 @@ Browser -> http://127.0.0.1:7860
 This is started by:
 
 ```bash
-python3 signalx_app.py --build
+python3 sift_app.py --build
 ```
 
 The backend serves the built frontend and API from one process.
@@ -371,14 +371,14 @@ Suggested sections:
 - Ollama
 - SQLite
 - local uploads
-- `python3 signalx_app.py --build`
+- `python3 sift_app.py --build`
 
 ### Local API-key mode
 
 - Groq, Cerebras, OpenAI, OpenRouter, Anthropic, or Gemini
 - SQLite
 - local uploads
-- `python3 signalx_app.py --build --no-ollama`
+- `python3 sift_app.py --build --no-ollama`
 
 ### MVP / staging
 

@@ -1,4 +1,4 @@
-"""OAuth routes for Vishwakarma."""
+"""OAuth routes for Sift."""
 
 from __future__ import annotations
 
@@ -22,6 +22,13 @@ def _session_store(request: Request) -> dict | None:
         return None
 
 
+def _frontend_redirect(path: str) -> str:
+    frontend_url = os.environ.get("SIFT_FRONTEND_URL", "").strip().rstrip("/")
+    if not frontend_url:
+        return path
+    return f"{frontend_url}{path}"
+
+
 @router.get("/providers")
 async def auth_providers() -> dict:
     return {"providers": auth_provider_catalog()}
@@ -36,7 +43,7 @@ async def auth_session(request: Request) -> dict:
         "user": user,
         "providers": auth_provider_catalog(),
         "error": error,
-        "adminMode": os.environ.get("VK_ADMIN_MODE", "false").strip().lower() == "true",
+        "adminMode": os.environ.get("SIFT_ADMIN_MODE", "false").strip().lower() == "true",
     }
 
 
@@ -75,7 +82,7 @@ async def auth_callback(request: Request, provider: str):
         user = build_auth_user(provider, claims)
     except Exception:
         session["auth_error"] = f"{provider.title()} sign-in failed. Check OAuth credentials and redirect setup."
-        return RedirectResponse(next_path, status_code=302)
+        return RedirectResponse(_frontend_redirect(next_path), status_code=302)
 
     session["auth_user"] = user
     session["auth_token"] = {
@@ -92,7 +99,7 @@ async def auth_callback(request: Request, provider: str):
             "email": user["email"],
         },
     )
-    return RedirectResponse(next_path, status_code=302)
+    return RedirectResponse(_frontend_redirect(next_path), status_code=302)
 
 
 @router.post("/logout")

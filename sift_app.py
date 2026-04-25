@@ -1,4 +1,4 @@
-"""Single-process launcher for SignalX."""
+"""Single-process launcher for Sift."""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ def ensure_frontend_built(skip_build: bool) -> None:
 
 
 def _should_manage_ollama() -> bool:
-    provider_mode = os.environ.get("VK_MODEL_PROVIDER", "auto").strip().lower()
+    provider_mode = os.environ.get("SIFT_MODEL_PROVIDER", "auto").strip().lower()
     if provider_mode not in {"", "auto", "ollama"}:
         return False
     parsed = urlparse(OLLAMA_BASE_URL)
@@ -99,7 +99,7 @@ def ensure_ollama_running() -> subprocess.Popen[str] | None:
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=5)
-    raise RuntimeError("SignalX started Ollama, but it did not become ready in time.")
+    raise RuntimeError("Sift started Ollama, but it did not become ready in time.")
 
 
 def cleanup_process(process: subprocess.Popen[str] | None) -> None:
@@ -116,13 +116,13 @@ def cleanup_process(process: subprocess.Popen[str] | None) -> None:
 def configure_runtime_defaults(no_ollama: bool) -> None:
     if not no_ollama:
         return
-    provider_mode = os.environ.get("VK_MODEL_PROVIDER", "auto").strip().lower()
+    provider_mode = os.environ.get("SIFT_MODEL_PROVIDER", "auto").strip().lower()
     if provider_mode in {"", "auto", "ollama"}:
-        os.environ["VK_MODEL_PROVIDER"] = "groq"
+        os.environ["SIFT_MODEL_PROVIDER"] = "groq"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run SignalX as a single local web app.")
+    parser = argparse.ArgumentParser(description="Run Sift as a single local web app.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=7860)
     parser.add_argument("--idle-timeout", type=int, default=90, help="Stop after this many idle seconds once the browser disappears.")
@@ -136,8 +136,8 @@ def main() -> int:
     configure_runtime_defaults(args.no_ollama)
     ensure_frontend_built(skip_build=not args.build)
 
-    os.environ["VK_AUTO_STOP_SECONDS"] = str(args.idle_timeout)
-    os.environ["VK_ADMIN_MODE"] = "true" if args.admin else "false"
+    os.environ["SIFT_AUTO_STOP_SECONDS"] = str(args.idle_timeout)
+    os.environ["SIFT_ADMIN_MODE"] = "true" if args.admin else "false"
 
     browser_host = "127.0.0.1" if args.host == "0.0.0.0" else args.host
     open_path = "/admin" if args.admin else args.path
@@ -150,7 +150,7 @@ def main() -> int:
     if not args.no_ollama:
         ollama_process = ensure_ollama_running()
 
-    print(f"SignalX running at {browser_url}")
+    print(f"Sift running at {browser_url}")
     if args.host == "0.0.0.0":
         print(f"LAN test URL: {shared_url}")
     if ollama_process is not None:

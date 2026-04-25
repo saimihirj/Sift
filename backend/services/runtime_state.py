@@ -30,7 +30,7 @@ def prune_stale_clients(window_seconds: float = 20.0) -> None:
 
 
 async def auto_stop_monitor() -> None:
-    auto_stop_seconds = float(os.environ.get("VK_AUTO_STOP_SECONDS", "0") or "0")
+    auto_stop_seconds = float(os.environ.get("SIFT_AUTO_STOP_SECONDS", "0") or "0")
     if auto_stop_seconds <= 0:
         return
 

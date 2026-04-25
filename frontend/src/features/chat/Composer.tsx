@@ -59,7 +59,7 @@ export function Composer({
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && !pending) {
+            if (event.key === "Enter" && !event.shiftKey && !pending) {
               event.preventDefault();
               onSubmit();
             }
@@ -71,6 +71,7 @@ export function Composer({
           {pending ? "Thinking..." : submitLabel}
         </button>
       </div>
+      <p className="composer-hint">Enter to send / Shift+Enter for new line</p>
     </div>
   );
 }

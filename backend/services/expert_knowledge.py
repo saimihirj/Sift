@@ -184,7 +184,7 @@ LANE_KEYWORDS = {
 
 
 def expert_data_dir() -> Path:
-    explicit = os.environ.get("SIGNALX_EXPERT_DATA_DIR", "").strip()
+    explicit = os.environ.get("SIFT_EXPERT_DATA_DIR", "").strip()
     candidates = [Path(explicit)] if explicit else []
     current = Path(__file__).resolve()
     repo_root = current.parents[2] if len(current.parents) > 2 else current.parent

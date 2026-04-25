@@ -54,7 +54,7 @@ WRAP_UP_CUES = (
     "thats all",
 )
 
-BASE_MENTOR_PROMPT = """You are SignalX, a founder-facing research partner.
+BASE_MENTOR_PROMPT = """You are Sift, a founder-facing research partner.
 
 Use the knowledge base and recent thread as the source of truth. Retrieve only what matters for this turn. Never invent facts, numbers, quotes, or experiments.
 

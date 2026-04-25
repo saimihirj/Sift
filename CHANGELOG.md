@@ -12,7 +12,7 @@
 
 ## v0.2.0 - 2026-03-06
 
-Adaptive evaluator release for `SignalX`.
+Adaptive evaluator release for `Sift`.
 
 ### Added
 
@@ -32,7 +32,7 @@ Adaptive evaluator release for `SignalX`.
 
 ## v0.1.0 - 2026-03-06
 
-Initial private MVP snapshot of `SignalX`.
+Initial private MVP snapshot of `Sift`.
 
 ### Included
 
@@ -42,7 +42,7 @@ Initial private MVP snapshot of `SignalX`.
 - Separate outline route for transcript-to-outline generation.
 - Admin dashboard for usage and latency monitoring.
 - Monochrome responsive UI for desktop, tablet, and mobile.
-- Local launcher with `signalx_app.py`.
+- Local launcher with `sift_app.py`.
 - Architecture, execution, and platform overview docs in `docs/`.
 
 ### Runtime defaults
