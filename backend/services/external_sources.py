@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from state import ConversationState
+from backend.core.state import ConversationState
 
 
 VC_RESEARCH_SNIPPETS = [

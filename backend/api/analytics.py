@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-import memory
+from backend.core import memory
 
 from backend.schemas import AnalyticsEventRequest, AnalyticsEventResponse
 

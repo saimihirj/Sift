@@ -5,8 +5,8 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
-from knowledge import D2C_KNOWLEDGE, FINTECH_KNOWLEDGE, MARKETPLACE_KNOWLEDGE, SAAS_KNOWLEDGE
-from state import ConversationState
+from backend.core.knowledge import D2C_KNOWLEDGE, FINTECH_KNOWLEDGE, MARKETPLACE_KNOWLEDGE, SAAS_KNOWLEDGE
+from backend.core.state import ConversationState
 from backend.services.refinement import summarize_answer_record
 
 

@@ -98,7 +98,7 @@ For API-key mode without Ollama.
 Best default for normal use.
 
 ```bash
-python3 sift_app.py --build
+python3 tools/sift_app.py --build
 ```
 
 Shortcut:
@@ -122,9 +122,9 @@ http://127.0.0.1:7860
 Useful flags:
 
 ```bash
-python3 sift_app.py --build --port 7870
-python3 sift_app.py --build --no-open
-python3 sift_app.py --build --idle-timeout 90
+python3 tools/sift_app.py --build --port 7870
+python3 tools/sift_app.py --build --no-open
+python3 tools/sift_app.py --build --idle-timeout 90
 ```
 
 ### B. LAN Test Mode
@@ -132,7 +132,7 @@ python3 sift_app.py --build --idle-timeout 90
 Use this to let another person test on the same Wi-Fi network.
 
 ```bash
-python3 sift_app.py --host 0.0.0.0 --port 7860 --build
+python3 tools/sift_app.py --host 0.0.0.0 --port 7860 --build
 ```
 
 Shortcut:
@@ -252,8 +252,8 @@ If you want zero paid dependencies, skip this section and stay on local / LAN mo
 Sift can build a dedicated `vc_firms` retrieval cluster from:
 
 ```text
-knowledge_inbox/Investor.xlsx
-knowledge_inbox/Investor Firm.xlsx
+knowledge_base/inbox/Investor.xlsx
+knowledge_base/inbox/Investor Firm.xlsx
 ```
 
 Default build command:
@@ -375,7 +375,7 @@ If it is still unavailable, the app should fall back to `speed`.
 That auto-stop behavior only applies to:
 
 ```bash
-python3 sift_app.py
+python3 tools/sift_app.py
 ```
 
 It does not apply to:
@@ -408,7 +408,7 @@ npm --prefix frontend run build
 Then restart:
 
 ```bash
-python3 sift_app.py --build
+python3 tools/sift_app.py --build
 ```
 
 ## 8. Key Commands
@@ -426,13 +426,13 @@ npm --prefix frontend install
 Run local app:
 
 ```bash
-python3 sift_app.py --build
+python3 tools/sift_app.py --build
 ```
 
 Run LAN share:
 
 ```bash
-python3 sift_app.py --host 0.0.0.0 --port 7860 --build
+python3 tools/sift_app.py --host 0.0.0.0 --port 7860 --build
 ```
 
 Run dev:

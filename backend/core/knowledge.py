@@ -1274,7 +1274,7 @@ def get_missionary_mercenary_context() -> str:
 
 # ─────────────────────────────────────────────────────────────────────────────
 # VC FIRM INTELLIGENCE — Top 50 firms by portfolio size
-# Source: Investor.xlsx + Investor Firm.xlsx (knowledge_inbox), enriched from
+# Source: Investor.xlsx + Investor Firm.xlsx (knowledge_base/inbox), enriched from
 # public firm websites, press releases, and fund disclosures (Aug 2025)
 # ─────────────────────────────────────────────────────────────────────────────
 VC_FIRMS_INTEL = {

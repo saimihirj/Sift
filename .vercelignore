@@ -6,14 +6,14 @@
 backend/
 data/
 knowledge_base/
+legacy/
 scripts/
 tests/
+tools/
 
 Dockerfile
 render.yaml
 requirements.txt
-sift_app.py
-memory.py
 
 **/__pycache__/
 **/*.pyc

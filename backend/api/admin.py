@@ -6,7 +6,7 @@ import os
 
 from fastapi import APIRouter, Header, HTTPException, Query
 
-import memory
+from backend.core import memory
 
 from backend.schemas import AdminEventsResponse, AdminOverviewResponse, SessionSummary
 

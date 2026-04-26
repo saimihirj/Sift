@@ -7,7 +7,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-from state import ConversationState
+from backend.core.state import ConversationState
 
 from backend.services.model_router import default_model_for_provider, generate_provider_text, normalize_provider
 from backend.services.deck_review import normalize_evaluator_mode, present_deck_review_report
@@ -18,7 +18,7 @@ from backend.services.refinement import (
     summarize_answer_record,
     update_answer_record,
 )
-from knowledge import VC_STAGE_MAP, get_stage_metrics_context, get_vc_pass_reasons_context, get_yc_frameworks_context
+from backend.core.knowledge import VC_STAGE_MAP, get_stage_metrics_context, get_vc_pass_reasons_context, get_yc_frameworks_context
 
 
 DIMENSION_LABELS = {

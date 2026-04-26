@@ -58,7 +58,7 @@ Browser -> http://127.0.0.1:7860
 This is started by:
 
 ```bash
-python3 sift_app.py --build
+python3 tools/sift_app.py --build
 ```
 
 The backend serves the built frontend and API from one process.
@@ -229,7 +229,7 @@ Responsibilities:
 ### Persistence
 
 Current local storage:
-- `memory.py` -> SQLite at `data/sessions.db`
+- `backend/core/memory.py` -> SQLite at `data/sessions.db`
 - `backend/services/uploads.py` -> `data/session_uploads/`
 
 Recommended production storage:
@@ -371,14 +371,14 @@ Suggested sections:
 - Ollama
 - SQLite
 - local uploads
-- `python3 sift_app.py --build`
+- `python3 tools/sift_app.py --build`
 
 ### Local API-key mode
 
 - Groq, Cerebras, OpenAI, OpenRouter, Anthropic, or Gemini
 - SQLite
 - local uploads
-- `python3 sift_app.py --build --no-ollama`
+- `python3 tools/sift_app.py --build --no-ollama`
 
 ### MVP / staging
 

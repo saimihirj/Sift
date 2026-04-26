@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-import memory
-from state import ConversationState
+from backend.core import memory
+from backend.core.state import ConversationState
 
 from backend.schemas import EvaluatorAnswerResponse, EvaluatorReportResponse
 from backend.services.deck_review import (

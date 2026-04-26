@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Query
 
-import memory
-from state import ConversationState
+from backend.core import memory
+from backend.core.state import ConversationState
 
 from backend.schemas import (
     ClearHistoryRequest,

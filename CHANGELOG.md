@@ -42,7 +42,7 @@ Initial private MVP snapshot of `Sift`.
 - Separate outline route for transcript-to-outline generation.
 - Admin dashboard for usage and latency monitoring.
 - Monochrome responsive UI for desktop, tablet, and mobile.
-- Local launcher with `sift_app.py`.
+- Local launcher with `tools/sift_app.py`.
 - Architecture, execution, and platform overview docs in `docs/`.
 
 ### Runtime defaults

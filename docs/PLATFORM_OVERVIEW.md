@@ -93,7 +93,7 @@ It does not yet include:
 
 ### Persistence
 
-- `SQLite` via `memory.py`
+- `SQLite` via `backend/core/memory.py`
 - uploads stored under `data/session_uploads/`
 
 ## 4. Product Use Cases
@@ -163,7 +163,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    B["Browser"] --> APP["sift_app.py single-port app"]
+    B["Browser"] --> APP["tools/sift_app.py single-port app"]
     APP --> FAST["FastAPI"]
     FAST --> DIST["Built React frontend"]
     FAST --> MODEL["Ollama or API Provider"]
@@ -406,7 +406,7 @@ sequenceDiagram
 
 ### Persistence modules
 
-- `memory.py`
+- `backend/core/memory.py`
   - session storage
   - turn storage
   - analytics event storage

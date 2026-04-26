@@ -9,7 +9,7 @@ from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 
-from state import ConversationState
+from backend.core.state import ConversationState
 from backend.services.expert_knowledge import (
     build_card_context,
     retrieve_expert_cards,

@@ -15,7 +15,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - optional dependency path
     SessionMiddleware = None
 
-import memory
+from backend.core import memory
 
 from backend.api.admin import router as admin_router
 from backend.api.analytics import router as analytics_router

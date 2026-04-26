@@ -11,8 +11,8 @@ import httpx
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-import memory
-from state import ConversationState
+from backend.core import memory
+from backend.core.state import ConversationState
 
 from backend.services.expert_agent import (
     build_analysis_snapshot,

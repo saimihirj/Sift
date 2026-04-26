@@ -1,6 +1,6 @@
 """System prompts and question engine logic for the Socratic conversation engine."""
 
-from knowledge import (
+from backend.core.knowledge import (
     get_sector_context,
     get_india_vc_context,
     get_vc_evaluation_context,

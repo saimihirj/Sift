@@ -6,6 +6,7 @@ import argparse
 import os
 import socket
 import subprocess
+import sys
 import time
 import webbrowser
 from pathlib import Path
@@ -15,15 +16,18 @@ from urllib.request import urlopen
 
 import uvicorn
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 try:
     from dotenv import load_dotenv
 
-    load_dotenv(Path(__file__).resolve().parent / ".env")
+    load_dotenv(ROOT / ".env")
 except ImportError:  # pragma: no cover - optional dependency path
     pass
 
 
-ROOT = Path(__file__).resolve().parent
 FRONTEND_DIST = ROOT / "frontend" / "dist" / "index.html"
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 

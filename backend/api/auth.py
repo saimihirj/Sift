@@ -7,7 +7,7 @@ import os
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-import memory
+from backend.core import memory
 
 from backend.services.auth import auth_provider_catalog, build_auth_user, extract_user_info, get_oauth_client, sanitize_next_path
 

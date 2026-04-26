@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-import memory
-from state import ConversationState
+from backend.core import memory
+from backend.core.state import ConversationState
 
 from backend.schemas import OutlineRequest, OutlineResponse
 from backend.services.model_router import generate_text

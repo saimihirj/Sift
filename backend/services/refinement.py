@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from state import ConversationState
+from backend.core.state import ConversationState
 
 
 DOMAIN_ORDER = ("problem", "market", "solution", "business", "founder")
