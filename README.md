@@ -188,6 +188,7 @@ See [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md) for details.
 
 - [Execution Guide](docs/EXECUTION.md)
 - [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)
+- [Beta Readiness Checklist](docs/BETA_READINESS.md)
 - [Platform Overview](docs/PLATFORM_OVERVIEW.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Changelog](CHANGELOG.md)

@@ -44,6 +44,14 @@ async function readApiError(response: Response, fallback: string): Promise<strin
   return fallback;
 }
 
+async function fetchOrExplain(input: RequestInfo | URL, init: RequestInit | undefined, fallback: string): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new Error(`${fallback}. Check that the Sift backend is running and reachable.`);
+  }
+}
+
 type StreamHandlers = {
   onMeta?: (data: Record<string, unknown>) => void;
   onDelta?: (delta: string) => void;
@@ -77,12 +85,12 @@ export async function logoutAuth(): Promise<void> {
 }
 
 export async function startSession(payload: Record<string, unknown>): Promise<StartSessionPayload> {
-  const response = await fetch(`${API_BASE}/api/session/start`, {
+  const response = await fetchOrExplain(`${API_BASE}/api/session/start`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, "Failed to start session");
   if (!response.ok) {
     throw new Error(await readApiError(response, "Failed to start session"));
   }
@@ -140,9 +148,9 @@ export async function clearSessionHistory(clientId: string): Promise<{ ok: boole
 }
 
 export async function listProviders(): Promise<ProviderCatalogPayload> {
-  const response = await fetch(`${API_BASE}/api/session/providers`, {
+  const response = await fetchOrExplain(`${API_BASE}/api/session/providers`, {
     credentials: "include",
-  });
+  }, "Failed to load provider catalog");
   if (!response.ok) {
     throw new Error("Failed to load provider catalog");
   }
@@ -215,11 +223,11 @@ export async function answerEvaluator(args: {
     form.set("file", args.file);
   }
 
-  const response = await fetch(`${API_BASE}/api/evaluator/answer`, {
+  const response = await fetchOrExplain(`${API_BASE}/api/evaluator/answer`, {
     method: "POST",
     credentials: "include",
     body: form,
-  });
+  }, "Failed to submit evaluator answer");
   if (!response.ok) {
     throw new Error(await readApiError(response, "Failed to submit evaluator answer"));
   }
@@ -300,13 +308,13 @@ export async function streamChat(args: {
     form.set("file", args.file);
   }
 
-  const response = await fetch(`${API_BASE}/api/chat`, {
+  const response = await fetchOrExplain(`${API_BASE}/api/chat`, {
     method: "POST",
     credentials: "include",
     body: form,
-  });
+  }, "Failed to stream chat response");
   if (!response.ok || !response.body) {
-    throw new Error("Failed to stream chat response");
+    throw new Error(await readApiError(response, "Failed to stream chat response"));
   }
 
   const reader = response.body.getReader();

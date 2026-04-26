@@ -87,6 +87,7 @@ const MODE_CARDS = [
 ] as const;
 
 const TICKER_MESSAGES = [
+  "Private beta build",
   "Ideate, Evaluate, Expert",
   "Pitch drafts exportable",
   "Live web when it helps",
@@ -149,6 +150,7 @@ export function LandingScreen({
   onSignOut,
 }: Props) {
   const [hoveredMode, setHoveredMode] = useState<string | null>(null);
+  const [feedbackCopied, setFeedbackCopied] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const google = providerState("google", authProviders);
@@ -163,6 +165,17 @@ export function LandingScreen({
       return;
     }
     onContinue();
+  };
+
+  const copyFeedbackPrompt = async () => {
+    const note = "Sift beta feedback:\n\nWhat I tried:\nWhat worked:\nWhere I got stuck:\nWhat I expected instead:";
+    try {
+      await navigator.clipboard.writeText(note);
+      setFeedbackCopied(true);
+      window.setTimeout(() => setFeedbackCopied(false), 1800);
+    } catch {
+      setFeedbackCopied(false);
+    }
   };
 
   return (
@@ -306,6 +319,9 @@ export function LandingScreen({
           </div>
 
           {authNote ? <small className="muted-copy entry-auth-note">{authNote}</small> : null}
+          <button type="button" className="ghost-button compact beta-feedback-button" onClick={() => void copyFeedbackPrompt()}>
+            {feedbackCopied ? "Feedback note copied" : "Copy beta feedback note"}
+          </button>
         </div>
 
       </section>

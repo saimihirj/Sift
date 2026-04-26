@@ -96,6 +96,7 @@ export type UploadSummary = {
   docType: string;
   chunkCount: number;
   chars: number;
+  bytes?: number;
   uploadedAt: string;
   slideCount?: number;
   hasRenderableSlides?: boolean;

@@ -76,6 +76,21 @@ const geographyOptions: Array<{ value: string; label: string }> = [
   { value: "global", label: "Global" },
 ];
 
+const sampleContexts = [
+  {
+    label: "Sample SaaS",
+    context: "We are building a workflow intelligence platform for finance teams that catches reconciliation errors before month-end close. The first wedge is mid-market companies using spreadsheets and ERP exports. We have spoken with 9 finance managers and found that close delays usually come from duplicate manual checks.",
+    sector: "saas",
+    stage: "pre-revenue",
+  },
+  {
+    label: "Sample marketplace",
+    context: "We are testing a curated marketplace that helps boutique hotels find verified local experience operators. Hotels currently use informal WhatsApp networks and manual vendor checks. The first experiment is a concierge MVP with 5 hotels and 20 operators in one city.",
+    sector: "marketplace",
+    stage: "idea",
+  },
+] as const;
+
 function providerAccessLabel(option: ProviderOption | undefined): string {
   if (!option) {
     return "Runtime";
@@ -171,6 +186,11 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
         <div className="onboarding-copy">
           <h1>{stepTitle(step)}</h1>
           <p>{stepSubtitle(step)}</p>
+        </div>
+
+        <div className="beta-note-card">
+          <span className="rail-label">Beta</span>
+          <p>Sift is ready for controlled user testing. Keep sensitive decks private unless you trust the selected model provider.</p>
         </div>
 
         {error ? <div className="setup-alert" role="alert">{error}</div> : null}
@@ -384,6 +404,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                       onChange={(event) => onDraftChange((current) => ({ ...current, websiteUrl: event.target.value }))}
                       placeholder="https://yourproduct.com"
                     />
+                    <small className="muted-copy">Website review uses the first readable HTML page as context in this beta.</small>
                   </label>
                   <label className="identity-field field-span">
                     <span className="rail-label">Anything important?</span>
@@ -394,6 +415,23 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                       rows={5}
                     />
                   </label>
+                  <div className="sample-starter-row field-span">
+                    {sampleContexts.map((sample) => (
+                      <button
+                        key={sample.label}
+                        type="button"
+                        className="ghost-button compact"
+                        onClick={() => onDraftChange((current) => ({
+                          ...current,
+                          setupContext: sample.context,
+                          sector: sample.sector,
+                          stage: sample.stage,
+                        }))}
+                      >
+                        {sample.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <p className="muted-copy">You can skip this and add detail later inside the session.</p>

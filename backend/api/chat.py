@@ -217,7 +217,11 @@ async def chat(
         upload_entry = None
         try:
             if file is not None:
-                upload_entry = await ingest_upload(sessionId, file)
+                try:
+                    upload_entry = await ingest_upload(sessionId, file)
+                except ValueError as exc:
+                    yield _sse("error", {"message": str(exc)})
+                    return
 
             user_message = (message or "").strip()
             display_message = user_message
@@ -630,6 +634,6 @@ async def chat(
                 },
             )
         except Exception as exc:
-            yield _sse("error", {"message": repr(exc)})
+            yield _sse("error", {"message": str(exc) or "Something went wrong while processing this turn."})
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

@@ -100,7 +100,10 @@ async def answer_question(
 
     upload_entry = None
     if file is not None:
-        upload_entry = await ingest_upload(sessionId, file)
+        try:
+            upload_entry = await ingest_upload(sessionId, file)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     turns = memory.get_session_turns(sessionId)
     state = _restore_state(session_row, turns)

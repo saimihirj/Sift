@@ -5,6 +5,7 @@ import type { EvaluatorMode, ProviderOption, ResponseProfile, SessionPayload, Se
 import { ThemePicker } from "../../app/ThemePicker";
 import { answerEvaluator, updateSessionRuntime } from "../../lib/api/client";
 import { loadSessionCredential, saveSessionCredential } from "../../lib/sessionCredentials";
+import { ALL_UPLOAD_EXTENSIONS, DECK_UPLOAD_EXTENSIONS, uploadAccept, uploadHint, validateUploadFile } from "../../lib/uploadValidation";
 import { RuntimeSidebar } from "../session/RuntimeSidebar";
 import { SessionSidebar } from "../session/SessionSidebar";
 import { ChatMessageList } from "../chat/ChatMessageList";
@@ -104,6 +105,8 @@ export function EvaluatorScreen({
 
   const selectedFileIsPdf = selectedFile?.name.toLowerCase().endsWith(".pdf") ?? false;
   const selectedFileIsPptx = selectedFile?.name.toLowerCase().endsWith(".pptx") ?? false;
+  const allowedUploadExtensions = evaluatorMode === "deck_review" ? DECK_UPLOAD_EXTENSIONS : ALL_UPLOAD_EXTENSIONS;
+  const currentUploadHint = uploadHint(allowedUploadExtensions);
   const deckReviewCapability = useMemo(() => {
     if (evaluatorMode !== "deck_review") {
       return null;
@@ -209,6 +212,21 @@ export function EvaluatorScreen({
     }
   };
 
+  const handleFileSelected = (file: File | null) => {
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+    const error = validateUploadFile(file, allowedUploadExtensions);
+    if (error) {
+      setSelectedFile(null);
+      setStatusLine(error);
+      return;
+    }
+    setSelectedFile(file);
+    setStatusLine(`${file.name} ready · ${currentUploadHint}`);
+  };
+
   const submit = async () => {
     if (progress?.completed) {
       if (evaluatorMode !== "deck_review") {
@@ -241,7 +259,11 @@ export function EvaluatorScreen({
     setDraft("");
     setSelectedFile(null);
     setPending(true);
-    setStatusLine("Scoring your answer...");
+    setStatusLine(
+      evaluatorMode === "deck_review"
+        ? (submittedFile ? "Uploading and reviewing the deck..." : "Reviewing the active deck...")
+        : (submittedFile ? "Uploading context and scoring..." : "Scoring your answer..."),
+    );
 
     try {
       const response = await answerEvaluator({
@@ -392,7 +414,7 @@ export function EvaluatorScreen({
               <div className="attachment-row">
                 <div className="attachment-meta">
                   <span className="rail-label">Context</span>
-                  <small>{evaluatorMode === "deck_review" ? "Upload the deck you want reviewed" : "Optional deck, notes, or PDF"}</small>
+                  <small>{evaluatorMode === "deck_review" ? `Deck only · ${currentUploadHint}` : `Optional context · ${currentUploadHint}`}</small>
                 </div>
                 <div className="attachment-actions">
                   <button type="button" className="ghost-button compact" onClick={() => inputRef.current?.click()}>
@@ -400,7 +422,7 @@ export function EvaluatorScreen({
                   </button>
                   {selectedFile ? <span className="attachment-pill">{selectedFile.name}</span> : null}
                   {selectedFile ? (
-                    <button type="button" className="ghost-button compact" onClick={() => setSelectedFile(null)}>
+                    <button type="button" className="ghost-button compact" onClick={() => handleFileSelected(null)}>
                       Remove
                     </button>
                   ) : null}
@@ -409,8 +431,11 @@ export function EvaluatorScreen({
                   ref={inputRef}
                   type="file"
                   hidden
-                  accept=".pdf,.pptx,.docx,.txt"
-                  onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                  accept={uploadAccept(allowedUploadExtensions)}
+                  onChange={(event) => {
+                    handleFileSelected(event.target.files?.[0] ?? null);
+                    event.currentTarget.value = "";
+                  }}
                 />
               </div>
               <div className="composer-row">

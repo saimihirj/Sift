@@ -335,6 +335,7 @@ export function ChatScreen({
     setDraft("");
     setPending(true);
     setStreamingAssistant("");
+    setStatusLine(selectedFile ? "Uploading context and preparing the turn..." : "Preparing the turn...");
 
     try {
       await streamChat({

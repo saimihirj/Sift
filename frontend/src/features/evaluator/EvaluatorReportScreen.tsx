@@ -471,6 +471,7 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onR
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    setStatus("Markdown report exported locally.");
   };
 
   return (
@@ -486,7 +487,7 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onR
               Back
             </button>
             <button type="button" className="ghost-button compact" onClick={handleDownload} disabled={!downloadMarkdown}>
-              Download
+              Export .md
             </button>
             {canGoDeeper ? (
               <button

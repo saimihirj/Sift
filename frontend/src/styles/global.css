@@ -268,6 +268,11 @@ a {
   min-height: 1em;
 }
 
+.beta-feedback-button {
+  align-self: center;
+  width: fit-content;
+}
+
 .entry-continue {
   justify-content: center;
   min-height: 48px;
@@ -571,6 +576,44 @@ a {
   border-radius: 14px;
   padding: 12px 14px;
   line-height: 1.45;
+}
+
+.beta-note-card,
+.upload-helper {
+  border: 1px solid var(--line);
+  background: var(--panel-muted);
+  color: var(--ink-soft);
+}
+
+.beta-note-card {
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 4px;
+}
+
+.beta-note-card p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.sample-starter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.upload-helper {
+  display: block;
+  margin-top: -4px;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+}
+
+.upload-helper.error {
+  border-color: var(--line-strong);
+  color: var(--ink);
 }
 
 .setup-inline-hint {

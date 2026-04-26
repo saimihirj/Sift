@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -39,6 +40,9 @@ DEFAULT_CORS_ORIGINS = (
     "http://127.0.0.1:5174",
     "http://localhost:5174",
 )
+RATE_LIMIT_WINDOW_SECONDS = 60.0
+RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("SIFT_RATE_LIMIT_PER_MINUTE", "120"))
+RATE_LIMIT_BUCKETS: dict[str, list[float]] = {}
 
 
 def cors_origins() -> list[str]:
@@ -54,6 +58,24 @@ def cookie_same_site() -> str:
     return "lax"
 
 app = FastAPI(title="Sift API", version="0.2.0")
+
+
+@app.middleware("http")
+async def beta_rate_limit(request, call_next):
+    path = request.url.path
+    if RATE_LIMIT_MAX_REQUESTS > 0 and path.startswith("/api/") and path not in {"/api/health", "/api/client/heartbeat"}:
+        client_host = request.client.host if request.client else "local"
+        key = f"{client_host}:{path}"
+        now = time.monotonic()
+        recent = [stamp for stamp in RATE_LIMIT_BUCKETS.get(key, []) if now - stamp < RATE_LIMIT_WINDOW_SECONDS]
+        if len(recent) >= RATE_LIMIT_MAX_REQUESTS:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests in a short period. Wait a minute and try again."},
+            )
+        recent.append(now)
+        RATE_LIMIT_BUCKETS[key] = recent
+    return await call_next(request)
 
 app.add_middleware(
     CORSMiddleware,

@@ -18,6 +18,9 @@ UPLOADS_DIR = DATA_DIR / "session_uploads"
 CHUNK_SIZE = 900
 CHUNK_OVERLAP = 150
 TOKEN_PATTERN = re.compile(r"[a-z0-9]{3,}")
+ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".pptx", ".docx", ".txt"}
+MAX_UPLOAD_BYTES = int(float(os.environ.get("SIFT_MAX_UPLOAD_MB", "20")) * 1024 * 1024)
+MAX_UPLOADS_PER_SESSION = int(os.environ.get("SIFT_MAX_UPLOADS_PER_SESSION", "8"))
 
 
 def _session_dir(session_id: str) -> Path:
@@ -53,6 +56,23 @@ def _save_manifest(session_id: str, manifest: list[dict]) -> None:
 def _sanitize_filename(name: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", name or "upload")
     return cleaned.strip("-") or "upload"
+
+
+def _format_mb(byte_count: int) -> str:
+    return f"{byte_count / (1024 * 1024):.0f}MB"
+
+
+def _validate_upload(filename: str, content: bytes, existing_count: int) -> None:
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_UPLOAD_EXTENSIONS:
+        allowed = ", ".join(sorted(ALLOWED_UPLOAD_EXTENSIONS))
+        raise ValueError(f"Unsupported file type. Upload one of: {allowed}.")
+    if not content:
+        raise ValueError("That file is empty. Upload a PDF, PPTX, DOCX, or TXT with readable content.")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise ValueError(f"File is too large. Current beta limit is {_format_mb(MAX_UPLOAD_BYTES)} per upload.")
+    if existing_count >= MAX_UPLOADS_PER_SESSION:
+        raise ValueError(f"This session already has {MAX_UPLOADS_PER_SESSION} uploads. Start a new session to add more files.")
 
 
 def _parse_txt(path: Path) -> str:
@@ -232,6 +252,8 @@ def _chunk_text(text: str, source: str, doc_type: str) -> list[dict]:
 async def ingest_upload(session_id: str, upload: UploadFile) -> dict:
     content = await upload.read()
     filename = _sanitize_filename(upload.filename or "upload")
+    manifest = _load_manifest(session_id)
+    _validate_upload(filename, content, len(manifest))
     session_dir = _session_dir(session_id)
     stored_name = f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{filename}"
     stored_path = session_dir / stored_name
@@ -247,13 +269,13 @@ async def ingest_upload(session_id: str, upload: UploadFile) -> dict:
         artifact_path = session_dir / f"{stored_name}.artifact.json"
         artifact_path.write_text(json.dumps(artifact, indent=2))
 
-    manifest = _load_manifest(session_id)
     entry = {
         "name": filename,
         "stored_name": stored_name,
         "docType": doc_type,
         "chunkCount": len(chunks),
         "chars": len(text),
+        "bytes": len(content),
         "uploadedAt": datetime.now(timezone.utc).isoformat(),
         "chunksFile": chunks_path.name,
     }
@@ -267,7 +289,7 @@ async def ingest_upload(session_id: str, upload: UploadFile) -> dict:
 
 
 def list_active_uploads(session_id: str) -> list[dict]:
-    public_fields = ("name", "docType", "chunkCount", "chars", "uploadedAt", "slideCount", "hasRenderableSlides")
+    public_fields = ("name", "docType", "chunkCount", "chars", "bytes", "uploadedAt", "slideCount", "hasRenderableSlides")
     return [
         {field: entry[field] for field in public_fields if field in entry}
         for entry in _load_manifest(session_id)
