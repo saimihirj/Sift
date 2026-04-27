@@ -10,6 +10,7 @@ This checklist is for running Sift with early users before investing in managed 
 - Use `Evaluate` for idea scoring and deck review.
 - Use `Expert` for concept explanation and pre-screening.
 - Export reports as Markdown from the report page.
+- Give each tester their own email/handle plus Sift key; the same pair is required to resume that tester's sessions.
 - Collect tester feedback manually using the copied beta feedback note from the landing screen.
 
 ## Before Inviting Testers
@@ -25,6 +26,7 @@ This checklist is for running Sift with early users before investing in managed 
 
 - Uploads are limited by type, size, and count per session.
 - API routes have a lightweight local rate limit.
+- Sessions are scoped by a beta Sift key instead of full authentication.
 - Website context is single-page only.
 - PPTX deck review uses extracted slide text; visual feedback is unverified unless a renderable PDF and vision model are used.
 - Local session data and uploads live under `data/`.

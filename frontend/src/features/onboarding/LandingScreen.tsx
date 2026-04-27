@@ -1,37 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { AuthProviderOption, AuthUser, ThemeMode } from "../../app/types";
-import { authLoginUrl } from "../../lib/api/client";
+import type { ThemeMode } from "../../app/types";
 
 type Props = {
   displayName: string;
+  emailOrHandle: string;
+  accessKey: string;
   onDisplayNameChange: (value: string) => void;
+  onEmailOrHandleChange: (value: string) => void;
+  onAccessKeyChange: (value: string) => void;
+  onGenerateAccessKey: () => void;
   onContinue: () => void;
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
-  authUser: AuthUser | null;
-  authProviders: AuthProviderOption[];
-  authError: string;
-  onSignOut: () => Promise<void>;
+  error: string;
 };
-
-// ─── SVG Brand Mark ───────────────────────────────────────────────────────────
-
-function BrandMark() {
-  return (
-    <svg
-      className="brand-mark"
-      viewBox="0 0 32 22"
-      fill="none"
-      aria-hidden="true"
-    >
-      <rect x="0" y="15" width="4" height="7" rx="2" fill="currentColor" opacity="0.22" />
-      <rect x="6" y="9" width="4" height="13" rx="2" fill="currentColor" opacity="0.58" />
-      <rect x="12" y="2" width="4" height="20" rx="2" fill="currentColor" />
-      <path d="M20.5 5.5 L29 14 M29 5.5 L20.5 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 // ─── Mode Glyphs ──────────────────────────────────────────────────────────────
 
@@ -95,12 +78,6 @@ const TICKER_MESSAGES = [
   "Deck reviews supported",
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function providerState(key: "google" | "apple", providers: AuthProviderOption[]) {
-  return providers.find((item) => item.key === key) ?? { key, label: key, configured: false };
-}
-
 function TickerText() {
   const [index, setIndex] = useState(0);
 
@@ -114,50 +91,27 @@ function TickerText() {
   return <span key={index} className="landing-pro-ticker-text">{TICKER_MESSAGES[index]}</span>;
 }
 
-function GoogleMark() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="auth-mark">
-      <path fill="#4285F4" d="M21.6 12.23c0-.7-.06-1.37-.18-2.02H12v3.82h5.39a4.62 4.62 0 0 1-2 3.03v2.52h3.24c1.9-1.75 2.97-4.33 2.97-7.35Z" />
-      <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.61-2.42l-3.24-2.52c-.9.6-2.04.96-3.37.96-2.59 0-4.78-1.75-5.56-4.1H3.09v2.6A9.99 9.99 0 0 0 12 22Z" />
-      <path fill="#FBBC05" d="M6.44 13.92A5.98 5.98 0 0 1 6.13 12c0-.67.11-1.31.31-1.92V7.48H3.09A9.99 9.99 0 0 0 2 12c0 1.61.39 3.14 1.09 4.52l3.35-2.6Z" />
-      <path fill="#EA4335" d="M12 5.98c1.47 0 2.79.5 3.83 1.48l2.87-2.87C16.95 2.97 14.69 2 12 2A9.99 9.99 0 0 0 3.09 7.48l3.35 2.6c.78-2.35 2.97-4.1 5.56-4.1Z" />
-    </svg>
-  );
-}
-
-function AppleMark() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="auth-mark">
-      <path
-        fill="currentColor"
-        d="M15.1 3.5c.8-1 1.3-2.3 1.2-3.5-1.2.1-2.5.8-3.3 1.8-.7.8-1.3 2.1-1.2 3.3 1.3.1 2.5-.7 3.3-1.6Zm3.8 9.8c0-2.3 1.9-3.4 2-3.4-1.1-1.6-2.9-1.8-3.5-1.8-1.5-.2-2.9.9-3.7.9-.8 0-2-.9-3.4-.8-1.7 0-3.3 1-4.2 2.5-1.8 3.1-.5 7.7 1.3 10.2.9 1.2 1.9 2.5 3.3 2.4 1.3-.1 1.8-.8 3.4-.8s2.1.8 3.4.8c1.4 0 2.3-1.2 3.2-2.5 1-1.4 1.4-2.8 1.4-2.9-.1 0-3.2-1.2-3.2-4.6Z"
-      />
-    </svg>
-  );
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function LandingScreen({
   displayName,
+  emailOrHandle,
+  accessKey,
   onDisplayNameChange,
+  onEmailOrHandleChange,
+  onAccessKeyChange,
+  onGenerateAccessKey,
   onContinue,
   theme,
   onThemeChange,
-  authUser,
-  authProviders,
-  authError,
-  onSignOut,
+  error,
 }: Props) {
   const [hoveredMode, setHoveredMode] = useState<string | null>(null);
   const [feedbackCopied, setFeedbackCopied] = useState(false);
+  const [keyCopied, setKeyCopied] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  const google = providerState("google", authProviders);
-  const apple = providerState("apple", authProviders);
-  const canContinue = Boolean(displayName.trim() || authUser);
-  const providerLabel = authUser?.provider === "google" ? "Google" : authUser?.provider === "apple" ? "Apple" : "";
-  const authNote = authError || (authUser ? `${providerLabel} connected` : "");
+  const canContinue = Boolean(displayName.trim() && emailOrHandle.trim() && accessKey.trim().length >= 8);
 
   const handleModeClick = () => {
     if (!canContinue) {
@@ -175,6 +129,19 @@ export function LandingScreen({
       window.setTimeout(() => setFeedbackCopied(false), 1800);
     } catch {
       setFeedbackCopied(false);
+    }
+  };
+
+  const copyAccessKey = async () => {
+    if (!accessKey.trim()) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(accessKey.trim());
+      setKeyCopied(true);
+      window.setTimeout(() => setKeyCopied(false), 1800);
+    } catch {
+      setKeyCopied(false);
     }
   };
 
@@ -241,22 +208,8 @@ export function LandingScreen({
         <div className="landing-pro-entry">
           <div className="entry-pro-head">
             <p className="entry-pro-eyebrow">Workspace</p>
-            <h2 className="entry-pro-title">
-              {authUser ? authUser.displayName : "Start"}
-            </h2>
+            <h2 className="entry-pro-title">Start</h2>
           </div>
-
-          {authUser ? (
-            <div className="auth-summary-card">
-              <div>
-                <strong>{providerLabel} account</strong>
-                <p>{authUser.email || authUser.displayName}</p>
-              </div>
-              <button type="button" className="ghost-button compact" onClick={() => void onSignOut()}>
-                Sign out
-              </button>
-            </div>
-          ) : null}
 
           <label className="identity-field">
             <span className="rail-label">Your name</span>
@@ -271,11 +224,59 @@ export function LandingScreen({
                   onContinue();
                 }
               }}
-              placeholder={authUser?.displayName || "How should Sift address you?"}
+              placeholder="How should Sift address you?"
               aria-required="true"
               autoComplete="given-name"
             />
           </label>
+
+          <label className="identity-field">
+            <span className="rail-label">Email or handle</span>
+            <input
+              type="text"
+              value={emailOrHandle}
+              onChange={(event) => onEmailOrHandleChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && canContinue) {
+                  event.preventDefault();
+                  onContinue();
+                }
+              }}
+              placeholder="Used with your Sift key"
+              aria-required="true"
+              autoComplete="email"
+            />
+          </label>
+
+          <label className="identity-field">
+            <span className="rail-label">Sift key</span>
+            <input
+              type="text"
+              value={accessKey}
+              onChange={(event) => onAccessKeyChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && canContinue) {
+                  event.preventDefault();
+                  onContinue();
+                }
+              }}
+              placeholder="Generate or enter your saved key"
+              aria-required="true"
+              autoComplete="off"
+            />
+          </label>
+
+          <div className="identity-key-actions">
+            <button type="button" className="ghost-button compact" onClick={onGenerateAccessKey}>
+              Generate key
+            </button>
+            <button type="button" className="ghost-button compact" onClick={() => void copyAccessKey()} disabled={!accessKey.trim()}>
+              {keyCopied ? "Key copied" : "Copy key"}
+            </button>
+          </div>
+
+          <small className="muted-copy entry-auth-note">Use the same email or handle and Sift key to see your previous sessions.</small>
+          {error ? <div className="setup-alert" role="alert">{error}</div> : null}
 
           <button
             type="button"
@@ -286,39 +287,6 @@ export function LandingScreen({
             Continue
           </button>
 
-          <div className="pro-auth-stack">
-            <div className="pro-auth-separator">or sign in with</div>
-            <div className="pro-auth-bubbles" aria-label="Sign in with">
-              <a
-                className={google.configured ? "auth-bubble" : "auth-bubble disabled-link"}
-                href={google.configured ? authLoginUrl("google", "/") : undefined}
-                aria-disabled={!google.configured}
-                onClick={(event) => {
-                  if (!google.configured) {
-                    event.preventDefault();
-                  }
-                }}
-              >
-                <GoogleMark />
-                <span>Google</span>
-              </a>
-              <a
-                className={apple.configured ? "auth-bubble" : "auth-bubble disabled-link"}
-                href={apple.configured ? authLoginUrl("apple", "/") : undefined}
-                aria-disabled={!apple.configured}
-                onClick={(event) => {
-                  if (!apple.configured) {
-                    event.preventDefault();
-                  }
-                }}
-              >
-                <AppleMark />
-                <span>Apple</span>
-              </a>
-            </div>
-          </div>
-
-          {authNote ? <small className="muted-copy entry-auth-note">{authNote}</small> : null}
           <button type="button" className="ghost-button compact beta-feedback-button" onClick={() => void copyFeedbackPrompt()}>
             {feedbackCopied ? "Feedback note copied" : "Copy beta feedback note"}
           </button>

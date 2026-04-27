@@ -292,6 +292,7 @@ class SessionListResponse(BaseModel):
 class SessionRuntimeUpdateRequest(BaseModel):
     provider: Provider = "ollama"
     model: str = ""
+    clientId: str = ""
 
 
 class SessionRuntimeResponse(BaseModel):
@@ -323,6 +324,7 @@ class HeartbeatResponse(BaseModel):
 
 class OutlineRequest(BaseModel):
     sessionId: str
+    clientId: str = ""
 
 
 class OutlineResponse(BaseModel):

@@ -32,6 +32,7 @@ type Props = {
   providerOptions: ProviderOption[];
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
+  clientId: string;
 };
 
 type MobilePane = "chat" | "evidence";
@@ -171,6 +172,7 @@ export function ExpertScreen({
   providerOptions,
   theme,
   onThemeChange,
+  clientId,
 }: Props) {
   const [draft, setDraft] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -222,6 +224,7 @@ export function ExpertScreen({
     try {
       const response = await updateSessionRuntime({
         sessionId: session.sessionId,
+        clientId,
         provider: runtimeProvider,
         model: effectiveModel,
       });
@@ -284,6 +287,7 @@ export function ExpertScreen({
     try {
       await streamChat({
         sessionId: session.sessionId,
+        clientId,
         message,
         responseProfile: session.responseProfile,
         provider: runtimeProvider,

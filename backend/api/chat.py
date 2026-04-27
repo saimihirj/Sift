@@ -37,6 +37,7 @@ from backend.services.prompting import (
 )
 from backend.services.refinement import empty_answer_record, refine_founder_input, update_answer_record
 from backend.services.retrieval import build_retrieval_context
+from backend.services.session_access import require_session_owner
 from backend.services.state_engine import coverage_items, next_gap, update_state_from_turn
 from backend.services.uploads import ingest_upload, list_active_uploads
 
@@ -178,6 +179,7 @@ def _stream_limits(session_type: str, *, has_upload: bool = False) -> tuple[int,
 @router.post("")
 async def chat(
     sessionId: str = Form(...),
+    clientId: str = Form(""),
     message: str = Form(""),
     responseProfile: str = Form(DEFAULT_RESPONSE_PROFILE),
     provider: str = Form(""),
@@ -190,6 +192,7 @@ async def chat(
     session_row = memory.get_session(sessionId)
     if session_row is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    require_session_owner(session_row, clientId)
 
     if not (message or "").strip() and file is None:
         raise HTTPException(status_code=400, detail="Message or file is required")

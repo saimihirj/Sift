@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import type { HelpMode, Provider, ProviderOption, SetupDraft } from "../../app/types";
+import { ThemePicker } from "../../app/ThemePicker";
+import type { HelpMode, Provider, ProviderOption, SessionSummary, SetupDraft, ThemeMode } from "../../app/types";
 
 type Props = {
   providerOptions: ProviderOption[];
@@ -9,8 +10,15 @@ type Props = {
   canStart: boolean;
   step: number;
   draft: SetupDraft;
+  theme: ThemeMode;
+  onThemeChange: (theme: ThemeMode) => void;
+  identityLabel: string;
+  identityKey: string;
+  recentSessions: SessionSummary[];
   onStepChange: (step: number) => void;
   onDraftChange: (updater: (current: SetupDraft) => SetupDraft) => void;
+  onOpenSession: (sessionId: string) => void | Promise<void>;
+  onSwitchIdentity: () => void;
   onBack: () => void;
   onStart: (payload: {
     sessionType: SetupDraft["sessionType"];
@@ -91,6 +99,24 @@ const sampleContexts = [
   },
 ] as const;
 
+const stepLabels = ["Workflow", "Context", "Runtime"];
+
+function formatSessionTime(raw?: string | null): string {
+  if (!raw) {
+    return "No activity yet";
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Recent";
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
 function providerAccessLabel(option: ProviderOption | undefined): string {
   if (!option) {
     return "Runtime";
@@ -141,8 +167,27 @@ function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
   nextButton.click();
 }
 
-export function SetupWizard({ providerOptions, loading, error, canStart, step, draft, onStepChange, onDraftChange, onBack, onStart }: Props) {
+export function SetupWizard({
+  providerOptions,
+  loading,
+  error,
+  canStart,
+  step,
+  draft,
+  theme,
+  onThemeChange,
+  identityLabel,
+  identityKey,
+  recentSessions,
+  onStepChange,
+  onDraftChange,
+  onOpenSession,
+  onSwitchIdentity,
+  onBack,
+  onStart,
+}: Props) {
   const [optionalContextOpen, setOptionalContextOpen] = useState(false);
+  const [identityKeyCopied, setIdentityKeyCopied] = useState(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const filteredProviders = useMemo(
     () => (draft.runtimeKind === "local" ? providerOptions.filter((item) => item.key === "ollama") : providerOptions.filter((item) => item.key !== "ollama")),
@@ -163,6 +208,37 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
     || "";
   const requiresClientApiKey = Boolean(providerMeta?.requiresApiKey && !providerMeta.serverConfigured);
   const canAdvanceRuntime = Boolean(resolvedModel) && (draft.runtimeKind === "local" || !requiresClientApiKey || draft.apiKey.trim());
+  const canStartFromCurrentStep = canStart && canAdvanceRuntime && !loading;
+
+  const startWithCurrentDraft = () => onStart({
+    sessionType: draft.sessionType,
+    evaluatorMode: draft.evaluatorMode,
+    founderType: draft.founderType,
+    sector: draft.sector,
+    stage: draft.stage,
+    geography: draft.geography,
+    mode: draft.mode,
+    provider: resolvedProvider as Provider,
+    model: resolvedModel,
+    apiKey: draft.runtimeKind === "external" ? draft.apiKey.trim() : "",
+    websiteUrl: draft.websiteUrl,
+    setupContext: draft.setupContext,
+    helpMode: draft.helpMode,
+    liveWebEnabled: draft.sessionType === "expert" ? true : draft.liveWebEnabled,
+  });
+
+  const copyIdentityKey = async () => {
+    if (!identityKey) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(identityKey);
+      setIdentityKeyCopied(true);
+      window.setTimeout(() => setIdentityKeyCopied(false), 1800);
+    } catch {
+      setIdentityKeyCopied(false);
+    }
+  };
 
   useEffect(() => {
     cardRef.current?.scrollTo({ top: 0 });
@@ -174,13 +250,29 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
         <div className="onboarding-meta">
           <div className="plain-header-block">
             <span className="eyebrow">Setup</span>
-            <strong>Session</strong>
+            <strong>{identityLabel ? `Workspace: ${identityLabel}` : "Session"}</strong>
           </div>
-          <div className="step-dots" aria-hidden="true">
+          <div className="setup-key-actions">
+            <button type="button" className="ghost-button compact" onClick={() => void copyIdentityKey()} disabled={!identityKey}>
+              {identityKeyCopied ? "Key copied" : "Copy key"}
+            </button>
+            <button type="button" className="ghost-button compact" onClick={onSwitchIdentity}>
+              Switch key
+            </button>
+          </div>
+          <div className="step-dots step-dots-clickable" aria-label="Jump to setup section">
             {[0, 1, 2].map((value) => (
-              <span key={value} className={value === step ? "dot active" : "dot"} />
+              <button
+                key={value}
+                type="button"
+                className={value === step ? "dot active" : "dot"}
+                onClick={() => onStepChange(value)}
+                aria-label={stepLabels[value]}
+                aria-current={value === step ? "step" : undefined}
+              />
             ))}
           </div>
+          <ThemePicker theme={theme} onChange={onThemeChange} />
         </div>
 
         <div className="onboarding-copy">
@@ -192,6 +284,31 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
           <span className="rail-label">Beta</span>
           <p>Sift is ready for controlled user testing. Keep sensitive decks private unless you trust the selected model provider.</p>
         </div>
+
+        {recentSessions.length > 0 ? (
+          <div className="drawer-card">
+            <div className="setup-section-head">
+              <div>
+                <span className="rail-label">Previous sessions</span>
+                <strong>Resume this workspace directly.</strong>
+              </div>
+            </div>
+            <div className="session-list setup-session-list">
+              {recentSessions.slice(0, 4).map((item) => (
+                <button
+                  key={item.sessionId}
+                  type="button"
+                  className="session-card"
+                  onClick={() => void onOpenSession(item.sessionId)}
+                >
+                  <strong>{item.title}</strong>
+                  <span>{item.subtitle}</span>
+                  <span>{formatSessionTime(item.lastActive)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {error ? <div className="setup-alert" role="alert">{error}</div> : null}
 
@@ -492,36 +609,29 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
           </button>
 
           {step < 2 ? (
-            <button
-              type="button"
-              className="solid-button"
-              onClick={() => onStepChange(step + 1)}
-            >
-              Continue
-            </button>
+            <>
+              <button
+                type="button"
+                className="ghost-button"
+                disabled={!canStartFromCurrentStep}
+                onClick={() => void startWithCurrentDraft()}
+              >
+                Start now
+              </button>
+              <button
+                type="button"
+                className="solid-button"
+                onClick={() => onStepChange(step + 1)}
+              >
+                Continue
+              </button>
+            </>
           ) : (
             <button
               type="button"
               className="solid-button"
               disabled={loading || !canStart || !canAdvanceRuntime}
-              onClick={() =>
-                void onStart({
-                  sessionType: draft.sessionType,
-                  evaluatorMode: draft.evaluatorMode,
-                  founderType: draft.founderType,
-                  sector: draft.sector,
-                  stage: draft.stage,
-                  geography: draft.geography,
-                  mode: draft.mode,
-                  provider: resolvedProvider as Provider,
-                  model: resolvedModel,
-                  apiKey: draft.runtimeKind === "external" ? draft.apiKey.trim() : "",
-                  websiteUrl: draft.websiteUrl,
-                  setupContext: draft.setupContext,
-                  helpMode: draft.helpMode,
-                  liveWebEnabled: draft.sessionType === "expert" ? true : draft.liveWebEnabled,
-                })
-              }
+              onClick={() => void startWithCurrentDraft()}
             >
               {loading ? "Starting..." : "Start session"}
             </button>
@@ -529,7 +639,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
         </div>
 
         {step === 2 && !canStart ? (
-          <small className="setup-inline-hint">Name missing. Click back and enter your name on the first screen.</small>
+          <small className="setup-inline-hint">Workspace key missing. Switch key to enter your identity first.</small>
         ) : null}
       </div>
     </section>

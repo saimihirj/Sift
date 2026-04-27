@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
 import type {
-  AuthProviderOption,
-  AuthUser,
   ProviderOption,
   SessionPayload,
   SessionSummary,
@@ -11,7 +9,7 @@ import type {
   StartSessionPayload,
   ThemeMode,
 } from "./types";
-import { clearSessionHistory, getAuthSession, getSession, listProviders, listSessions, logoutAuth, postAnalyticsEvent, sendHeartbeat, startSession } from "../lib/api/client";
+import { clearSessionHistory, getAuthSession, getSession, listProviders, listSessions, postAnalyticsEvent, sendHeartbeat, startSession } from "../lib/api/client";
 import { AdminScreen } from "../features/admin/AdminScreen";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { EvaluatorReportScreen } from "../features/evaluator/EvaluatorReportScreen";
@@ -21,18 +19,15 @@ import { LandingScreen } from "../features/onboarding/LandingScreen";
 import { SetupWizard } from "../features/onboarding/SetupWizard";
 import { OutlineScreen } from "../features/outline/OutlineScreen";
 import { saveSessionCredential } from "../lib/sessionCredentials";
+import { createWorkspaceIdentity, generateAccessKey, type WorkspaceIdentity } from "../lib/workspaceIdentity";
 
 declare const __APP_BUILD__: string;
 
 const SESSION_STORAGE_KEY = "sift-session-id";
-const DISPLAY_NAME_STORAGE_KEY = "sift-display-name";
+const IDENTITY_STORAGE_KEY = "sift-beta-identity";
 const THEME_STORAGE_KEY = "sift-theme";
 const CLIENT_STORAGE_KEY = "sift-client-id";
 const APP_BUILD_STORAGE_KEY = "sift-app-build";
-const DEFAULT_AUTH_PROVIDERS: AuthProviderOption[] = [
-  { key: "google", label: "Google", configured: false },
-  { key: "apple", label: "Apple", configured: false },
-];
 const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
   {
     key: "ollama",
@@ -129,8 +124,6 @@ const DEFAULT_SETUP_DRAFT: SetupDraft = {
   helpMode: "coach_me",
   liveWebEnabled: true,
 };
-const LAST_SETUP_STEP = 2;
-
 function getClientId(): string {
   const existing = localStorage.getItem(CLIENT_STORAGE_KEY);
   if (existing) {
@@ -143,23 +136,34 @@ function getClientId(): string {
   return generated;
 }
 
-function getStoredDisplayName(): string {
+function getStoredIdentity(): WorkspaceIdentity | null {
   if (typeof window === "undefined") {
-    return "";
+    return null;
   }
-  return localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) || "";
+  try {
+    const raw = sessionStorage.getItem(IDENTITY_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as WorkspaceIdentity;
+    if (!parsed.clientId || !parsed.displayName || !parsed.emailOrHandle || !parsed.accessKey) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
-function setStoredDisplayName(displayName: string): void {
+function setStoredIdentity(identity: WorkspaceIdentity | null): void {
   if (typeof window === "undefined") {
     return;
   }
-  const nextValue = displayName.trim();
-  if (nextValue) {
-    localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, nextValue);
-  } else {
-    localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY);
+  if (!identity) {
+    sessionStorage.removeItem(IDENTITY_STORAGE_KEY);
+    return;
   }
+  sessionStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(identity));
 }
 
 function getStoredSessionId(): string | null {
@@ -197,7 +201,7 @@ function applyBuildResetIfNeeded(): boolean {
     return false;
   }
   clearStoredSessionId();
-  localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY);
+  sessionStorage.removeItem(IDENTITY_STORAGE_KEY);
   localStorage.setItem(APP_BUILD_STORAGE_KEY, currentBuild);
   return true;
 }
@@ -215,17 +219,18 @@ function AppBody() {
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>(DEFAULT_PROVIDER_OPTIONS);
   const [recentSessions, setRecentSessions] = useState<SessionSummary[]>([]);
   const [clearingHistory, setClearingHistory] = useState(false);
-  const [anonymousClientId] = useState<string>(() => getClientId());
-  const [displayName, setDisplayName] = useState<string>(() => getStoredDisplayName());
+  const [deviceClientId] = useState<string>(() => getClientId());
+  const [activeIdentity, setActiveIdentity] = useState<WorkspaceIdentity | null>(() => getStoredIdentity());
+  const [displayName, setDisplayName] = useState("");
+  const [emailOrHandle, setEmailOrHandle] = useState("");
+  const [accessKey, setAccessKey] = useState("");
   const [theme, setTheme] = useState<ThemeMode>(
     () => (localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null) ?? "dark",
   );
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [authProviders, setAuthProviders] = useState<AuthProviderOption[]>(DEFAULT_AUTH_PROVIDERS);
-  const [authError, setAuthError] = useState("");
   const [adminEnabled, setAdminEnabled] = useState(false);
-  const effectiveClientId = authUser?.clientId || anonymousClientId;
-  const effectiveDisplayName = (displayName || authUser?.displayName || "").trim();
+  const sessionClientId = activeIdentity?.clientId || "";
+  const analyticsClientId = sessionClientId || deviceClientId;
+  const effectiveDisplayName = (activeIdentity?.displayName || displayName || "").trim();
 
   useEffect(() => {
     const resetApplied = applyBuildResetIfNeeded();
@@ -245,8 +250,10 @@ function AppBody() {
   }, [theme]);
 
   useEffect(() => {
-    setStoredDisplayName(displayName);
-  }, [displayName]);
+    if (activeIdentity && !session) {
+      setEntryScreen("setup");
+    }
+  }, [activeIdentity, session]);
 
   useEffect(() => {
     let cancelled = false;
@@ -255,15 +262,10 @@ function AppBody() {
         if (cancelled) {
           return;
         }
-        setAuthUser(response.user);
-        setAuthProviders(response.providers.length > 0 ? response.providers : DEFAULT_AUTH_PROVIDERS);
-        setAuthError(response.error || "");
         setAdminEnabled(Boolean(response.adminMode));
       })
       .catch(() => {
         if (!cancelled) {
-          setAuthUser(null);
-          setAuthProviders(DEFAULT_AUTH_PROVIDERS);
           setAdminEnabled(false);
         }
       });
@@ -280,7 +282,13 @@ function AppBody() {
 
   useEffect(() => {
     let cancelled = false;
-    void listSessions(effectiveClientId)
+    if (!sessionClientId) {
+      setRecentSessions([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+    void listSessions(sessionClientId)
       .then((response) => {
         if (!cancelled) {
           setRecentSessions(response.sessions);
@@ -294,20 +302,24 @@ function AppBody() {
     return () => {
       cancelled = true;
     };
-  }, [effectiveClientId]);
+  }, [sessionClientId]);
 
   useEffect(() => {
     let cancelled = false;
     const storedSessionId = getStoredSessionId();
 
-    if (!storedSessionId) {
+    if (!storedSessionId || !sessionClientId) {
+      if (!sessionClientId) {
+        clearStoredSessionId();
+      }
       setLoadingSession(false);
       return () => {
         cancelled = true;
       };
     }
 
-    void getSession(storedSessionId)
+    setLoadingSession(true);
+    void getSession(storedSessionId, sessionClientId)
       .then((response) => {
         if (!cancelled) {
           setSession(response);
@@ -325,26 +337,26 @@ function AppBody() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sessionClientId]);
 
   useEffect(() => {
-    void sendHeartbeat(effectiveClientId).catch(() => undefined);
+    void sendHeartbeat(analyticsClientId).catch(() => undefined);
     const timer = window.setInterval(() => {
-      void sendHeartbeat(effectiveClientId).catch(() => undefined);
+      void sendHeartbeat(analyticsClientId).catch(() => undefined);
     }, 5000);
     return () => {
       window.clearInterval(timer);
     };
-  }, [effectiveClientId]);
+  }, [analyticsClientId]);
 
   useEffect(() => {
     void postAnalyticsEvent({
       eventType: "page_view",
-      clientId: effectiveClientId,
+      clientId: analyticsClientId,
       displayName: effectiveDisplayName,
       pathname: location.pathname,
     }).catch(() => undefined);
-  }, [effectiveClientId, effectiveDisplayName, location.pathname]);
+  }, [analyticsClientId, effectiveDisplayName, location.pathname]);
 
   const hydrateStartedSession = (payload: StartSessionPayload) => {
     const next: SessionPayload = {
@@ -378,7 +390,7 @@ function AppBody() {
     };
     setStoredSessionId(payload.sessionId);
     setSession(next);
-    void listSessions(effectiveClientId)
+    void listSessions(sessionClientId)
       .then((response) => setRecentSessions(response.sessions))
       .catch(() => undefined);
     if (payload.sessionType === "evaluator" && payload.evaluationProgress?.completed) {
@@ -389,8 +401,12 @@ function AppBody() {
   };
 
   const refreshSessions = async () => {
+    if (!sessionClientId) {
+      setRecentSessions([]);
+      return;
+    }
     try {
-      const response = await listSessions(effectiveClientId);
+      const response = await listSessions(sessionClientId);
       setRecentSessions(response.sessions);
     } catch {
       setRecentSessions([]);
@@ -398,12 +414,12 @@ function AppBody() {
   };
 
   const handleClearHistory = async () => {
-    if (!effectiveClientId || clearingHistory) {
+    if (!sessionClientId || clearingHistory) {
       return;
     }
     setClearingHistory(true);
     try {
-      await clearSessionHistory(effectiveClientId);
+      await clearSessionHistory(sessionClientId);
       clearStoredSessionId();
       setSession(null);
       setRecentSessions([]);
@@ -411,6 +427,45 @@ function AppBody() {
     } finally {
       setClearingHistory(false);
     }
+  };
+
+  const handleContinueWithIdentity = () => {
+    const identity = createWorkspaceIdentity(displayName, emailOrHandle, accessKey);
+    if (!identity) {
+      setSetupError("Enter your name, email or handle, and a Sift key with at least 8 characters.");
+      return;
+    }
+    setStoredIdentity(identity);
+    setActiveIdentity(identity);
+    setDisplayName("");
+    setEmailOrHandle("");
+    setAccessKey("");
+    setSetupError("");
+    setEntryScreen("setup");
+    setSetupStep(0);
+    void listSessions(identity.clientId)
+      .then((response) => setRecentSessions(response.sessions))
+      .catch(() => setRecentSessions([]));
+  };
+
+  const handleGenerateAccessKey = () => {
+    setAccessKey(generateAccessKey());
+    setSetupError("");
+  };
+
+  const handleSwitchIdentity = () => {
+    clearStoredSessionId();
+    setStoredIdentity(null);
+    setActiveIdentity(null);
+    setDisplayName("");
+    setEmailOrHandle("");
+    setAccessKey("");
+    setSession(null);
+    setRecentSessions([]);
+    setEntryScreen("landing");
+    setSetupStep(0);
+    setSetupError("");
+    navigate("/", { replace: true });
   };
 
   const handleStartSession = async (payload: {
@@ -429,8 +484,8 @@ function AppBody() {
     helpMode: "coach_me" | "challenge_me" | "explain_directly";
     liveWebEnabled: boolean;
   }) => {
-    if (!effectiveDisplayName) {
-      setSetupError("Name missing. Go back and enter your name on the first screen before starting a session.");
+    if (!sessionClientId || !effectiveDisplayName) {
+      setSetupError("Enter your name and Sift key before starting a session.");
       return;
     }
     setSetupError("");
@@ -451,7 +506,7 @@ function AppBody() {
         apiKey: payload.apiKey.trim(),
         websiteUrl: payload.websiteUrl,
         setupContext: payload.setupContext,
-        clientId: effectiveClientId,
+        clientId: sessionClientId,
         displayName: effectiveDisplayName,
       });
       if (payload.apiKey.trim()) {
@@ -473,9 +528,9 @@ function AppBody() {
     clearStoredSessionId();
     setSession(null);
     setSetupError("");
-    if (effectiveDisplayName) {
+    if (sessionClientId) {
       setEntryScreen("setup");
-      setSetupStep(LAST_SETUP_STEP);
+      setSetupStep(0);
     } else {
       setEntryScreen("landing");
       setSetupStep(0);
@@ -488,9 +543,9 @@ function AppBody() {
     clearStoredSessionId();
     setSession(null);
     setSetupError("");
-    if (effectiveDisplayName) {
+    if (sessionClientId) {
       setEntryScreen("setup");
-      setSetupStep(LAST_SETUP_STEP);
+      setSetupStep(0);
     } else {
       setEntryScreen("landing");
       setSetupStep(0);
@@ -500,16 +555,14 @@ function AppBody() {
   };
 
   const handleOpenSession = async (sessionId: string) => {
-    const response = await getSession(sessionId);
+    if (!sessionClientId) {
+      setSetupError("Enter the matching Sift key before opening a saved session.");
+      return;
+    }
+    const response = await getSession(sessionId, sessionClientId);
     setStoredSessionId(sessionId);
     setSession(response);
     navigate("/");
-  };
-
-  const handleSignOut = async () => {
-    await logoutAuth();
-    setAuthUser(null);
-    setAuthError("");
   };
 
   if (loadingSession) {
@@ -536,6 +589,7 @@ function AppBody() {
                 providerOptions={providerOptions}
                 theme={theme}
                 onThemeChange={setTheme}
+                clientId={sessionClientId}
               />
             ) : session.sessionType === "expert" ? (
               <ExpertScreen
@@ -551,6 +605,7 @@ function AppBody() {
                 providerOptions={providerOptions}
                 theme={theme}
                 onThemeChange={setTheme}
+                clientId={sessionClientId}
               />
             ) : (
               <ChatScreen
@@ -566,33 +621,39 @@ function AppBody() {
                 providerOptions={providerOptions}
                 theme={theme}
                 onThemeChange={setTheme}
+                clientId={sessionClientId}
               />
             )
           ) : (
             entryScreen === "landing" ? (
               <LandingScreen
                 displayName={displayName}
+                emailOrHandle={emailOrHandle}
+                accessKey={accessKey}
                 onDisplayNameChange={setDisplayName}
-                onContinue={() => {
-                  setSetupError("");
-                  setEntryScreen("setup");
-                  setSetupStep(0);
-                }}
+                onEmailOrHandleChange={setEmailOrHandle}
+                onAccessKeyChange={setAccessKey}
+                onGenerateAccessKey={handleGenerateAccessKey}
+                onContinue={handleContinueWithIdentity}
                 theme={theme}
                 onThemeChange={setTheme}
-                authUser={authUser}
-                authProviders={authProviders}
-                authError={authError}
-                onSignOut={handleSignOut}
+                error={setupError}
               />
             ) : (
               <SetupWizard
                 providerOptions={providerOptions}
                 loading={starting}
                 error={setupError}
-                canStart={Boolean(effectiveDisplayName)}
+                canStart={Boolean(sessionClientId && effectiveDisplayName)}
                 step={setupStep}
                 draft={setupDraft}
+                theme={theme}
+                onThemeChange={setTheme}
+                identityLabel={activeIdentity?.emailOrHandle || ""}
+                identityKey={activeIdentity?.accessKey || ""}
+                recentSessions={recentSessions}
+                onOpenSession={handleOpenSession}
+                onSwitchIdentity={handleSwitchIdentity}
                 onStepChange={(nextStep) => {
                   setSetupError("");
                   setSetupStep(nextStep);
@@ -601,11 +662,7 @@ function AppBody() {
                   setSetupError("");
                   setSetupDraft(updater);
                 }}
-                onBack={() => {
-                  setSetupError("");
-                  setEntryScreen("landing");
-                  setSetupStep(0);
-                }}
+                onBack={handleSwitchIdentity}
                 onStart={handleStartSession}
               />
             )
@@ -619,8 +676,8 @@ function AppBody() {
             theme={theme}
             onThemeChange={setTheme}
             onExitSession={handleExitSession}
-            displayName={displayName}
-            clientId={effectiveClientId}
+            displayName={effectiveDisplayName}
+            clientId={sessionClientId}
           />
         }
       />
@@ -632,6 +689,7 @@ function AppBody() {
             onThemeChange={setTheme}
             onExitSession={handleExitSession}
             onResumeSession={handleOpenSession}
+            clientId={sessionClientId}
           />
         }
       />

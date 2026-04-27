@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { ThemePicker } from "../../app/ThemePicker";
 import type { DeckEvaluationReport, EvaluationReport, EvaluatorReportPayload, ThemeMode } from "../../app/types";
 import { continueEvaluator, getEvaluatorReport } from "../../lib/api/client";
 
@@ -9,6 +10,7 @@ type Props = {
   onThemeChange: (theme: ThemeMode) => void;
   onExitSession: () => void;
   onResumeSession: (sessionId: string) => Promise<void> | void;
+  clientId: string;
 };
 
 function joinBullets(items: string[]): string {
@@ -403,7 +405,7 @@ function DeckReportBody({ payload, report }: { payload: EvaluatorReportPayload; 
   );
 }
 
-export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onResumeSession }: Props) {
+export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onResumeSession, clientId }: Props) {
   const navigate = useNavigate();
   const { sessionId = "" } = useParams();
   const [payload, setPayload] = useState<EvaluatorReportPayload | null>(null);
@@ -416,7 +418,7 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onR
       setStatus("Session not found.");
       return;
     }
-    void getEvaluatorReport(sessionId)
+    void getEvaluatorReport(sessionId, clientId)
       .then((response) => {
         if (cancelled) {
           return;
@@ -433,16 +435,13 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onR
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [clientId, sessionId]);
 
   const report = payload?.evaluationReport ?? null;
   const deckReport = payload?.deckEvaluationReport ?? null;
   const evaluatorMode = payload?.evaluatorMode ?? "idea_review";
   const reportReady = Boolean(payload?.evaluationProgress?.completed);
   const canGoDeeper = Boolean(payload?.evaluationProgress?.canGoDeeper && evaluatorMode === "idea_review");
-
-  void theme;
-  void onThemeChange;
 
   const downloadMarkdown = useMemo(() => {
     if (!payload || !reportReady) {
@@ -483,6 +482,7 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onR
         </div>
         <div className="status-stack">
           <div className="header-actions">
+            <ThemePicker theme={theme} onChange={onThemeChange} />
             <button type="button" className="ghost-button compact" onClick={() => navigate("/")}>
               Back
             </button>
@@ -499,7 +499,7 @@ export function EvaluatorReportScreen({ theme, onThemeChange, onExitSession, onR
                     return;
                   }
                   setContinuing(true);
-                  void continueEvaluator(sessionId)
+                  void continueEvaluator(sessionId, clientId)
                     .then(async () => {
                       await onResumeSession(sessionId);
                       navigate("/");

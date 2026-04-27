@@ -23,6 +23,7 @@ type Props = {
   providerOptions: ProviderOption[];
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
+  clientId: string;
 };
 
 function defaultModelForProvider(providerOptions: ProviderOption[], provider: string, profile: ResponseProfile): string {
@@ -54,6 +55,7 @@ export function EvaluatorScreen({
   providerOptions,
   theme,
   onThemeChange,
+  clientId,
 }: Props) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -183,6 +185,7 @@ export function EvaluatorScreen({
     try {
       const response = await updateSessionRuntime({
         sessionId: session.sessionId,
+        clientId,
         provider: runtimeProvider,
         model: effectiveModel,
       });
@@ -268,6 +271,7 @@ export function EvaluatorScreen({
     try {
       const response = await answerEvaluator({
         sessionId: session.sessionId,
+        clientId,
         answer: submittedDraft,
         evaluatorMode,
         provider: runtimeProvider,

@@ -8,6 +8,8 @@ It is designed for founders, students, operators, and analysts who want more tha
 - `Evaluate`: score an idea or review a pitch deck with evidence-based feedback.
 - `Expert`: ask domain questions, compare startup concepts, and pre-screen opportunities with retrieved context.
 
+For controlled beta testing, Sift uses a lightweight workspace key instead of full authentication. A tester enters their name, email or handle, and Sift key; the same email/handle and key pair resumes only that tester's sessions.
+
 ## What Sift Can Do
 
 ### Ideate
@@ -161,6 +163,7 @@ The root directory is kept intentionally small: configuration, documentation, de
 Sift is local-first by default.
 
 - Sessions and analytics are stored in SQLite under `data/`.
+- Session access is scoped by the beta Sift key supplied at entry.
 - Uploads are stored on local disk under `data/session_uploads/`.
 - Generated retrieval indexes are stored under `data/`.
 

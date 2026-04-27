@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { ThemePicker } from "../../app/ThemePicker";
 import type { ThemeMode } from "../../app/types";
 import { getOutline, postAnalyticsEvent } from "../../lib/api/client";
 
@@ -24,7 +25,7 @@ export function OutlineScreen({ theme, onThemeChange, onExitSession, clientId, d
       setContent("Session not found.");
       return;
     }
-    void getOutline(sessionId)
+    void getOutline(sessionId, clientId)
       .then((response) => {
         if (cancelled) return;
         setContent(response.markdown);
@@ -48,10 +49,7 @@ export function OutlineScreen({ theme, onThemeChange, onExitSession, clientId, d
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
-
-  void theme;
-  void onThemeChange;
+  }, [clientId, displayName, sessionId]);
 
   const handleDownload = () => {
     const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
@@ -192,6 +190,7 @@ export function OutlineScreen({ theme, onThemeChange, onExitSession, clientId, d
         </div>
         <div className="status-stack">
           <div className="header-actions">
+            <ThemePicker theme={theme} onChange={onThemeChange} />
             <button type="button" className="ghost-button compact" onClick={() => navigate(-1)}>
               Back
             </button>

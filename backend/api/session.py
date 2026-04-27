@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 
 from backend.core import memory
 from backend.core.state import ConversationState
@@ -48,6 +48,7 @@ from backend.services.model_router import (
 from backend.services.prompting import DEFAULT_RESPONSE_PROFILE, build_personalized_opening, get_chip_suggestions
 from backend.services.refinement import empty_answer_record, refine_founder_input, update_answer_record
 from backend.services.retrieval import infer_retrieval_needs
+from backend.services.session_access import require_session_owner
 from backend.services.state_engine import coverage_items, last_assistant_message, next_gap
 from backend.services.uploads import list_active_uploads
 from backend.services.website_fetch import fetch_website_context
@@ -201,8 +202,11 @@ def _session_summary(row: dict) -> dict:
 
 
 @router.get("", response_model=SessionListResponse)
-async def list_user_sessions(clientId: str = Query(default="")) -> SessionListResponse:
-    sessions = memory.list_sessions_for_user(clientId, limit=30)
+async def list_user_sessions(
+    clientId: str = Query(default=""),
+    x_sift_client_id: str = Header(default="", alias="x-sift-client-id"),
+) -> SessionListResponse:
+    sessions = memory.list_sessions_for_user(x_sift_client_id or clientId, limit=30)
     return SessionListResponse(sessions=[_session_summary(item) for item in sessions])
 
 
@@ -463,10 +467,15 @@ async def start_session(payload: StartSessionRequest) -> StartSessionResponse:
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
-async def get_session(session_id: str) -> SessionResponse:
+async def get_session(
+    session_id: str,
+    clientId: str = Query(default=""),
+    x_sift_client_id: str = Header(default="", alias="x-sift-client-id"),
+) -> SessionResponse:
     session_row = memory.get_session(session_id)
     if session_row is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    require_session_owner(session_row, x_sift_client_id or clientId)
 
     turns = memory.get_session_turns(session_id)
     state = _session_state_from_storage(session_row, turns)
@@ -521,6 +530,7 @@ async def update_runtime(session_id: str, payload: SessionRuntimeUpdateRequest) 
     session_row = memory.get_session(session_id)
     if session_row is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    require_session_owner(session_row, payload.clientId)
 
     provider = normalize_provider(payload.provider)
     model = payload.model.strip() or default_model_for_provider(provider)

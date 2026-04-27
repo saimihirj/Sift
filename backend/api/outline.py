@@ -10,6 +10,7 @@ from backend.core.state import ConversationState
 from backend.schemas import OutlineRequest, OutlineResponse
 from backend.services.model_router import generate_text
 from backend.services.prompting import build_outline_prompt
+from backend.services.session_access import require_session_owner
 
 
 router = APIRouter(prefix="/api/outline", tags=["outline"])
@@ -48,6 +49,7 @@ async def create_outline(payload: OutlineRequest) -> OutlineResponse:
     session_row = memory.get_session(payload.sessionId)
     if session_row is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    require_session_owner(session_row, payload.clientId)
 
     turns = memory.get_session_turns(payload.sessionId)
     history = [

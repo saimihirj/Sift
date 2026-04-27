@@ -32,6 +32,7 @@ type Props = {
   providerOptions: ProviderOption[];
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
+  clientId: string;
 };
 
 type MobilePane = "chat" | "coverage";
@@ -203,6 +204,7 @@ export function ChatScreen({
   providerOptions,
   theme,
   onThemeChange,
+  clientId,
 }: Props) {
   const navigate = useNavigate();
   const [draft, setDraft] = useState("");
@@ -279,6 +281,7 @@ export function ChatScreen({
     try {
       const response = await updateSessionRuntime({
         sessionId: session.sessionId,
+        clientId,
         provider: runtimeProvider,
         model: effectiveModel,
       });
@@ -340,6 +343,7 @@ export function ChatScreen({
     try {
       await streamChat({
         sessionId: session.sessionId,
+        clientId,
         message,
         responseProfile: session.responseProfile,
         provider: runtimeProvider,

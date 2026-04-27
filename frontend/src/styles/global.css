@@ -499,22 +499,6 @@ a {
   overflow-wrap: anywhere;
 }
 
-.auth-summary-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 22px;
-  background: var(--panel-muted);
-  border: 1px solid var(--line);
-}
-
-.auth-summary-card p {
-  margin: 4px 0 0;
-  color: var(--ink-soft);
-}
-
 .workflow-row,
 .budget-row,
 .score-grid {
@@ -567,6 +551,10 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.onboarding-meta {
+  flex-wrap: wrap;
 }
 
 .setup-alert {
@@ -635,6 +623,24 @@ a {
   line-height: 1.25;
 }
 
+.setup-session-list {
+  max-height: 220px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.identity-key-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.setup-key-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .brand-lockup {
   align-items: flex-start;
 }
@@ -660,6 +666,24 @@ a {
   max-width: 100%;
 }
 
+.header-actions .theme-picker,
+.onboarding-meta .theme-picker {
+  display: flex;
+  gap: 4px;
+}
+
+.header-actions .theme-option,
+.onboarding-meta .theme-option {
+  min-height: auto;
+  padding: 7px 9px;
+  border-radius: 999px;
+}
+
+.header-actions .theme-option-note,
+.onboarding-meta .theme-option-note {
+  display: none;
+}
+
 .brand-dot,
 .dot {
   width: 10px;
@@ -671,6 +695,12 @@ a {
 .step-dots {
   display: flex;
   gap: 8px;
+}
+
+.step-dots-clickable .dot {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
 
 .dot {
@@ -750,7 +780,6 @@ a {
 .onboarding-copy p,
 .pane-header p,
 .muted-copy,
-.auth-summary-card p,
 .admin-row p,
 .upload-list span,
 .attachment-meta,
@@ -3394,7 +3423,7 @@ a:focus-visible,
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 20px;
+  gap: 14px;
 }
 
 .entry-pro-head {
