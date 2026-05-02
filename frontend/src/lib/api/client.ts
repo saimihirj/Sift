@@ -18,10 +18,6 @@ const API_BASE = (() => {
   if (explicit) {
     return explicit;
   }
-  const { protocol, hostname, port } = window.location;
-  if (port.startsWith("517")) {
-    return `${protocol}//${hostname}:8000`;
-  }
   return "";
 })();
 

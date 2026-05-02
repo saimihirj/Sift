@@ -14,6 +14,7 @@ type Props = {
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
   error: string;
+  authProviders?: Array<{ key: string; label: string; configured: boolean }>;
 };
 
 // ─── Mode Glyphs ──────────────────────────────────────────────────────────────
@@ -105,6 +106,7 @@ export function LandingScreen({
   theme,
   onThemeChange,
   error,
+  authProviders = [],
 }: Props) {
   const [hoveredMode, setHoveredMode] = useState<string | null>(null);
   const [feedbackCopied, setFeedbackCopied] = useState(false);
@@ -210,6 +212,24 @@ export function LandingScreen({
             <p className="entry-pro-eyebrow">Workspace</p>
             <h2 className="entry-pro-title">Start</h2>
           </div>
+
+          {authProviders.filter((p) => p.configured).length > 0 && (
+            <div className="identity-oauth-providers" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
+              {authProviders.filter((p) => p.configured).map((provider) => (
+                <a
+                  key={provider.key}
+                  href={`/api/auth/login/${provider.key}`}
+                  className="solid-button pro-continue-btn"
+                  style={{ textDecoration: "none", textAlign: "center", background: "var(--layer-surface-hover)", color: "var(--text-primary)" }}
+                >
+                  Sign in with {provider.label}
+                </a>
+              ))}
+              <div style={{ textAlign: "center", margin: "0.5rem 0", color: "var(--text-muted)", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Or use local identity
+              </div>
+            </div>
+          )}
 
           <label className="identity-field">
             <span className="rail-label">Your name</span>

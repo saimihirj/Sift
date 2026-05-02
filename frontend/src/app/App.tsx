@@ -255,6 +255,9 @@ function AppBody() {
     }
   }, [activeIdentity, session]);
 
+  const [authProviders, setAuthProviders] = useState<Array<{ key: string; label: string; configured: boolean }>>([]);
+  const [authError, setAuthError] = useState("");
+
   useEffect(() => {
     let cancelled = false;
     void getAuthSession()
@@ -263,10 +266,25 @@ function AppBody() {
           return;
         }
         setAdminEnabled(Boolean(response.adminMode));
+        setAuthProviders(response.providers || []);
+        if (response.error) {
+          setAuthError(response.error);
+        }
+        if (response.user && response.user.clientId) {
+          const identity: WorkspaceIdentity = {
+            clientId: response.user.clientId,
+            displayName: response.user.displayName,
+            emailOrHandle: response.user.email,
+            accessKey: "oauth-session",
+          };
+          setStoredIdentity(identity);
+          setActiveIdentity(identity);
+        }
       })
       .catch(() => {
         if (!cancelled) {
           setAdminEnabled(false);
+          setAuthProviders([]);
         }
       });
     return () => {
@@ -637,7 +655,8 @@ function AppBody() {
                 onContinue={handleContinueWithIdentity}
                 theme={theme}
                 onThemeChange={setTheme}
-                error={setupError}
+                error={setupError || authError}
+                authProviders={authProviders}
               />
             ) : (
               <SetupWizard
