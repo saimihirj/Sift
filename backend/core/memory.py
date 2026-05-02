@@ -93,14 +93,24 @@ CREATE INDEX IF NOT EXISTS idx_events_session  ON analytics_events(session_id);
 """
 
 
-def _raw_conn() -> sqlite3.Connection:
+def _raw_conn():
+    db_url = os.environ.get("SIFT_DATABASE_URL", "").strip()
+    if db_url:
+        try:
+            import libsql_experimental as db_driver  # type: ignore
+            con = db_driver.connect(db_url, auth_token=os.environ.get("SIFT_DATABASE_TOKEN", ""))
+            con.row_factory = db_driver.Row
+            return con
+        except ImportError:
+            pass
+
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(str(DB_PATH))
     con.row_factory = sqlite3.Row
     return con
 
 
-def _conn() -> sqlite3.Connection:
+def _conn():
     global _DB_READY
     if not _DB_READY:
         init_db()
