@@ -98,6 +98,9 @@ ollama pull qwen3:8b
 ```
 
 Sift will try to start Ollama automatically when running in local model mode.
+For Hugging Face/open-source models served through vLLM, TGI, LM Studio, or llama.cpp, set `SIFT_MODEL_PROVIDER=local_openai` and point `LOCAL_OPENAI_BASE_URL` at that server.
+
+Generated workspace keys are compact `SF...` keys. New keys store a short hashed workspace id instead of repeating the user's email/handle and raw key in session and analytics records; older `SIFT-...` keys still open their existing sessions.
 
 ## Main Commands
 
@@ -121,6 +124,7 @@ Development mode uses:
 Local:
 
 - `ollama`
+- `local_openai`
 
 Hosted:
 
@@ -130,6 +134,7 @@ Hosted:
 - `openrouter`
 - `anthropic`
 - `gemini`
+- `vertex`
 
 Server-side provider keys can be configured for hosted demos so visitors do not need to bring their own key.
 
@@ -178,6 +183,10 @@ Recommended full-stack path:
 - Render or another long-running Python host.
 - Persistent disk for SQLite and uploads.
 - Server-side provider keys for public demos.
+
+Google Cloud serverless deployment is now supported with Cloud Run, Firestore,
+Cloud Storage, and BigQuery. See
+[Google Cloud Serverless Deployment](docs/GCP_SERVERLESS_DEPLOYMENT.md).
 
 Frontend-only Vercel deployment is also supported when paired with a hosted backend:
 

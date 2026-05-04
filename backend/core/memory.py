@@ -1,6 +1,7 @@
 """Session and analytics persistence for Sift.
 
-Uses SQLite (stdlib — no extra install). Stores:
+Uses SQLite locally by default, and can use Firestore on Google Cloud.
+Stores:
   sessions         — founder profile + coverage state per user
   turns            — every conversation message
   analytics_events — page views, session starts, chat completions, uploads, etc.
@@ -18,11 +19,16 @@ import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
+
+from backend.core import bigquery_analytics
 
 
 DATA_DIR = Path(os.environ.get("SIFT_DATA_DIR", "data"))
 DB_PATH = DATA_DIR / "sessions.db"
 EXPORTS_DIR = DATA_DIR / "exports"
+PERSISTENCE_BACKEND = os.environ.get("SIFT_PERSISTENCE_BACKEND", os.environ.get("SIFT_DB_BACKEND", "sqlite")).strip().lower()
+FIRESTORE_COLLECTION_PREFIX = os.environ.get("SIFT_FIRESTORE_COLLECTION_PREFIX", "sift").strip() or "sift"
 _DB_READY = False
 USEFUL_ADMIN_EVENT_TYPES = {
     "auth_login",
@@ -93,7 +99,106 @@ CREATE INDEX IF NOT EXISTS idx_events_session  ON analytics_events(session_id);
 """
 
 
+def _use_firestore() -> bool:
+    return PERSISTENCE_BACKEND in {"firestore", "gcp", "google_firestore"}
+
+
+def _project_id() -> str:
+    return (
+        os.environ.get("SIFT_GCP_PROJECT_ID")
+        or os.environ.get("GOOGLE_CLOUD_PROJECT")
+        or os.environ.get("GCP_PROJECT")
+        or ""
+    ).strip()
+
+
+@lru_cache(maxsize=1)
+def _firestore_client():
+    try:
+        from google.cloud import firestore  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError(
+            "SIFT_PERSISTENCE_BACKEND=firestore requires google-cloud-firestore. "
+            "Install production requirements before starting the service."
+        ) from exc
+
+    project = _project_id() or None
+    database = os.environ.get("SIFT_FIRESTORE_DATABASE", "").strip()
+    if database:
+        return firestore.Client(project=project, database=database)
+    return firestore.Client(project=project)
+
+
+def _firestore_sessions():
+    return _firestore_client().collection(f"{FIRESTORE_COLLECTION_PREFIX}_sessions")
+
+
+def _firestore_events():
+    return _firestore_client().collection(f"{FIRESTORE_COLLECTION_PREFIX}_analytics_events")
+
+
+def _session_turn_count(session_id: str) -> int:
+    if not session_id:
+        return 0
+    return sum(1 for _ in _firestore_sessions().document(session_id).collection("turns").stream())
+
+
+def _session_defaults(row: dict[str, Any]) -> dict[str, Any]:
+    defaults = {
+        "user_identifier": "",
+        "display_name": "",
+        "session_type": "mentor",
+        "founder_type": "unknown",
+        "sector": "unknown",
+        "stage": "unknown",
+        "mode": "think_it_through",
+        "geography": "unspecified",
+        "question_budget": 15,
+        "provider": "ollama",
+        "model": "",
+        "website_url": "",
+        "company_name": "",
+        "coverage_json": "{}",
+        "facts_json": "{}",
+        "metadata_json": "{}",
+        "created_at": "",
+        "last_active": "",
+        "turn_count": 0,
+    }
+    return {**defaults, **row}
+
+
+def _session_from_firestore(doc, *, include_turn_count: bool = True) -> dict[str, Any] | None:
+    if not doc.exists:
+        return None
+    row = dict(doc.to_dict() or {})
+    row["id"] = doc.id
+    if include_turn_count:
+        row["turn_count"] = _session_turn_count(doc.id)
+    return _session_defaults(row)
+
+
+def _event_from_firestore(doc) -> dict[str, Any]:
+    item = dict(doc.to_dict() or {})
+    metadata = item.pop("metadata", None)
+    raw_metadata = item.pop("metadata_json", "{}") or "{}"
+    if isinstance(metadata, dict):
+        item["metadata"] = metadata
+    else:
+        item["metadata"] = _load_json(raw_metadata, {})
+    return item
+
+
+def _normalize_turn_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    return json.dumps(content, ensure_ascii=True)
+
+
 def _raw_conn():
+    if _use_firestore():
+        raise RuntimeError("SQLite connection requested while Firestore persistence is active.")
+
     db_url = os.environ.get("SIFT_DATABASE_URL", "").strip()
     if db_url:
         try:
@@ -145,6 +250,11 @@ def _load_json(raw: str | None, default):
 def init_db() -> None:
     """Create tables if they don't exist. Safe to call on every startup."""
     global _DB_READY
+    if _use_firestore():
+        _firestore_client()
+        _DB_READY = True
+        return
+
     with _raw_conn() as con:
         con.executescript(_SCHEMA)
 
@@ -186,6 +296,31 @@ def create_session(
     """Insert a new session row. Returns the new session UUID."""
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+    row = {
+        "id": session_id,
+        "user_identifier": user_identifier.strip().lower() if user_identifier else "",
+        "display_name": (display_name or "").strip(),
+        "session_type": session_type or "mentor",
+        "founder_type": getattr(state, "founder_type", "unknown"),
+        "sector": getattr(state, "sector", "unknown"),
+        "stage": getattr(state, "stage", "unknown"),
+        "mode": getattr(state, "mode", "think_it_through"),
+        "geography": getattr(state, "geography", "unspecified") or "unspecified",
+        "question_budget": question_budget or 15,
+        "provider": provider or "ollama",
+        "model": model or "",
+        "website_url": (website_url or "").strip(),
+        "company_name": getattr(state, "company_name", ""),
+        "coverage_json": json.dumps(getattr(state, "coverage", {})),
+        "facts_json": json.dumps(getattr(state, "facts", {})),
+        "metadata_json": json.dumps(metadata or {}),
+        "created_at": now,
+        "last_active": now,
+    }
+    if _use_firestore():
+        _firestore_sessions().document(session_id).set(row)
+        return session_id
+
     with _conn() as con:
         con.execute(
             """INSERT INTO sessions
@@ -194,25 +329,25 @@ def create_session(
                 metadata_json, created_at, last_active)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                session_id,
-                user_identifier.strip().lower() if user_identifier else "",
-                (display_name or "").strip(),
-                session_type or "mentor",
-                getattr(state, "founder_type", "unknown"),
-                getattr(state, "sector", "unknown"),
-                getattr(state, "stage", "unknown"),
-                getattr(state, "mode", "think_it_through"),
-                getattr(state, "geography", "unspecified") or "unspecified",
-                question_budget or 15,
-                provider or "ollama",
-                model or "",
-                (website_url or "").strip(),
-                getattr(state, "company_name", ""),
-                json.dumps(getattr(state, "coverage", {})),
-                json.dumps(getattr(state, "facts", {})),
-                json.dumps(metadata or {}),
-                now,
-                now,
+                row["id"],
+                row["user_identifier"],
+                row["display_name"],
+                row["session_type"],
+                row["founder_type"],
+                row["sector"],
+                row["stage"],
+                row["mode"],
+                row["geography"],
+                row["question_budget"],
+                row["provider"],
+                row["model"],
+                row["website_url"],
+                row["company_name"],
+                row["coverage_json"],
+                row["facts_json"],
+                row["metadata_json"],
+                row["created_at"],
+                row["last_active"],
             ),
         )
     return session_id
@@ -223,6 +358,15 @@ def load_session(user_identifier: str) -> dict | None:
     if not user_identifier:
         return None
     key = user_identifier.strip().lower()
+    if _use_firestore():
+        rows = [
+            _session_from_firestore(doc)
+            for doc in _firestore_sessions().where("user_identifier", "==", key).stream()
+        ]
+        rows = [row for row in rows if row is not None]
+        rows.sort(key=lambda item: item.get("last_active", ""), reverse=True)
+        return rows[0] if rows else None
+
     with _conn() as con:
         row = con.execute(
             """SELECT s.*, COUNT(t.id) AS turn_count
@@ -241,6 +385,9 @@ def get_session(session_id: str) -> dict | None:
     """Return a session row by its UUID."""
     if not session_id:
         return None
+    if _use_firestore():
+        return _session_from_firestore(_firestore_sessions().document(session_id).get())
+
     with _conn() as con:
         row = con.execute(
             """SELECT s.*, COUNT(t.id) AS turn_count
@@ -258,6 +405,21 @@ def update_session(session_id: str, state) -> None:
     """Sync coverage, facts, company_name and last_active back to the DB."""
     if not session_id:
         return
+    payload = {
+        "coverage_json": json.dumps(getattr(state, "coverage", {})),
+        "facts_json": json.dumps(getattr(state, "facts", {})),
+        "company_name": getattr(state, "company_name", ""),
+        "sector": getattr(state, "sector", "unknown"),
+        "stage": getattr(state, "stage", "unknown"),
+        "founder_type": getattr(state, "founder_type", "unknown"),
+        "mode": getattr(state, "mode", "think_it_through"),
+        "geography": getattr(state, "geography", "unspecified") or "unspecified",
+        "last_active": datetime.now(timezone.utc).isoformat(),
+    }
+    if _use_firestore():
+        _firestore_sessions().document(session_id).set(payload, merge=True)
+        return
+
     with _conn() as con:
         con.execute(
             """UPDATE sessions SET
@@ -272,15 +434,15 @@ def update_session(session_id: str, state) -> None:
                last_active   = ?
                WHERE id = ?""",
             (
-                json.dumps(getattr(state, "coverage", {})),
-                json.dumps(getattr(state, "facts", {})),
-                getattr(state, "company_name", ""),
-                getattr(state, "sector", "unknown"),
-                getattr(state, "stage", "unknown"),
-                getattr(state, "founder_type", "unknown"),
-                getattr(state, "mode", "think_it_through"),
-                getattr(state, "geography", "unspecified") or "unspecified",
-                datetime.now(timezone.utc).isoformat(),
+                payload["coverage_json"],
+                payload["facts_json"],
+                payload["company_name"],
+                payload["sector"],
+                payload["stage"],
+                payload["founder_type"],
+                payload["mode"],
+                payload["geography"],
+                payload["last_active"],
                 session_id,
             ),
         )
@@ -290,6 +452,15 @@ def update_session_runtime(session_id: str, provider: str, model: str) -> None:
     """Persist non-secret runtime selection for a session."""
     if not session_id:
         return
+    payload = {
+        "provider": provider or "ollama",
+        "model": model or "",
+        "last_active": datetime.now(timezone.utc).isoformat(),
+    }
+    if _use_firestore():
+        _firestore_sessions().document(session_id).set(payload, merge=True)
+        return
+
     with _conn() as con:
         con.execute(
             """UPDATE sessions SET
@@ -298,9 +469,9 @@ def update_session_runtime(session_id: str, provider: str, model: str) -> None:
                last_active = ?
                WHERE id = ?""",
             (
-                provider or "ollama",
-                model or "",
-                datetime.now(timezone.utc).isoformat(),
+                payload["provider"],
+                payload["model"],
+                payload["last_active"],
                 session_id,
             ),
         )
@@ -315,21 +486,44 @@ def get_session_metadata(session_row: dict | None) -> dict:
 def update_session_metadata(session_id: str, metadata: dict) -> None:
     if not session_id:
         return
+    payload = {
+        "metadata_json": json.dumps(metadata or {}),
+        "last_active": datetime.now(timezone.utc).isoformat(),
+    }
+    if _use_firestore():
+        _firestore_sessions().document(session_id).set(payload, merge=True)
+        return
+
     with _conn() as con:
         con.execute(
             """UPDATE sessions SET metadata_json = ?, last_active = ? WHERE id = ?""",
             (
-                json.dumps(metadata or {}),
-                datetime.now(timezone.utc).isoformat(),
+                payload["metadata_json"],
+                payload["last_active"],
                 session_id,
             ),
         )
 
 
-def store_turn(session_id: str, role: str, content: str, metadata: dict | None = None) -> None:
+def store_turn(session_id: str, role: str, content: Any, metadata: dict | None = None) -> None:
     """Append one conversation turn."""
     if not session_id:
         return
+    timestamp = datetime.now(timezone.utc).isoformat()
+    content_text = _normalize_turn_content(content)
+    if _use_firestore():
+        _firestore_sessions().document(session_id).collection("turns").document(str(uuid.uuid4())).set(
+            {
+                "session_id": session_id,
+                "role": role,
+                "content": content_text,
+                "metadata_json": json.dumps(metadata or {}),
+                "timestamp": timestamp,
+            }
+        )
+        _firestore_sessions().document(session_id).set({"last_active": timestamp}, merge=True)
+        return
+
     with _conn() as con:
         con.execute(
             """INSERT INTO turns (session_id, role, content, metadata_json, timestamp)
@@ -337,15 +531,32 @@ def store_turn(session_id: str, role: str, content: str, metadata: dict | None =
             (
                 session_id,
                 role,
-                content,
+                content_text,
                 json.dumps(metadata or {}),
-                datetime.now(timezone.utc).isoformat(),
+                timestamp,
             ),
         )
 
 
 def get_session_turns(session_id: str) -> list[dict]:
     """Return all turns for a session, ordered by insertion."""
+    if _use_firestore():
+        docs = _firestore_sessions().document(session_id).collection("turns").order_by("timestamp").stream()
+        result = []
+        for doc in docs:
+            item = dict(doc.to_dict() or {})
+            raw_metadata = item.pop("metadata_json", "{}") or "{}"
+            item["metadata"] = _load_json(raw_metadata, {})
+            result.append(
+                {
+                    "role": item.get("role", ""),
+                    "content": item.get("content", ""),
+                    "timestamp": item.get("timestamp", ""),
+                    "metadata": item["metadata"],
+                }
+            )
+        return result
+
     with _conn() as con:
         rows = con.execute(
             """SELECT role, content, metadata_json, timestamp
@@ -368,6 +579,16 @@ def get_session_turns(session_id: str) -> list[dict]:
 
 def list_sessions(limit: int = 100) -> list[dict]:
     """Return recent sessions with turn counts for the admin dashboard."""
+    if _use_firestore():
+        try:
+            docs = _firestore_sessions().order_by("last_active", direction="DESCENDING").limit(limit).stream()
+        except Exception:
+            docs = _firestore_sessions().stream()
+        rows = [_session_from_firestore(doc) for doc in docs]
+        rows = [row for row in rows if row is not None]
+        rows.sort(key=lambda item: item.get("last_active", ""), reverse=True)
+        return rows[:limit]
+
     with _conn() as con:
         rows = con.execute(
             """SELECT
@@ -403,6 +624,15 @@ def list_sessions_for_user(user_identifier: str, limit: int = 50) -> list[dict]:
     key = (user_identifier or "").strip().lower()
     if not key:
         return []
+    if _use_firestore():
+        rows = [
+            _session_from_firestore(doc)
+            for doc in _firestore_sessions().where("user_identifier", "==", key).stream()
+        ]
+        rows = [row for row in rows if row is not None]
+        rows.sort(key=lambda item: item.get("last_active", ""), reverse=True)
+        return rows[:limit]
+
     with _conn() as con:
         rows = con.execute(
             """SELECT
@@ -439,6 +669,32 @@ def clear_history_for_user(user_identifier: str) -> dict[str, int]:
     key = (user_identifier or "").strip().lower()
     if not key:
         return {"sessions": 0, "turns": 0, "events": 0}
+
+    if _use_firestore():
+        session_docs = list(_firestore_sessions().where("user_identifier", "==", key).stream())
+        session_ids = [doc.id for doc in session_docs]
+        turns_deleted = 0
+        for doc in session_docs:
+            turns = list(doc.reference.collection("turns").stream())
+            for turn in turns:
+                turn.reference.delete()
+            turns_deleted += len(turns)
+            doc.reference.delete()
+
+        event_refs: dict[str, Any] = {}
+        for doc in _firestore_events().where("client_id", "==", key).stream():
+            event_refs[doc.id] = doc.reference
+        for session_id in session_ids:
+            for doc in _firestore_events().where("session_id", "==", session_id).stream():
+                event_refs[doc.id] = doc.reference
+        for ref in event_refs.values():
+            ref.delete()
+
+        return {
+            "sessions": len(session_docs),
+            "turns": turns_deleted,
+            "events": len(event_refs),
+        }
 
     with _conn() as con:
         session_rows = con.execute(
@@ -489,24 +745,79 @@ def track_event(
         return
     payload = dict(metadata or {})
     payload.setdefault("appBuild", _current_app_build())
+    created_at = datetime.now(timezone.utc).isoformat()
+    normalized_client_id = (client_id or "").strip().lower()
+    normalized_display_name = (display_name or "").strip()
+
+    if _use_firestore():
+        _firestore_events().document(str(uuid.uuid4())).set(
+            {
+                "client_id": normalized_client_id,
+                "session_id": session_id,
+                "display_name": normalized_display_name,
+                "event_type": event_type,
+                "pathname": pathname,
+                "metadata_json": json.dumps(payload),
+                "metadata": payload,
+                "created_at": created_at,
+            }
+        )
+        bigquery_analytics.append_event(
+            event_type=event_type,
+            client_id=normalized_client_id,
+            session_id=session_id,
+            display_name=normalized_display_name,
+            pathname=pathname,
+            metadata=payload,
+            created_at=created_at,
+        )
+        return
+
     with _conn() as con:
         con.execute(
             """INSERT INTO analytics_events
                (client_id, session_id, display_name, event_type, pathname, metadata_json, created_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (
-                (client_id or "").strip().lower(),
+                normalized_client_id,
                 session_id,
-                (display_name or "").strip(),
+                normalized_display_name,
                 event_type,
                 pathname,
                 json.dumps(payload),
-                datetime.now(timezone.utc).isoformat(),
+                created_at,
             ),
         )
+    bigquery_analytics.append_event(
+        event_type=event_type,
+        client_id=normalized_client_id,
+        session_id=session_id,
+        display_name=normalized_display_name,
+        pathname=pathname,
+        metadata=payload,
+        created_at=created_at,
+    )
 
 def list_recent_events(limit: int = 100, *, current_build_only: bool = False, useful_only: bool = False) -> list[dict]:
     """Return the most recent analytics events."""
+    if _use_firestore():
+        try:
+            docs = _firestore_events().order_by("created_at", direction="DESCENDING").limit(max(limit * 4, limit)).stream()
+        except Exception:
+            docs = _firestore_events().stream()
+
+        events = []
+        current_build = _current_app_build()
+        for doc in docs:
+            item = _event_from_firestore(doc)
+            if useful_only and item.get("event_type") not in USEFUL_ADMIN_EVENT_TYPES:
+                continue
+            if current_build_only and item.get("metadata", {}).get("appBuild") != current_build:
+                continue
+            events.append(item)
+        events.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+        return events[:limit]
+
     with _conn() as con:
         rows = con.execute(
             """SELECT client_id, session_id, display_name, event_type, pathname, metadata_json, created_at
@@ -579,20 +890,40 @@ def get_admin_overview() -> dict:
         except ValueError:
             continue
 
-    with _conn() as con:
-        total_sessions = con.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
-        total_turns = con.execute("SELECT COUNT(*) FROM turns").fetchone()[0]
-        sessions_last_7_days = con.execute(
-            "SELECT COUNT(*) FROM sessions WHERE last_active >= datetime('now', '-7 days')"
-        ).fetchone()[0]
-        evaluator_sessions = con.execute(
-            "SELECT COUNT(*) FROM sessions WHERE session_type = 'evaluator'"
-        ).fetchone()[0]
-        provider_breakdown = dict(
-            con.execute(
-                "SELECT provider, COUNT(*) FROM sessions GROUP BY provider"
-            ).fetchall()
-        )
+    if _use_firestore():
+        session_rows = list_sessions(limit=10000)
+        total_sessions = len(session_rows)
+        total_turns = sum(int(row.get("turn_count", 0) or 0) for row in session_rows)
+        cutoff_7_days = datetime.now(timezone.utc).timestamp() - (86400 * 7)
+        sessions_last_7_days = 0
+        evaluator_sessions = 0
+        provider_breakdown: dict[str, int] = {}
+        for row in session_rows:
+            if row.get("session_type") == "evaluator":
+                evaluator_sessions += 1
+            provider = row.get("provider", "unknown") or "unknown"
+            provider_breakdown[provider] = provider_breakdown.get(provider, 0) + 1
+            try:
+                last_active = datetime.fromisoformat((row.get("last_active") or "").replace("Z", "+00:00"))
+                if last_active.timestamp() >= cutoff_7_days:
+                    sessions_last_7_days += 1
+            except ValueError:
+                continue
+    else:
+        with _conn() as con:
+            total_sessions = con.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+            total_turns = con.execute("SELECT COUNT(*) FROM turns").fetchone()[0]
+            sessions_last_7_days = con.execute(
+                "SELECT COUNT(*) FROM sessions WHERE last_active >= datetime('now', '-7 days')"
+            ).fetchone()[0]
+            evaluator_sessions = con.execute(
+                "SELECT COUNT(*) FROM sessions WHERE session_type = 'evaluator'"
+            ).fetchone()[0]
+            provider_breakdown = dict(
+                con.execute(
+                    "SELECT provider, COUNT(*) FROM sessions GROUP BY provider"
+                ).fetchall()
+            )
 
     evaluator_completions = filtered_event_breakdown.get("evaluator_completed", 0)
     average_success_score = _average_event_metric(
@@ -644,6 +975,39 @@ def get_admin_overview() -> dict:
 
 def get_stats() -> dict:
     """Aggregate stats for admin dashboard."""
+    if _use_firestore():
+        session_rows = list_sessions(limit=10000)
+        total_sessions = len(session_rows)
+        total_turns = sum(int(row.get("turn_count", 0) or 0) for row in session_rows)
+        avg_turns = (total_turns / total_sessions) if total_sessions else 0
+        by_sector: dict[str, int] = {}
+        by_stage: dict[str, int] = {}
+        by_type: dict[str, int] = {}
+        cutoff_7_days = datetime.now(timezone.utc).timestamp() - (86400 * 7)
+        recent = 0
+        for row in session_rows:
+            sector = row.get("sector", "unknown")
+            stage = row.get("stage", "unknown")
+            founder_type = row.get("founder_type", "unknown")
+            by_sector[sector] = by_sector.get(sector, 0) + 1
+            by_stage[stage] = by_stage.get(stage, 0) + 1
+            by_type[founder_type] = by_type.get(founder_type, 0) + 1
+            try:
+                last_active = datetime.fromisoformat((row.get("last_active") or "").replace("Z", "+00:00"))
+                if last_active.timestamp() >= cutoff_7_days:
+                    recent += 1
+            except ValueError:
+                continue
+        return {
+            "total_sessions": total_sessions,
+            "total_turns": total_turns,
+            "avg_turns_per_session": round(avg_turns, 1),
+            "sessions_last_7_days": recent,
+            "by_sector": by_sector,
+            "by_stage": by_stage,
+            "by_founder_type": by_type,
+        }
+
     with _conn() as con:
         total_sessions = con.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
         total_turns = con.execute("SELECT COUNT(*) FROM turns").fetchone()[0]
@@ -692,3 +1056,12 @@ def export_jsonl(filename: str | None = None) -> tuple[str, int]:
                 written += 1
 
     return str(out_path), written
+
+
+def persistence_status() -> dict[str, Any]:
+    return {
+        "backend": "firestore" if _use_firestore() else "sqlite",
+        "dataDir": str(DATA_DIR),
+        "firestoreCollectionPrefix": FIRESTORE_COLLECTION_PREFIX if _use_firestore() else "",
+        "bigQuery": bigquery_analytics.status(),
+    }

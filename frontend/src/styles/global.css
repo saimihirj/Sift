@@ -744,6 +744,7 @@ a {
 .choice-card,
 .chip-card,
 .runtime-preset,
+.model-preset-chip,
 .segment,
 .chip-button,
 .ghost-button,
@@ -838,6 +839,47 @@ a {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.model-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.compact-model-preset-grid {
+  grid-template-columns: 1fr;
+}
+
+.model-preset-chip {
+  display: grid;
+  gap: 4px;
+  min-height: 54px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background 180ms var(--ease-fluid),
+    color 180ms var(--ease-fluid),
+    border-color 180ms var(--ease-fluid),
+    transform 180ms var(--ease-fluid),
+    box-shadow 180ms var(--ease-fluid);
+}
+
+.model-preset-chip span {
+  font-weight: 700;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.model-preset-chip small {
+  color: var(--ink-soft);
+  line-height: 1.25;
 }
 
 .runtime-preset {
@@ -950,6 +992,7 @@ a {
 .choice-card,
 .chip-card,
 .runtime-preset,
+.model-preset-chip,
 .segment,
 .chip-button,
 .ghost-button,
@@ -1034,6 +1077,7 @@ a {
 
 .choice-card.active,
 .chip-card.active,
+.model-preset-chip.active,
 .segment.active,
 .chip-button:hover,
 .solid-button,
@@ -1047,6 +1091,7 @@ a {
 
 .choice-card:hover,
 .chip-card:hover,
+.model-preset-chip:hover,
 .segment:hover,
 .ghost-button:hover,
 .chip-button:hover,
@@ -1061,6 +1106,7 @@ a {
 
 .choice-card.active,
 .chip-card.active,
+.model-preset-chip.active,
 .segment.active,
 .session-card.active {
   transform: translateY(-1px);
@@ -1069,6 +1115,7 @@ a {
 
 .choice-card.active small,
 .chip-card.active small,
+.model-preset-chip.active small,
 .runtime-preset.active span,
 .runtime-preset.active strong {
   color: currentColor;
@@ -2648,7 +2695,8 @@ a:focus-visible,
   .score-grid.dense,
   .runtime-provider-grid,
   .runtime-recommendation-card,
-  .runtime-preset-row {
+  .runtime-preset-row,
+  .model-preset-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2900,11 +2948,21 @@ a:focus-visible,
   min-height: 0;
 }
 
+.expert-chat-panel.starter-mode {
+  grid-template-rows: minmax(0, auto) auto;
+  align-content: start;
+  overflow: auto;
+}
+
 .expert-conversation-stack {
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
+}
+
+.expert-chat-panel.starter-mode .expert-conversation-stack {
+  grid-template-rows: auto;
 }
 
 .expert-starter-card {
@@ -2913,13 +2971,14 @@ a:focus-visible,
 
 .expert-starter-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 8px;
 }
 
 .expert-starter-tile {
   display: grid;
   gap: 6px;
+  min-height: 112px;
   text-align: left;
   padding: 12px;
   border-radius: 18px;

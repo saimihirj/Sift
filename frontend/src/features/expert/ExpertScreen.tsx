@@ -184,7 +184,7 @@ export function ExpertScreen({
   const [runtimeOpen, setRuntimeOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
-  const [sourcesOpen, setSourcesOpen] = useState(true);
+  const [sourcesOpen, setSourcesOpen] = useState(() => session.sources.length > 0);
   const [applyingRuntime, setApplyingRuntime] = useState(false);
   const [runtimeProvider, setRuntimeProvider] = useState<SessionPayload["provider"]>(session.provider);
   const [runtimeModel, setRuntimeModel] = useState(session.model);
@@ -200,7 +200,14 @@ export function ExpertScreen({
     setRuntimeOpen(false);
     setThemeOpen(false);
     setFilesOpen(false);
+    setSourcesOpen(session.sources.length > 0);
   }, [session.sessionId, session.provider, session.model, session.helpMode]);
+
+  useEffect(() => {
+    if (session.sources.length > 0) {
+      setSourcesOpen(true);
+    }
+  }, [session.sources.length]);
 
   const selectedProvider = useMemo(
     () => providerOptions.find((item) => item.key === runtimeProvider) ?? providerOptions[0] ?? null,
@@ -526,7 +533,7 @@ export function ExpertScreen({
           </div>
 
           {mobilePane === "chat" ? (
-            <div className="chat-panel expert-chat-panel">
+            <div className={showStarterCard ? "chat-panel expert-chat-panel starter-mode" : "chat-panel expert-chat-panel"}>
               <div className="expert-conversation-stack">
                 {showStarterCard ? (
                   <section className="expert-panel-card expert-starter-card">
@@ -545,20 +552,24 @@ export function ExpertScreen({
                     </div>
                   </section>
                 ) : null}
-                <ChatMessageList
-                  history={session.history}
-                  streamingAssistant={streamingAssistant}
-                  assistantLabel="Expert"
-                  sessionId={session.sessionId}
-                />
+                {!showStarterCard ? (
+                  <ChatMessageList
+                    history={session.history}
+                    streamingAssistant={streamingAssistant}
+                    assistantLabel="Expert"
+                    sessionId={session.sessionId}
+                  />
+                ) : null}
               </div>
-              <div className="expert-quick-actions">
-                {quickActions.map((chip) => (
-                  <button key={chip} type="button" className="chip-button" onClick={() => void submit(chip)} disabled={pending}>
-                    {chip}
-                  </button>
-                ))}
-              </div>
+              {!showStarterCard && quickActions.length > 0 ? (
+                <div className="expert-quick-actions">
+                  {quickActions.map((chip) => (
+                    <button key={chip} type="button" className="chip-button" onClick={() => void submit(chip)} disabled={pending}>
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <Composer
                 value={draft}
                 onChange={setDraft}

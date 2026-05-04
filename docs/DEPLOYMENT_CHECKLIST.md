@@ -5,6 +5,9 @@ This is the shortest safe checklist for sharing Sift with external users.
 ## Recommended Host
 
 - Use `Render` for the first proper deployment.
+- Use `Google Cloud Run` when you want the managed serverless path. In that mode,
+  use Firestore for sessions, Cloud Storage for uploads, and BigQuery for
+  analytics instead of local SQLite/disk.
 - Use `Vercel` for the frontend if you want Vercel previews and a public web URL.
 - Do not deploy the full backend on `Vercel` in its current shape.
 
@@ -54,6 +57,8 @@ npm --prefix frontend run build
 ```text
 https://your-backend-host/api/auth/callback/google
 https://your-backend-host/api/auth/callback/apple
+https://your-backend-host/api/auth/callback/linkedin
+https://your-backend-host/api/auth/callback/x
 ```
 
 ## What Is Bundled
@@ -94,6 +99,10 @@ GOOGLE_OAUTH_CLIENT_ID=
 GOOGLE_OAUTH_CLIENT_SECRET=
 APPLE_OAUTH_CLIENT_ID=
 APPLE_OAUTH_CLIENT_SECRET=
+LINKEDIN_OAUTH_CLIENT_ID=
+LINKEDIN_OAUTH_CLIENT_SECRET=
+X_OAUTH_CLIENT_ID=
+X_OAUTH_CLIENT_SECRET=
 ```
 
 ## Render Steps
@@ -103,6 +112,17 @@ APPLE_OAUTH_CLIENT_SECRET=
 3. Use the included `render.yaml`.
 4. Set the secret env vars that are marked `sync: false`.
 5. Deploy.
+
+## Google Cloud Run Steps
+
+Use the GCP-specific guide:
+
+```text
+docs/GCP_SERVERLESS_DEPLOYMENT.md
+```
+
+That path uses the included `cloudbuild.yaml` and is designed for project
+`sift-495116`.
 
 ## Post-Deploy Verification
 
@@ -114,6 +134,8 @@ Check these first:
 4. Upload a file and ask for analysis
 5. Ask an Expert question that should hit the bundled corpus
 6. Confirm `expertCardCount` is non-zero
+7. Confirm `/api/session/providers` lists only providers usable on that host
+8. Confirm `/api/auth/providers` marks only configured OAuth providers as enabled
 
 ## Clone-And-Run Without Ollama
 

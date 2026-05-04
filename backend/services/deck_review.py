@@ -3,10 +3,20 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any
 
-from backend.services.model_router import empty_runtime_usage, generate_provider_multimodal_text, generate_provider_text, model_supports_vision, normalize_usage
+from backend.services.model_router import (
+    default_model_for_provider,
+    empty_runtime_usage,
+    generate_provider_multimodal_text,
+    generate_provider_text,
+    model_supports_vision,
+    normalize_provider,
+    normalize_usage,
+    recommended_deck_model_for_provider,
+)
 from backend.services.uploads import load_deck_artifact
 
 
@@ -106,6 +116,39 @@ FOCUSED_AREAS = [
     ("profit_model", "Profit model"),
     ("implementation_plan", "Implementation plan"),
 ]
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _deck_runtime(provider: str, model: str, api_key: str | None) -> tuple[str, str, str | None, bool]:
+    override_provider = os.environ.get("SIFT_DECK_REVIEW_PROVIDER", "").strip()
+    override_model = os.environ.get("SIFT_DECK_REVIEW_MODEL", "").strip()
+    override_key = os.environ.get("SIFT_DECK_REVIEW_API_KEY", "").strip()
+    if override_provider:
+        deck_provider = normalize_provider(override_provider)
+        deck_model = override_model or recommended_deck_model_for_provider(deck_provider) or default_model_for_provider(deck_provider, "balanced")
+        return deck_provider, deck_model, override_key or None, True
+    deck_provider = normalize_provider(provider)
+    deck_model = model.strip() or recommended_deck_model_for_provider(deck_provider) or default_model_for_provider(deck_provider, "balanced")
+    return deck_provider, deck_model, api_key, False
 
 
 def normalize_evaluator_mode(value: str | None) -> str:
@@ -671,8 +714,11 @@ async def review_deck_session(
     if artifact is None:
         raise RuntimeError("Upload a PDF or PPTX deck before running deck review.")
 
+    review_provider, review_model, review_api_key, runtime_overridden = _deck_runtime(provider, model, api_key)
     slides = artifact.get("slides", [])
-    review_mode, limitations = _deck_review_mode(provider, model, artifact)
+    review_mode, limitations = _deck_review_mode(review_provider, review_model, artifact)
+    if runtime_overridden:
+        limitations.append(f"Deck review used {review_provider} / {review_model} instead of the session chat model.")
     template_coverage = [_match_template_section(slides, section) for section in DECK_TEMPLATE]
     constraint_checks = _build_constraint_checks(
         slides,
@@ -694,30 +740,32 @@ async def review_deck_session(
 
     raw_review: dict[str, Any] = {}
     response_usage = empty_runtime_usage()["last"]
+    max_tokens = _env_int("SIFT_DECK_REVIEW_MAX_TOKENS", 2600)
+    timeout_seconds = _env_float("SIFT_DECK_REVIEW_TIMEOUT_SECONDS", 52.0)
     try:
         if review_mode == "multimodal":
             image_paths = [slide.get("imagePath", "") for slide in slides if slide.get("imagePath")]
             response = await generate_provider_multimodal_text(
-                provider=provider,
-                model=model,
+                provider=review_provider,
+                model=review_model,
                 system=_review_system_prompt(review_mode),
                 prompt=review_prompt,
                 image_paths=image_paths[:9],
-                api_key=api_key,
-                max_tokens=1800,
+                api_key=review_api_key,
+                max_tokens=max_tokens,
                 temperature=0.2,
-                timeout_seconds=120.0,
+                timeout_seconds=timeout_seconds,
             )
         else:
             response = await generate_provider_text(
-                provider=provider,
-                model=model,
+                provider=review_provider,
+                model=review_model,
                 system=_review_system_prompt(review_mode),
                 messages=[{"role": "user", "content": review_prompt}],
-                api_key=api_key,
-                max_tokens=1700,
+                api_key=review_api_key,
+                max_tokens=max_tokens,
                 temperature=0.2,
-                timeout_seconds=120.0,
+                timeout_seconds=timeout_seconds,
             )
         response_usage = normalize_usage(response.get("usage"))
         raw_review = _extract_json_object(response.get("message", ""))
@@ -737,6 +785,8 @@ async def review_deck_session(
     return {
         "overallScore": score,
         "confidence": confidence,
+        "reviewProvider": review_provider,
+        "reviewModel": review_model,
         "reviewMode": review_mode,
         "reviewLimitations": limitations,
         "verdict": normalized["verdict"] or ("Promising but not fully pitch-ready." if score >= 45 else "Still too under-proven for a strong deck."),

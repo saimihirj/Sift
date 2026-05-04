@@ -1,5 +1,9 @@
 import type { ProviderOption, ResponseProfile, RuntimeUsageSummary } from "../../app/types";
 
+function isLocalProviderKey(key: string): boolean {
+  return key === "ollama" || key === "local_openai";
+}
+
 type Props = {
   isOpen: boolean;
   title: string;
@@ -102,7 +106,7 @@ export function RuntimeSidebar({
                 onClick={() => onProviderChange(item.key)}
               >
                 <span>{item.label}</span>
-                <small>{item.requiresApiKey ? (item.serverConfigured ? "Server key" : "Bring key") : "Local"}</small>
+                <small>{item.requiresApiKey ? (item.serverConfigured ? "Server key" : "Bring key") : (isLocalProviderKey(item.key) ? "Local" : "Server")}</small>
               </button>
             ))}
           </div>
@@ -136,6 +140,22 @@ export function RuntimeSidebar({
             Sharper
           </button>
         </div>
+
+        {selectedProvider?.modelPresets?.length ? (
+          <div className="model-preset-grid compact-model-preset-grid">
+            {selectedProvider.modelPresets.map((preset) => (
+              <button
+                key={`${selectedProvider.key}-${preset.value}`}
+                type="button"
+                className={modelValue === preset.value ? "model-preset-chip active" : "model-preset-chip"}
+                onClick={() => onModelChange(preset.value)}
+              >
+                <span>{preset.label}</span>
+                {preset.note ? <small>{preset.note}</small> : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {requiresApiKey ? (
           <label className="identity-field">

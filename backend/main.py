@@ -29,6 +29,7 @@ from backend.api.session import router as session_router
 from backend.services.expert_knowledge import expert_card_count, expert_data_dir
 from backend.services.model_router import active_provider, provider_catalog
 from backend.services.runtime_state import auto_stop_monitor
+from backend.services.uploads import upload_storage_status
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -110,9 +111,11 @@ async def health() -> dict:
         "configuredProviders": [
             provider["key"]
             for provider in providers
-            if not provider.get("requiresApiKey") or provider.get("serverConfigured")
+            if provider.get("serverConfigured")
         ],
         "dataDir": str(memory.DATA_DIR),
+        "persistence": memory.persistence_status(),
+        "uploads": upload_storage_status(),
         "expertDataDir": str(expert_data_dir()),
         "expertCardCount": expert_card_count(),
     }

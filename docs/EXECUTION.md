@@ -13,8 +13,9 @@ It covers:
 - runtime behavior
 - troubleshooting
 
-Sift supports two normal local paths:
+Sift supports three normal runtime paths:
 - open-source local runtime through `Ollama`
+- open-source local/runtime GPU endpoints through an OpenAI-compatible server such as `vLLM`, Hugging Face `TGI`, LM Studio, or llama.cpp
 - API-key runtime through providers like `Groq`, `Cerebras`, `OpenAI`, `OpenRouter`, `Anthropic`, and `Gemini`
 
 If you want open-source-only with no paid services, use the local and LAN modes below and keep:
@@ -32,6 +33,7 @@ Required:
 
 Optional:
 - [Ollama](https://ollama.com) for fully local open-source runtime
+- an OpenAI-compatible local server if you want to run Hugging Face models with vLLM, TGI, LM Studio, or llama.cpp
 
 Recommended local models:
 
@@ -66,14 +68,47 @@ SIFT_EXPERT_DATA_DIR=knowledge_base/expert
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL_SPEED=llama3.2:latest
 OLLAMA_MODEL_BALANCED=qwen3:8b
+OLLAMA_KEEP_ALIVE=10m
+OLLAMA_TIMEOUT_SPEED=24
+OLLAMA_TIMEOUT_BALANCED=42
+OLLAMA_NUM_CTX_SPEED=4096
+OLLAMA_NUM_CTX_BALANCED=6144
+OLLAMA_MAX_TOKENS_SPEED=180
+OLLAMA_MAX_TOKENS_BALANCED=360
+LOCAL_OPENAI_BASE_URL=http://127.0.0.1:8000/v1
+LOCAL_OPENAI_MODEL_SPEED=Qwen/Qwen3-8B
+LOCAL_OPENAI_MODEL_BALANCED=openai/gpt-oss-20b
 ```
 
 Notes:
 - `speed` is the default chat profile
 - `balanced` is optional and falls back to `speed` if it errors
+- `OLLAMA_KEEP_ALIVE=10m` keeps the local model warm between turns
+- lower local context and output caps keep Ollama responsive on laptops
+- `local_openai` uses the standard `/v1/chat/completions` shape, so the same UI works with vLLM, TGI, LM Studio, llama.cpp, or a private GPU endpoint
 - the bundled Expert corpus lives under `knowledge_base/expert`
 - the rebuilt app uses Ollama over HTTP
 - legacy Gradio config in `.env.example` is for the old prototype only
+
+## 3.1 Workspace Keys
+
+Generated beta keys now use a compact `SF` prefix plus random base32 characters, for example `SF8K2M7P4Q9T6R`. For those new keys, the app no longer stores `email-or-handle:key` as the session owner. It derives a short hashed workspace id in the browser and sends that compact id to the backend, which keeps Firestore, BigQuery, and local analytics rows lighter. Existing `SIFT-...` keys still resolve to the legacy workspace id so older sessions remain accessible.
+
+## 3.2 Reset Runtime Data
+
+To make Sift behave like a fresh app with no previous sessions, uploads, generated local indexes, or analytics:
+
+```bash
+python3 tools/reset_runtime_data.py --local --yes
+```
+
+For the Google Cloud deployment, run this from a terminal that has Google Cloud credentials and production requirements installed:
+
+```bash
+python3 tools/reset_runtime_data.py --gcp --project=sift-495116 --yes
+```
+
+The reset keeps source code, deployment config, Firestore database, Cloud Storage bucket, and BigQuery table schema intact. It deletes only generated runtime records and uploaded artifacts.
 
 ## 4. Run Modes
 
@@ -180,6 +215,28 @@ Supported external providers:
 - `openrouter`
 - `anthropic`
 - `gemini`
+
+### C2. Local OpenAI-Compatible Mode
+
+Use this when you want open-source models from Hugging Face, but you want faster serving than basic laptop Ollama or you have a local/private GPU server.
+
+Set:
+
+```env
+SIFT_MODEL_PROVIDER=local_openai
+SIFT_ENABLE_LOCAL_OPENAI=true
+LOCAL_OPENAI_BASE_URL=http://127.0.0.1:8000/v1
+LOCAL_OPENAI_MODEL_SPEED=Qwen/Qwen3-8B
+LOCAL_OPENAI_MODEL_BALANCED=openai/gpt-oss-20b
+```
+
+Then start your model server with one of:
+- vLLM OpenAI-compatible server
+- Hugging Face TGI Messages API
+- LM Studio local server
+- llama.cpp OpenAI-compatible server
+
+In the setup screen, choose `Local`, then `Local OpenAI-compatible`, then pick one of the model presets or type the exact served model name.
 
 ### D. Development Mode
 

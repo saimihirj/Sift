@@ -1,0 +1,75 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPOSITORY}/${_IMAGE_NAME}:$BUILD_ID
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPOSITORY}/${_IMAGE_NAME}:$BUILD_ID
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPOSITORY}/${_IMAGE_NAME}:$BUILD_ID
+      - --region
+      - ${_REGION}
+      - --platform
+      - managed
+      - --allow-unauthenticated
+      - --ingress
+      - all
+      - --execution-environment
+      - gen2
+      - --service-account
+      - ${_RUNTIME_SERVICE_ACCOUNT}
+      - --port
+      - "8000"
+      - --cpu
+      - "2"
+      - --memory
+      - 2Gi
+      - --concurrency
+      - "40"
+      - --min-instances
+      - "1"
+      - --max-instances
+      - "10"
+      - --timeout
+      - 300s
+      - --cpu-boost
+      - --set-env-vars
+      - SIFT_GCP_PROJECT_ID=$PROJECT_ID,SIFT_ENABLE_OLLAMA=false,SIFT_ENABLE_LOCAL_OPENAI=false,SIFT_ENABLE_OPEN_SOURCE_PROVIDER=${_ENABLE_OPEN_SOURCE_PROVIDER},SIFT_PERSISTENCE_BACKEND=firestore,SIFT_FIRESTORE_COLLECTION_PREFIX=sift,SIFT_UPLOAD_BACKEND=gcs,SIFT_UPLOAD_BUCKET=${_UPLOAD_BUCKET},SIFT_UPLOAD_PREFIX=session_uploads,SIFT_UPLOAD_TMP_DIR=/tmp/sift_uploads,SIFT_BIGQUERY_ENABLED=true,SIFT_BIGQUERY_TABLE=$PROJECT_ID.${_BIGQUERY_DATASET}.${_BIGQUERY_EVENTS_TABLE},SIFT_MODEL_PROVIDER=${_MODEL_PROVIDER},SIFT_DECK_REVIEW_PROVIDER=${_DECK_REVIEW_PROVIDER},SIFT_DECK_REVIEW_MODEL=${_DECK_REVIEW_MODEL},SIFT_DECK_REVIEW_MAX_TOKENS=2600,SIFT_DECK_REVIEW_TIMEOUT_SECONDS=52,OPEN_SOURCE_BASE_URL=${_OPEN_SOURCE_BASE_URL},OPEN_SOURCE_MODEL_SPEED=${_OPEN_SOURCE_MODEL_SPEED},OPEN_SOURCE_MODEL_BALANCED=${_OPEN_SOURCE_MODEL_BALANCED},OPEN_SOURCE_DECK_MODEL=${_OPEN_SOURCE_DECK_MODEL},VERTEX_LOCATION=${_REGION},VERTEX_MODEL_SPEED=gemini-2.5-flash,VERTEX_MODEL_BALANCED=gemini-2.5-pro,SIFT_EXPERT_DATA_DIR=/app/knowledge_base/expert,SIFT_COOKIE_SECURE=true,SIFT_COOKIE_SAMESITE=lax,SIFT_RATE_LIMIT_PER_MINUTE=300
+      - --set-secrets
+      - SIFT_SESSION_SECRET=sift-session-secret:latest,SIFT_ADMIN_TOKEN=sift-admin-token:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_ARTIFACT_REPOSITORY}/${_IMAGE_NAME}:$BUILD_ID
+
+substitutions:
+  _REGION: us-central1
+  _SERVICE_NAME: sift
+  _ARTIFACT_REPOSITORY: sift
+  _IMAGE_NAME: web
+  _RUNTIME_SERVICE_ACCOUNT: sift-runner@sift-495116.iam.gserviceaccount.com
+  _UPLOAD_BUCKET: sift-495116-sift-uploads
+  _BIGQUERY_DATASET: sift_analytics
+  _BIGQUERY_EVENTS_TABLE: events
+  _MODEL_PROVIDER: vertex
+  _DECK_REVIEW_PROVIDER: vertex
+  _DECK_REVIEW_MODEL: gemini-2.5-flash
+  _ENABLE_OPEN_SOURCE_PROVIDER: "false"
+  _OPEN_SOURCE_BASE_URL: ""
+  _OPEN_SOURCE_MODEL_SPEED: Qwen/Qwen2.5-VL-7B-Instruct
+  _OPEN_SOURCE_MODEL_BALANCED: Qwen/Qwen2.5-VL-7B-Instruct
+  _OPEN_SOURCE_DECK_MODEL: Qwen/Qwen2.5-VL-7B-Instruct
+
+options:
+  logging: CLOUD_LOGGING_ONLY

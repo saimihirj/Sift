@@ -3,18 +3,25 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import os
 import re
 import shutil
 import subprocess
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi import UploadFile
 
 
 DATA_DIR = Path(os.environ.get("SIFT_DATA_DIR", "data"))
+UPLOAD_BACKEND = os.environ.get("SIFT_UPLOAD_BACKEND", "local").strip().lower()
+_UPLOAD_TMP_VALUE = os.environ.get("SIFT_UPLOAD_TMP_DIR", "").strip()
+UPLOAD_TMP_DIR = Path(_UPLOAD_TMP_VALUE or ("/tmp/sift_uploads" if UPLOAD_BACKEND == "gcs" else str(DATA_DIR / "session_uploads")))
 UPLOADS_DIR = DATA_DIR / "session_uploads"
+GCS_UPLOAD_BUCKET = os.environ.get("SIFT_UPLOAD_BUCKET", "").strip()
+GCS_UPLOAD_PREFIX = os.environ.get("SIFT_UPLOAD_PREFIX", "session_uploads").strip().strip("/")
 CHUNK_SIZE = 900
 CHUNK_OVERLAP = 150
 TOKEN_PATTERN = re.compile(r"[a-z0-9]{3,}")
@@ -23,8 +30,69 @@ MAX_UPLOAD_BYTES = int(float(os.environ.get("SIFT_MAX_UPLOAD_MB", "20")) * 1024 
 MAX_UPLOADS_PER_SESSION = int(os.environ.get("SIFT_MAX_UPLOADS_PER_SESSION", "8"))
 
 
+def _use_gcs() -> bool:
+    return UPLOAD_BACKEND in {"gcs", "cloud_storage", "google_cloud_storage"}
+
+
+def _project_id() -> str:
+    return (
+        os.environ.get("SIFT_GCP_PROJECT_ID")
+        or os.environ.get("GOOGLE_CLOUD_PROJECT")
+        or os.environ.get("GCP_PROJECT")
+        or ""
+    ).strip()
+
+
+@lru_cache(maxsize=1)
+def _gcs_bucket():
+    if not GCS_UPLOAD_BUCKET:
+        raise RuntimeError("SIFT_UPLOAD_BACKEND=gcs requires SIFT_UPLOAD_BUCKET.")
+    try:
+        from google.cloud import storage  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError(
+            "SIFT_UPLOAD_BACKEND=gcs requires google-cloud-storage. "
+            "Install production requirements before starting the service."
+        ) from exc
+
+    project = _project_id() or None
+    return storage.Client(project=project).bucket(GCS_UPLOAD_BUCKET)
+
+
+def _gcs_object_name(session_id: str, filename: str) -> str:
+    bits = [GCS_UPLOAD_PREFIX, session_id, filename] if GCS_UPLOAD_PREFIX else [session_id, filename]
+    return "/".join(bit.strip("/") for bit in bits if bit)
+
+
+def _upload_to_gcs(path: Path, session_id: str, filename: str) -> str:
+    object_name = _gcs_object_name(session_id, filename)
+    blob = _gcs_bucket().blob(object_name)
+    content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    blob.upload_from_filename(str(path), content_type=content_type)
+    return object_name
+
+
+def _load_gcs_json(session_id: str, filename: str, default):
+    blob = _gcs_bucket().blob(_gcs_object_name(session_id, filename))
+    try:
+        if not blob.exists():
+            return default
+        return json.loads(blob.download_as_text())
+    except json.JSONDecodeError:
+        return default
+
+
+def _download_gcs_object(object_name: str, destination: Path) -> Path:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        return destination
+    _gcs_bucket().blob(object_name).download_to_filename(str(destination))
+    return destination
+
+
 def _session_dir(session_id: str) -> Path:
-    path = UPLOADS_DIR / session_id
+    root = UPLOAD_TMP_DIR if _use_gcs() else UPLOADS_DIR
+    path = root / session_id
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -40,6 +108,9 @@ def _artifact_dir(session_id: str, stored_name: str) -> Path:
 
 
 def _load_manifest(session_id: str) -> list[dict]:
+    if _use_gcs():
+        return _load_gcs_json(session_id, "manifest.json", [])
+
     path = _manifest_path(session_id)
     if not path.exists():
         return []
@@ -51,6 +122,8 @@ def _load_manifest(session_id: str) -> list[dict]:
 
 def _save_manifest(session_id: str, manifest: list[dict]) -> None:
     _manifest_path(session_id).write_text(json.dumps(manifest, indent=2))
+    if _use_gcs():
+        _upload_to_gcs(_manifest_path(session_id), session_id, "manifest.json")
 
 
 def _sanitize_filename(name: str) -> str:
@@ -215,6 +288,42 @@ def _build_upload_artifact(path: Path, session_id: str, stored_name: str, doc_ty
     return None
 
 
+def _persist_artifact_assets(session_id: str, stored_name: str, artifact: dict) -> None:
+    if not _use_gcs():
+        return
+    for slide in artifact.get("slides", []):
+        image_path_value = slide.get("imagePath", "") or ""
+        if not image_path_value:
+            continue
+        image_path = Path(image_path_value)
+        if not image_path.is_file():
+            continue
+        relative_name = f"{stored_name}.artifacts/{image_path.name}"
+        slide["imageObject"] = _upload_to_gcs(image_path, session_id, relative_name)
+
+
+def _materialize_artifact_assets(session_id: str, artifact: dict) -> dict:
+    if not _use_gcs():
+        return artifact
+    stored_name = artifact.get("storedName", "deck")
+    asset_dir = _artifact_dir(session_id, stored_name)
+    for slide in artifact.get("slides", []):
+        image_object = slide.get("imageObject", "")
+        if not image_object:
+            continue
+        current_path_value = slide.get("imagePath", "") or ""
+        current_path = Path(current_path_value) if current_path_value else None
+        if current_path is not None and current_path.is_file():
+            continue
+        local_path = asset_dir / Path(image_object).name
+        try:
+            _download_gcs_object(image_object, local_path)
+            slide["imagePath"] = str(local_path)
+        except Exception:
+            slide["imagePath"] = ""
+    return artifact
+
+
 def parse_uploaded_path(path: Path) -> tuple[str, str]:
     ext = path.suffix.lower()
     if ext == ".txt":
@@ -258,16 +367,23 @@ async def ingest_upload(session_id: str, upload: UploadFile) -> dict:
     stored_name = f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}-{filename}"
     stored_path = session_dir / stored_name
     stored_path.write_bytes(content)
+    if _use_gcs():
+        _upload_to_gcs(stored_path, session_id, stored_name)
 
     text, doc_type = parse_uploaded_path(stored_path)
     chunks = _chunk_text(text, filename, doc_type)
     chunks_path = session_dir / f"{stored_name}.chunks.json"
     chunks_path.write_text(json.dumps(chunks, indent=2))
+    if _use_gcs():
+        _upload_to_gcs(chunks_path, session_id, chunks_path.name)
     artifact = _build_upload_artifact(stored_path, session_id, stored_name, doc_type)
     artifact_path = None
     if artifact is not None:
+        _persist_artifact_assets(session_id, stored_name, artifact)
         artifact_path = session_dir / f"{stored_name}.artifact.json"
         artifact_path.write_text(json.dumps(artifact, indent=2))
+        if _use_gcs():
+            _upload_to_gcs(artifact_path, session_id, artifact_path.name)
 
     entry = {
         "name": filename,
@@ -305,17 +421,35 @@ def load_deck_artifact(session_id: str, *, latest_only: bool = True) -> dict | N
         return None
     entries = [candidates[-1]] if latest_only else list(reversed(candidates))
     for entry in entries:
-        path = _session_dir(session_id) / entry["artifactFile"]
-        if not path.exists():
-            continue
-        try:
-            artifact = json.loads(path.read_text())
-        except json.JSONDecodeError:
-            continue
+        if _use_gcs():
+            artifact = _load_gcs_json(session_id, entry["artifactFile"], None)
+            if not artifact:
+                continue
+            artifact = _materialize_artifact_assets(session_id, artifact)
+        else:
+            path = _session_dir(session_id) / entry["artifactFile"]
+            if not path.exists():
+                continue
+            try:
+                artifact = json.loads(path.read_text())
+            except json.JSONDecodeError:
+                continue
         artifact["name"] = entry.get("name", artifact.get("storedName", "deck"))
         artifact["uploadedAt"] = entry.get("uploadedAt", "")
         return artifact
     return None
+
+
+def _load_chunks(session_id: str, chunks_file: str) -> list[dict]:
+    if _use_gcs():
+        return _load_gcs_json(session_id, chunks_file, [])
+    chunks_path = _session_dir(session_id) / chunks_file
+    if not chunks_path.exists():
+        return []
+    try:
+        return json.loads(chunks_path.read_text())
+    except json.JSONDecodeError:
+        return []
 
 
 def _tokenize(text: str) -> set[str]:
@@ -335,12 +469,8 @@ def retrieve_upload_context(
     query_terms = _tokenize(query)
     candidates = []
     for entry in manifest:
-        chunks_file = _session_dir(session_id) / entry["chunksFile"]
-        if not chunks_file.exists():
-            continue
-        try:
-            chunks = json.loads(chunks_file.read_text())
-        except json.JSONDecodeError:
+        chunks = _load_chunks(session_id, entry["chunksFile"])
+        if not chunks:
             continue
         for chunk in chunks:
             text = chunk.get("text", "")
@@ -381,15 +511,22 @@ def retrieve_upload_context(
 
     if not selected and manifest:
         latest = manifest[-1]
-        chunks_file = _session_dir(session_id) / latest["chunksFile"]
-        if chunks_file.exists():
-            chunks = json.loads(chunks_file.read_text())
-            selected = [
-                {
-                    "source": latest["name"],
-                    "docType": latest["docType"],
-                    "text": chunk["text"][:550],
-                }
-                for chunk in chunks[:top_k]
-            ]
+        chunks = _load_chunks(session_id, latest["chunksFile"])
+        selected = [
+            {
+                "source": latest["name"],
+                "docType": latest["docType"],
+                "text": chunk["text"][:550],
+            }
+            for chunk in chunks[:top_k]
+        ]
     return selected
+
+
+def upload_storage_status() -> dict[str, str | bool]:
+    return {
+        "backend": "gcs" if _use_gcs() else "local",
+        "bucket": GCS_UPLOAD_BUCKET if _use_gcs() else "",
+        "prefix": GCS_UPLOAD_PREFIX if _use_gcs() else "",
+        "tmpDir": str(UPLOAD_TMP_DIR),
+    }

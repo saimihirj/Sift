@@ -122,9 +122,13 @@ function providerAccessLabel(option: ProviderOption | undefined): string {
     return "Runtime";
   }
   if (!option.requiresApiKey) {
-    return "Local";
+    return isLocalProviderKey(option.key) ? "Local" : "Server ready";
   }
   return option.serverConfigured ? "Server ready" : "Bring key";
+}
+
+function isLocalProviderKey(key: string): boolean {
+  return key === "ollama" || key === "local_openai";
 }
 
 function modelPresetLabel(option: ProviderOption | undefined, profile: "speed" | "balanced"): string {
@@ -145,7 +149,7 @@ function stepTitle(step: number) {
 function stepSubtitle(step: number) {
   if (step === 0) return "Pick the output you need right now.";
   if (step === 1) return "A little context improves the result.";
-  return "Groq is the fastest hosted open-weight path; Ollama stays local.";
+  return "Use the hosted default, bring a provider key, or choose a local open-source runtime.";
 }
 
 function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
@@ -189,26 +193,42 @@ export function SetupWizard({
   const [optionalContextOpen, setOptionalContextOpen] = useState(false);
   const [identityKeyCopied, setIdentityKeyCopied] = useState(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const hasLocalRuntime = useMemo(() => providerOptions.some((item) => isLocalProviderKey(item.key)), [providerOptions]);
+  const effectiveRuntimeKind = hasLocalRuntime ? draft.runtimeKind : "external";
   const filteredProviders = useMemo(
-    () => (draft.runtimeKind === "local" ? providerOptions.filter((item) => item.key === "ollama") : providerOptions.filter((item) => item.key !== "ollama")),
-    [providerOptions, draft.runtimeKind],
+    () => (effectiveRuntimeKind === "local" ? providerOptions.filter((item) => isLocalProviderKey(item.key)) : providerOptions.filter((item) => !isLocalProviderKey(item.key))),
+    [providerOptions, effectiveRuntimeKind],
   );
   const providerMeta = useMemo(() => {
-    const fallback = draft.runtimeKind === "local"
-      ? providerOptions.find((item) => item.key === "ollama")
+    const fallback = effectiveRuntimeKind === "local"
+      ? providerOptions.find((item) => isLocalProviderKey(item.key))
       : filteredProviders[0];
-    return providerOptions.find((item) => item.key === draft.provider) ?? fallback ?? providerOptions[0];
-  }, [draft.provider, draft.runtimeKind, filteredProviders, providerOptions]);
+    return filteredProviders.find((item) => item.key === draft.provider) ?? fallback ?? providerOptions[0];
+  }, [draft.provider, effectiveRuntimeKind, filteredProviders, providerOptions]);
 
-  const resolvedProvider = draft.runtimeKind === "local" ? "ollama" : (providerMeta?.key ?? "groq");
+  const resolvedProvider = providerMeta?.key ?? (effectiveRuntimeKind === "local" ? "ollama" : "groq");
   const resolvedModel = draft.model.trim()
-    || (draft.runtimeKind === "local"
+    || (effectiveRuntimeKind === "local"
       ? providerMeta?.defaultSpeedModel
       : providerMeta?.defaultBalancedModel || providerMeta?.defaultSpeedModel)
     || "";
   const requiresClientApiKey = Boolean(providerMeta?.requiresApiKey && !providerMeta.serverConfigured);
-  const canAdvanceRuntime = Boolean(resolvedModel) && (draft.runtimeKind === "local" || !requiresClientApiKey || draft.apiKey.trim());
+  const canAdvanceRuntime = Boolean(resolvedModel) && (effectiveRuntimeKind === "local" || !requiresClientApiKey || draft.apiKey.trim());
   const canStartFromCurrentStep = canStart && canAdvanceRuntime && !loading;
+
+  useEffect(() => {
+    if (hasLocalRuntime || draft.runtimeKind !== "local") {
+      return;
+    }
+    const firstExternal = providerOptions.find((item) => !isLocalProviderKey(item.key) && item.serverConfigured)
+      ?? providerOptions.find((item) => !isLocalProviderKey(item.key));
+    onDraftChange((current) => ({
+      ...current,
+      runtimeKind: "external",
+      provider: firstExternal?.key ?? current.provider,
+      model: firstExternal?.defaultBalancedModel || firstExternal?.defaultSpeedModel || current.model,
+    }));
+  }, [draft.runtimeKind, hasLocalRuntime, onDraftChange, providerOptions]);
 
   const startWithCurrentDraft = () => onStart({
     sessionType: draft.sessionType,
@@ -220,7 +240,7 @@ export function SetupWizard({
     mode: draft.mode,
     provider: resolvedProvider as Provider,
     model: resolvedModel,
-    apiKey: draft.runtimeKind === "external" ? draft.apiKey.trim() : "",
+    apiKey: effectiveRuntimeKind === "external" ? draft.apiKey.trim() : "",
     websiteUrl: draft.websiteUrl,
     setupContext: draft.setupContext,
     helpMode: draft.helpMode,
@@ -315,29 +335,31 @@ export function SetupWizard({
         {step === 2 ? (
           <>
             <div className="workflow-row" onKeyDown={handleArrowSelection}>
+              {hasLocalRuntime ? (
+                <button
+                  type="button"
+                  className={effectiveRuntimeKind === "local" ? "choice-card active" : "choice-card"}
+                  onClick={() => {
+                    const localProvider = providerOptions.find((item) => isLocalProviderKey(item.key));
+                    onDraftChange((current) => ({
+                      ...current,
+                      runtimeKind: "local",
+                      provider: localProvider?.key ?? "ollama",
+                      model: localProvider?.defaultSpeedModel || current.model,
+                      apiKey: "",
+                    }));
+                  }}
+                >
+                  <span>Local</span>
+                  <small>Runs on this machine.</small>
+                </button>
+              ) : null}
               <button
                 type="button"
-                className={draft.runtimeKind === "local" ? "choice-card active" : "choice-card"}
+                className={effectiveRuntimeKind === "external" ? "choice-card active" : "choice-card"}
                 onClick={() => {
-                  const ollama = providerOptions.find((item) => item.key === "ollama");
-                  onDraftChange((current) => ({
-                    ...current,
-                    runtimeKind: "local",
-                    provider: "ollama",
-                    model: ollama?.defaultSpeedModel || current.model,
-                    apiKey: "",
-                  }));
-                }}
-              >
-                <span>Local</span>
-                <small>Runs on this machine.</small>
-              </button>
-              <button
-                type="button"
-                className={draft.runtimeKind === "external" ? "choice-card active" : "choice-card"}
-                onClick={() => {
-                  const firstExternal = providerOptions.find((item) => item.key !== "ollama" && item.serverConfigured)
-                    ?? providerOptions.find((item) => item.key !== "ollama");
+                  const firstExternal = providerOptions.find((item) => !isLocalProviderKey(item.key) && item.serverConfigured)
+                    ?? providerOptions.find((item) => !isLocalProviderKey(item.key));
                   onDraftChange((current) => ({
                     ...current,
                     runtimeKind: "external",
@@ -363,7 +385,7 @@ export function SetupWizard({
                       onDraftChange((current) => ({
                         ...current,
                         provider: option.key,
-                        model: draft.runtimeKind === "local"
+                        model: effectiveRuntimeKind === "local"
                           ? option.defaultSpeedModel
                           : option.defaultBalancedModel || option.defaultSpeedModel,
                       }));
@@ -382,7 +404,7 @@ export function SetupWizard({
                   <span className="rail-label">{providerAccessLabel(providerMeta)}</span>
                   <strong>{providerMeta?.label || "Runtime"}</strong>
                 </div>
-                <p>{draft.runtimeKind === "local" ? "Private by default." : "Best for public demos."}</p>
+                <p>{effectiveRuntimeKind === "local" ? "Private by default." : "Best for public demos."}</p>
               </div>
               <div className="runtime-preset-row">
                 <button
@@ -402,6 +424,21 @@ export function SetupWizard({
                   <strong>{modelPresetLabel(providerMeta, "balanced")}</strong>
                 </button>
               </div>
+              {providerMeta?.modelPresets?.length ? (
+                <div className="model-preset-grid" onKeyDown={handleArrowSelection}>
+                  {providerMeta.modelPresets.map((preset) => (
+                    <button
+                      key={`${providerMeta.key}-${preset.value}`}
+                      type="button"
+                      className={resolvedModel === preset.value ? "model-preset-chip active" : "model-preset-chip"}
+                      onClick={() => onDraftChange((current) => ({ ...current, model: preset.value }))}
+                    >
+                      <span>{preset.label}</span>
+                      {preset.note ? <small>{preset.note}</small> : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div className="field-grid">
                 <label className="identity-field">
                   <span className="rail-label">Model</span>
@@ -411,7 +448,7 @@ export function SetupWizard({
                     placeholder={resolvedProvider === "cerebras" ? "Example: gpt-oss-120b" : "Type the model id"}
                   />
                 </label>
-                {draft.runtimeKind === "external" ? (
+                {effectiveRuntimeKind === "external" ? (
                   <label className="identity-field">
                     <span className="rail-label">{providerMeta?.serverConfigured ? "Session API key override" : "API key"}</span>
                     <input
@@ -426,7 +463,7 @@ export function SetupWizard({
                   <div className="starter-preview">
                     <span className="rail-label">Runtime</span>
                     <strong>Key-free</strong>
-                    <small>Ollama</small>
+                    <small>{providerMeta?.label || "Local"}</small>
                   </div>
                 )}
               </div>

@@ -41,21 +41,27 @@ VISION_MODEL_HINTS = (
 )
 PROVIDER_VISION_SUPPORT = {
     "ollama": True,
+    "local_openai": True,
+    "open_source": True,
     "groq": True,
     "cerebras": False,
     "openai": True,
     "openrouter": True,
     "anthropic": True,
     "gemini": True,
+    "vertex": True,
 }
 RECOMMENDED_DECK_MODELS = {
     "ollama": "qwen2.5vl:7b",
+    "local_openai": os.environ.get("LOCAL_OPENAI_DECK_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct"),
+    "open_source": os.environ.get("OPEN_SOURCE_DECK_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct"),
     "groq": "",
     "cerebras": "",
     "openai": "gpt-5.5",
     "openrouter": "openai/gpt-5.5",
     "anthropic": "claude-3-7-sonnet-latest",
-    "gemini": "gemini-2.0-flash",
+    "gemini": "gemini-2.5-flash",
+    "vertex": "gemini-2.5-flash",
 }
 
 
@@ -205,6 +211,16 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 @dataclass(frozen=True)
 class ModelProfileConfig:
     key: str
@@ -235,6 +251,26 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         default_speed_model=os.environ.get("OLLAMA_MODEL_SPEED", "llama3.2:latest"),
         default_balanced_model=os.environ.get("OLLAMA_MODEL_BALANCED", "qwen3:8b"),
         requires_api_key=False,
+    ),
+    "local_openai": ProviderConfig(
+        key="local_openai",
+        label="Local OpenAI-compatible",
+        api_style="openai",
+        base_url=os.environ.get("LOCAL_OPENAI_BASE_URL", "http://127.0.0.1:8000/v1").rstrip("/"),
+        env_api_key_var="LOCAL_OPENAI_API_KEY",
+        default_speed_model=os.environ.get("LOCAL_OPENAI_MODEL_SPEED", "Qwen/Qwen3-8B"),
+        default_balanced_model=os.environ.get("LOCAL_OPENAI_MODEL_BALANCED", "openai/gpt-oss-20b"),
+        requires_api_key=False,
+    ),
+    "open_source": ProviderConfig(
+        key="open_source",
+        label="Open-source endpoint",
+        api_style="openai",
+        base_url=os.environ.get("OPEN_SOURCE_BASE_URL", "").strip().rstrip("/"),
+        env_api_key_var="OPEN_SOURCE_API_KEY",
+        default_speed_model=os.environ.get("OPEN_SOURCE_MODEL_SPEED", "Qwen/Qwen2.5-VL-7B-Instruct"),
+        default_balanced_model=os.environ.get("OPEN_SOURCE_MODEL_BALANCED", "Qwen/Qwen2.5-VL-7B-Instruct"),
+        requires_api_key=os.environ.get("OPEN_SOURCE_REQUIRES_API_KEY", "true").strip().lower() not in {"0", "false", "no", "off"},
     ),
     "groq": ProviderConfig(
         key="groq",
@@ -292,9 +328,19 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="gemini",
         base_url=os.environ.get("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"),
         env_api_key_var="GEMINI_API_KEY",
-        default_speed_model=os.environ.get("GEMINI_MODEL_SPEED", "gemini-2.0-flash"),
-        default_balanced_model=os.environ.get("GEMINI_MODEL_BALANCED", "gemini-1.5-pro"),
+        default_speed_model=os.environ.get("GEMINI_MODEL_SPEED", "gemini-2.5-flash"),
+        default_balanced_model=os.environ.get("GEMINI_MODEL_BALANCED", "gemini-2.5-pro"),
         requires_api_key=True,
+    ),
+    "vertex": ProviderConfig(
+        key="vertex",
+        label="Vertex AI Gemini",
+        api_style="vertex_gemini",
+        base_url=os.environ.get("VERTEX_BASE_URL", ""),
+        env_api_key_var=None,
+        default_speed_model=os.environ.get("VERTEX_MODEL_SPEED", os.environ.get("GEMINI_MODEL_SPEED", "gemini-2.5-flash")),
+        default_balanced_model=os.environ.get("VERTEX_MODEL_BALANCED", os.environ.get("GEMINI_MODEL_BALANCED", "gemini-2.5-pro")),
+        requires_api_key=False,
     ),
 }
 
@@ -307,6 +353,24 @@ PROVIDER_PUBLIC_META: dict[str, dict[str, Any]] = {
         "publicReadiness": "Local install required",
         "openWeight": True,
         "docsUrl": "https://ollama.com/library/qwen3",
+    },
+    "local_openai": {
+        "latencyHint": "Open-source models served by vLLM, TGI, LM Studio, llama.cpp, or another OpenAI-compatible local server.",
+        "bestFor": "Fast local GPUs, Hugging Face models, and private hosted endpoints without changing Sift.",
+        "speedLabel": "Qwen3 8B",
+        "balancedLabel": "GPT-OSS 20B",
+        "publicReadiness": "Local endpoint",
+        "openWeight": True,
+        "docsUrl": "https://docs.vllm.ai/en/latest/serving/openai_compatible_server/",
+    },
+    "open_source": {
+        "latencyHint": "Server-side open-source model endpoint for Qwen, Llama, Gemma, Pixtral, or other OpenAI-compatible deployments.",
+        "bestFor": "Public demos that need open-source models without making users run local hardware.",
+        "speedLabel": "Qwen VL",
+        "balancedLabel": "Qwen VL",
+        "publicReadiness": "Open-source cloud lane",
+        "openWeight": True,
+        "docsUrl": "https://docs.vllm.ai/en/latest/serving/openai_compatible_server/",
     },
     "groq": {
         "latencyHint": "Very fast hosted open-weight lane for public MVP traffic.",
@@ -362,6 +426,68 @@ PROVIDER_PUBLIC_META: dict[str, dict[str, Any]] = {
         "openWeight": False,
         "docsUrl": "https://ai.google.dev/gemini-api/docs/models",
     },
+    "vertex": {
+        "latencyHint": "Google Cloud hosted Gemini path using the Cloud Run service account.",
+        "bestFor": "Using GCP credits and IAM instead of per-session API keys.",
+        "speedLabel": "Gemini Flash",
+        "balancedLabel": "Gemini Pro",
+        "publicReadiness": "GCP-native lane",
+        "openWeight": False,
+        "docsUrl": "https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference",
+    },
+}
+
+PROVIDER_MODEL_PRESETS: dict[str, list[dict[str, str]]] = {
+    "ollama": [
+        {"label": "Llama 3.2", "value": "llama3.2:latest", "note": "Fast laptop fallback."},
+        {"label": "Qwen3 8B", "value": "qwen3:8b", "note": "Sharper local text."},
+        {"label": "GPT-OSS 20B", "value": "gpt-oss:20b", "note": "Better reasoning if memory allows."},
+        {"label": "Qwen2.5 VL", "value": "qwen2.5vl:7b", "note": "Local deck and image review."},
+    ],
+    "local_openai": [
+        {"label": "Qwen3 8B", "value": "Qwen/Qwen3-8B", "note": "Fast open-weight default."},
+        {"label": "GPT-OSS 20B", "value": "openai/gpt-oss-20b", "note": "Reasoning-heavy open-weight model."},
+        {"label": "Gemma 3 12B", "value": "google/gemma-3-12b-it", "note": "Strong general local model."},
+        {"label": "Qwen2.5 VL", "value": "Qwen/Qwen2.5-VL-7B-Instruct", "note": "Vision/deck review endpoint."},
+    ],
+    "open_source": [
+        {"label": "Qwen2.5 VL", "value": "Qwen/Qwen2.5-VL-7B-Instruct", "note": "Best open-source deck vision default."},
+        {"label": "Qwen3 VL", "value": "Qwen/Qwen3-VL-8B-Instruct", "note": "Newer open-source vision lane when available."},
+        {"label": "Llama Vision", "value": "meta-llama/Llama-3.2-11B-Vision-Instruct", "note": "Alternative open-source visual reviewer."},
+        {"label": "Pixtral", "value": "mistralai/Pixtral-12B-2409", "note": "Open multimodal deck reader."},
+    ],
+    "vertex": [
+        {"label": "Gemini 2.5 Flash", "value": "gemini-2.5-flash", "note": "Stable low-latency GCP default."},
+        {"label": "Gemini 2.5 Pro", "value": "gemini-2.5-pro", "note": "Stable higher-quality GCP default."},
+        {"label": "Gemini 3 Flash", "value": "gemini-3-flash-preview", "note": "Latest fast preview lane."},
+        {"label": "Gemini 3.1 Pro", "value": "gemini-3.1-pro-preview", "note": "Latest reasoning preview lane."},
+    ],
+    "gemini": [
+        {"label": "Gemini 2.5 Flash", "value": "gemini-2.5-flash", "note": "Stable low-latency API default."},
+        {"label": "Gemini 2.5 Pro", "value": "gemini-2.5-pro", "note": "Stable higher-quality API default."},
+        {"label": "Gemini 3 Flash", "value": "gemini-3-flash-preview", "note": "Latest fast preview lane."},
+        {"label": "Gemini 3.1 Pro", "value": "gemini-3.1-pro-preview", "note": "Latest reasoning preview lane."},
+    ],
+    "groq": [
+        {"label": "GPT-OSS 20B", "value": "openai/gpt-oss-20b", "note": "Very low latency."},
+        {"label": "GPT-OSS 120B", "value": "openai/gpt-oss-120b", "note": "Higher quality open-weight."},
+    ],
+    "cerebras": [
+        {"label": "GPT-OSS 120B", "value": "gpt-oss-120b", "note": "High-throughput open-weight."},
+    ],
+    "openai": [
+        {"label": "GPT-5.4 mini", "value": "gpt-5.4-mini", "note": "Fast frontier lane."},
+        {"label": "GPT-5.5", "value": "gpt-5.5", "note": "Highest-quality frontier lane."},
+    ],
+    "openrouter": [
+        {"label": "GPT-OSS 20B", "value": "openai/gpt-oss-20b", "note": "Open-weight fast lane."},
+        {"label": "GPT-OSS 120B", "value": "openai/gpt-oss-120b", "note": "Open-weight quality lane."},
+        {"label": "GPT-5.5", "value": "openai/gpt-5.5", "note": "Frontier quality when routed."},
+    ],
+    "anthropic": [
+        {"label": "Haiku", "value": "claude-3-5-haiku-latest", "note": "Fast narrative analysis."},
+        {"label": "Sonnet", "value": "claude-3-7-sonnet-latest", "note": "Careful memo-quality reasoning."},
+    ],
 }
 
 
@@ -369,25 +495,25 @@ OLLAMA_MODEL_PROFILES = {
     "speed": ModelProfileConfig(
         key="speed",
         model=PROVIDER_CONFIGS["ollama"].default_speed_model,
-        timeout_seconds=_env_float("OLLAMA_TIMEOUT_SPEED", 30.0),
+        timeout_seconds=_env_float("OLLAMA_TIMEOUT_SPEED", 24.0),
         options={
-            "num_ctx": 8192,
+            "num_ctx": _env_int("OLLAMA_NUM_CTX_SPEED", 4096),
             "temperature": 0.72,
             "top_p": 0.9,
             "repeat_penalty": 1.06,
-            "num_predict": 220,
+            "num_predict": _env_int("OLLAMA_MAX_TOKENS_SPEED", 180),
         },
     ),
     "balanced": ModelProfileConfig(
         key="balanced",
         model=PROVIDER_CONFIGS["ollama"].default_balanced_model,
-        timeout_seconds=_env_float("OLLAMA_TIMEOUT_BALANCED", 50.0),
+        timeout_seconds=_env_float("OLLAMA_TIMEOUT_BALANCED", 42.0),
         options={
-            "num_ctx": 8192,
+            "num_ctx": _env_int("OLLAMA_NUM_CTX_BALANCED", 6144),
             "temperature": 0.74,
             "top_p": 0.9,
             "repeat_penalty": 1.05,
-            "num_predict": 420,
+            "num_predict": _env_int("OLLAMA_MAX_TOKENS_BALANCED", 360),
         },
     ),
 }
@@ -421,25 +547,70 @@ def normalize_profile(profile: str | None) -> str:
     return value if value in ("speed", "balanced") else "speed"
 
 
+def _bool_env(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw not in {"0", "false", "no", "off"}
+
+
+def _ollama_enabled() -> bool:
+    return _bool_env("SIFT_ENABLE_OLLAMA", True)
+
+
+def _local_openai_enabled() -> bool:
+    return _bool_env("SIFT_ENABLE_LOCAL_OPENAI", not bool(_gcp_project_id()))
+
+
+def _open_source_enabled() -> bool:
+    return _bool_env("SIFT_ENABLE_OPEN_SOURCE_PROVIDER", bool(os.environ.get("OPEN_SOURCE_BASE_URL", "").strip()))
+
+
+def _fallback_provider_for_disabled_ollama() -> str:
+    if _gcp_project_id():
+        return "vertex"
+    for key, config in PROVIDER_CONFIGS.items():
+        if key in {"ollama", "local_openai", "open_source"} or not config.env_api_key_var:
+            continue
+        if os.environ.get(config.env_api_key_var, "").strip():
+            return key
+    if _local_openai_enabled():
+        return "local_openai"
+    return "ollama"
+
+
 def normalize_provider(provider: str | None) -> str:
     value = (provider or "ollama").strip().lower()
-    return value if value in PROVIDER_CONFIGS else "ollama"
+    if value == "ollama" and not _ollama_enabled():
+        return _fallback_provider_for_disabled_ollama()
+    if value == "local_openai" and not _local_openai_enabled():
+        return _fallback_provider_for_disabled_ollama()
+    if value == "open_source" and not _open_source_enabled():
+        return _fallback_provider_for_disabled_ollama()
+    return value if value in PROVIDER_CONFIGS else _fallback_provider_for_disabled_ollama()
 
 
 def provider_catalog() -> list[dict[str, Any]]:
     catalog = []
     for provider in PROVIDER_CONFIGS.values():
+        if provider.key == "ollama" and not _ollama_enabled():
+            continue
+        if provider.key == "local_openai" and not _local_openai_enabled():
+            continue
+        if provider.key == "open_source" and not _open_source_enabled():
+            continue
         meta = PROVIDER_PUBLIC_META.get(provider.key, {})
         catalog.append(
             {
                 "key": provider.key,
                 "label": provider.label,
                 "requiresApiKey": provider.requires_api_key,
-                "serverConfigured": bool(_provider_api_key(provider.key)),
+                "serverConfigured": _provider_server_configured(provider.key),
                 "defaultSpeedModel": provider.default_speed_model,
                 "defaultBalancedModel": provider.default_balanced_model,
                 "supportsVisionModels": PROVIDER_VISION_SUPPORT.get(provider.key, False),
                 "recommendedDeckModel": RECOMMENDED_DECK_MODELS.get(provider.key, ""),
+                "modelPresets": PROVIDER_MODEL_PRESETS.get(provider.key, []),
                 **meta,
             }
         )
@@ -490,6 +661,14 @@ def _with_config_overrides(
     )
 
 
+def _cap_ollama_tokens(provider: str, profile: str, max_tokens_override: int | None) -> int | None:
+    if normalize_provider(provider) != "ollama" or not max_tokens_override or max_tokens_override <= 0:
+        return max_tokens_override
+    cap_name = "OLLAMA_MAX_TOKENS_SPEED" if normalize_profile(profile) == "speed" else "OLLAMA_MAX_TOKENS_BALANCED"
+    default_cap = 180 if normalize_profile(profile) == "speed" else 360
+    return min(int(max_tokens_override), _env_int(cap_name, default_cap))
+
+
 def _profile_config_for_provider(
     provider: str,
     response_profile: str,
@@ -500,13 +679,13 @@ def _profile_config_for_provider(
     chosen_model = model_override.strip() or default_model_for_provider(normalized_provider, profile)
 
     if normalized_provider == "ollama":
-        timeout_seconds = _env_float("OLLAMA_TIMEOUT_SPEED", 30.0) if profile == "speed" else _env_float("OLLAMA_TIMEOUT_BALANCED", 50.0)
+        timeout_seconds = _env_float("OLLAMA_TIMEOUT_SPEED", 24.0) if profile == "speed" else _env_float("OLLAMA_TIMEOUT_BALANCED", 42.0)
         options = {
-            "num_ctx": 8192,
+            "num_ctx": _env_int("OLLAMA_NUM_CTX_SPEED", 4096) if profile == "speed" else _env_int("OLLAMA_NUM_CTX_BALANCED", 6144),
             "temperature": 0.72 if profile == "speed" else 0.74,
             "top_p": 0.9,
             "repeat_penalty": 1.06 if profile == "speed" else 1.05,
-            "num_predict": 220 if profile == "speed" else 420,
+            "num_predict": _env_int("OLLAMA_MAX_TOKENS_SPEED", 180) if profile == "speed" else _env_int("OLLAMA_MAX_TOKENS_BALANCED", 360),
         }
         return ModelProfileConfig(key=profile, model=chosen_model, timeout_seconds=timeout_seconds, options=options)
 
@@ -528,15 +707,71 @@ def _provider_api_key(provider: str, api_key: str | None = None) -> str:
     return os.environ.get(config.env_api_key_var, "").strip()
 
 
+def _provider_server_configured(provider: str) -> bool:
+    requested = (provider or "").strip().lower()
+    config = PROVIDER_CONFIGS.get(requested) or PROVIDER_CONFIGS[normalize_provider(provider)]
+    if config.key == "ollama":
+        return _ollama_enabled()
+    if config.key == "local_openai":
+        return _local_openai_enabled()
+    if config.key == "open_source":
+        if not _open_source_enabled():
+            return False
+        return bool(config.base_url and (not config.requires_api_key or _provider_api_key(config.key)))
+    if config.key == "vertex":
+        return bool(_gcp_project_id())
+    if not config.requires_api_key:
+        return True
+    return bool(_provider_api_key(config.key))
+
+
+def _gcp_project_id() -> str:
+    return (
+        os.environ.get("SIFT_GCP_PROJECT_ID")
+        or os.environ.get("GOOGLE_CLOUD_PROJECT")
+        or os.environ.get("GCP_PROJECT")
+        or ""
+    ).strip()
+
+
+def _vertex_location() -> str:
+    return os.environ.get("VERTEX_LOCATION", os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")).strip() or "us-central1"
+
+
+def _vertex_access_token() -> str:
+    try:
+        import google.auth  # type: ignore
+        from google.auth.transport.requests import Request  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError("Vertex AI provider requires google-auth, included with the Google Cloud client libraries.") from exc
+
+    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    credentials.refresh(Request())
+    return credentials.token or ""
+
+
+def _vertex_model_url(model: str, *, multimodal: bool = False) -> str:
+    project = _gcp_project_id()
+    if not project:
+        raise RuntimeError("Vertex AI provider requires SIFT_GCP_PROJECT_ID or GOOGLE_CLOUD_PROJECT.")
+    location = _vertex_location()
+    base_url = PROVIDER_CONFIGS["vertex"].base_url.strip().rstrip("/")
+    if not base_url:
+        base_url = f"https://{location}-aiplatform.googleapis.com/v1"
+    model_resource = f"projects/{project}/locations/{location}/publishers/google/models/{model}"
+    method = "generateContent"
+    return f"{base_url}/{model_resource}:{method}"
+
+
 def active_provider() -> str:
     if MODEL_PROVIDER in PROVIDER_CONFIGS:
         chosen = normalize_provider(MODEL_PROVIDER)
-        if not provider_requires_api_key(chosen) or _provider_api_key(chosen):
+        if _provider_server_configured(chosen):
             return chosen
-    for provider in ("groq", "cerebras", "openai", "openrouter", "anthropic", "gemini"):
-        if _provider_api_key(provider):
+    for provider in ("vertex", "groq", "cerebras", "openai", "openrouter", "anthropic", "gemini"):
+        if _provider_server_configured(provider):
             return provider
-    return "ollama"
+    return "ollama" if _ollama_enabled() else _fallback_provider_for_disabled_ollama()
 
 
 def _merge_messages(system: str, messages: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -559,12 +794,28 @@ def _read_image_bytes(image_path: str) -> tuple[str, str]:
     return media_type, encoded
 
 
+def _ollama_keep_alive() -> str:
+    return os.environ.get("OLLAMA_KEEP_ALIVE", "10m").strip() or "10m"
+
+
+def _ollama_runtime_options(options: dict[str, Any]) -> dict[str, Any]:
+    configured = dict(options)
+    num_thread = _env_int("OLLAMA_NUM_THREAD", 0)
+    if num_thread > 0:
+        configured["num_thread"] = num_thread
+    num_gpu = _env_int("OLLAMA_NUM_GPU", -1)
+    if num_gpu >= 0:
+        configured["num_gpu"] = num_gpu
+    return configured
+
+
 def _ollama_payload(system: str, messages: list[dict[str, Any]], config: ModelProfileConfig, stream: bool) -> dict[str, Any]:
     return {
         "model": config.model,
         "stream": stream,
         "messages": _merge_messages(system, messages),
-        "options": config.options,
+        "keep_alive": _ollama_keep_alive(),
+        "options": _ollama_runtime_options(config.options),
     }
 
 
@@ -677,7 +928,7 @@ def _ollama_multimodal_payload(
 ) -> dict[str, Any]:
     images = [_read_image_bytes(path)[1] for path in image_paths]
     options = {
-        "num_ctx": 8192,
+        "num_ctx": _env_int("OLLAMA_NUM_CTX_MULTIMODAL", 6144),
         "temperature": temperature,
         "top_p": top_p,
         "repeat_penalty": 1.05,
@@ -692,7 +943,8 @@ def _ollama_multimodal_payload(
             {"role": "system", "content": system},
             {"role": "user", "content": prompt, "images": images},
         ],
-        "options": options,
+        "keep_alive": _ollama_keep_alive(),
+        "options": _ollama_runtime_options(options),
     }
 
 
@@ -888,13 +1140,13 @@ async def _stream_from_profile(
         return
 
     if provider_config.api_style == "openai":
-        if not chosen_api_key:
+        if provider_config.requires_api_key and not chosen_api_key:
             raise RuntimeError(f"{provider_config.label} API key is not configured")
-        async for event, payload in _stream_from_openai_compatible(normalized_provider, system, messages, config, chosen_api_key):
+        async for event, payload in _stream_from_openai_compatible(normalized_provider, system, messages, config, chosen_api_key or "local"):
             yield event, payload
         return
 
-    if not chosen_api_key:
+    if provider_config.requires_api_key and not chosen_api_key:
         raise RuntimeError(f"{provider_config.label} API key is not configured")
 
     result = await generate_provider_text(
@@ -944,7 +1196,7 @@ async def stream_chat_completion(
     provider = normalize_provider(provider_override or active_provider())
     primary = _with_config_overrides(
         _profile_config_for_provider(provider, requested, model_override),
-        max_tokens_override=max_tokens_override,
+        max_tokens_override=_cap_ollama_tokens(provider, requested, max_tokens_override),
         timeout_seconds_override=timeout_seconds_override,
     )
     allow_fallback = not model_override.strip()
@@ -969,7 +1221,7 @@ async def stream_chat_completion(
         fallback_used = True
         config_used = _with_config_overrides(
             _profile_config_for_provider(provider, "speed"),
-            max_tokens_override=max_tokens_override,
+            max_tokens_override=_cap_ollama_tokens(provider, "speed", max_tokens_override),
             timeout_seconds_override=timeout_seconds_override,
         )
         meta_payload = None
@@ -1049,13 +1301,14 @@ async def _complete_ollama(
         "model": model,
         "stream": False,
         "messages": _merge_messages(system, messages),
-        "options": {
-            "num_ctx": 8192,
+        "keep_alive": _ollama_keep_alive(),
+        "options": _ollama_runtime_options({
+            "num_ctx": _env_int("OLLAMA_NUM_CTX_BALANCED", 6144),
             "temperature": temperature,
             "top_p": top_p,
             "repeat_penalty": 1.08,
             "num_predict": max_tokens,
-        },
+        }),
     }
     timeout = httpx.Timeout(timeout_seconds, connect=3.0, read=timeout_seconds)
     async with httpx.AsyncClient(timeout=timeout) as client:
@@ -1204,6 +1457,50 @@ async def _complete_gemini(
     }
 
 
+async def _complete_vertex_gemini(
+    system: str,
+    messages: list[dict[str, Any]],
+    model: str,
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    start = time.perf_counter()
+    payload = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": _gemini_contents(messages),
+        "generationConfig": {
+            "temperature": temperature,
+            "topP": top_p,
+            "maxOutputTokens": max_tokens,
+        },
+    }
+    timeout = httpx.Timeout(timeout_seconds, connect=3.0, read=timeout_seconds)
+    headers = {"Authorization": f"Bearer {_vertex_access_token()}"}
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(_vertex_model_url(model), headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+    total_seconds = time.perf_counter() - start
+    parts = []
+    for candidate in data.get("candidates", []):
+        for part in candidate.get("content", {}).get("parts", []):
+            if part.get("text"):
+                parts.append(part["text"])
+    finish_reason = _normalize_finish_reason((data.get("candidates", [{}]) or [{}])[0].get("finishReason", "stop"))
+    message_text = "".join(parts).strip()
+    return {
+        "message": message_text,
+        "finishReason": finish_reason,
+        "timings": {
+            "firstTokenSeconds": round(total_seconds, 3),
+            "totalSeconds": round(total_seconds, 3),
+        },
+        "usage": _usage_from_gemini_response(data, system=system, messages=messages, completion_text=message_text),
+    }
+
+
 async def generate_provider_text(
     *,
     provider: str,
@@ -1225,14 +1522,22 @@ async def generate_provider_text(
         raise RuntimeError(f"{provider_config.label} API key is required")
 
     if provider_config.api_style == "ollama":
-        result = await _complete_ollama(system, messages, chosen_model, max_tokens, temperature, top_p, timeout_seconds)
+        result = await _complete_ollama(
+            system,
+            messages,
+            chosen_model,
+            min(max_tokens, _env_int("OLLAMA_MAX_TOKENS_DIRECT", 420)),
+            temperature,
+            top_p,
+            timeout_seconds,
+        )
     elif provider_config.api_style == "openai":
         result = await _complete_openai(
             normalized_provider,
             system,
             messages,
             chosen_model,
-            chosen_api_key,
+            chosen_api_key or "local",
             max_tokens,
             temperature,
             top_p,
@@ -1242,6 +1547,8 @@ async def generate_provider_text(
         result = await _complete_anthropic(system, messages, chosen_model, chosen_api_key, max_tokens, temperature, timeout_seconds)
     elif provider_config.api_style == "gemini":
         result = await _complete_gemini(system, messages, chosen_model, chosen_api_key, max_tokens, temperature, top_p, timeout_seconds)
+    elif provider_config.api_style == "vertex_gemini":
+        result = await _complete_vertex_gemini(system, messages, chosen_model, max_tokens, temperature, top_p, timeout_seconds)
     else:
         raise RuntimeError(f"Unsupported provider: {normalized_provider}")
 
@@ -1426,6 +1733,51 @@ async def _complete_gemini_multimodal(
     }
 
 
+async def _complete_vertex_gemini_multimodal(
+    system: str,
+    prompt: str,
+    image_paths: list[str],
+    model: str,
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    start = time.perf_counter()
+    payload = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": _gemini_multimodal_contents(prompt, image_paths),
+        "generationConfig": {
+            "temperature": temperature,
+            "topP": top_p,
+            "maxOutputTokens": max_tokens,
+        },
+    }
+    timeout = httpx.Timeout(timeout_seconds, connect=3.0, read=timeout_seconds)
+    headers = {"Authorization": f"Bearer {_vertex_access_token()}"}
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(_vertex_model_url(model, multimodal=True), headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+    total_seconds = time.perf_counter() - start
+    parts = []
+    for candidate in data.get("candidates", []):
+        for part in candidate.get("content", {}).get("parts", []):
+            if part.get("text"):
+                parts.append(part["text"])
+    finish_reason = _normalize_finish_reason((data.get("candidates", [{}]) or [{}])[0].get("finishReason", "stop"))
+    message_text = "".join(parts).strip()
+    return {
+        "message": message_text,
+        "finishReason": finish_reason,
+        "timings": {
+            "firstTokenSeconds": round(total_seconds, 3),
+            "totalSeconds": round(total_seconds, 3),
+        },
+        "usage": _usage_from_gemini_response(data, system=system, messages=[{"role": "user", "content": prompt}], completion_text=message_text),
+    }
+
+
 async def generate_provider_multimodal_text(
     *,
     provider: str,
@@ -1452,7 +1804,16 @@ async def generate_provider_multimodal_text(
         raise RuntimeError("At least one image is required for multimodal review")
 
     if provider_config.api_style == "ollama":
-        result = await _complete_ollama_multimodal(system, prompt, image_paths, chosen_model, max_tokens, temperature, top_p, timeout_seconds)
+        result = await _complete_ollama_multimodal(
+            system,
+            prompt,
+            image_paths,
+            chosen_model,
+            min(max_tokens, _env_int("OLLAMA_MAX_TOKENS_MULTIMODAL", 480)),
+            temperature,
+            top_p,
+            timeout_seconds,
+        )
     elif provider_config.api_style == "openai":
         result = await _complete_openai_multimodal(
             normalized_provider,
@@ -1460,7 +1821,7 @@ async def generate_provider_multimodal_text(
             prompt,
             image_paths,
             chosen_model,
-            chosen_api_key,
+            chosen_api_key or "local",
             max_tokens,
             temperature,
             top_p,
@@ -1489,6 +1850,17 @@ async def generate_provider_multimodal_text(
             top_p,
             timeout_seconds,
         )
+    elif provider_config.api_style == "vertex_gemini":
+        result = await _complete_vertex_gemini_multimodal(
+            system,
+            prompt,
+            image_paths,
+            chosen_model,
+            max_tokens,
+            temperature,
+            top_p,
+            timeout_seconds,
+        )
     else:
         raise RuntimeError(f"Unsupported multimodal provider: {normalized_provider}")
 
@@ -1509,8 +1881,7 @@ async def generate_text(
     max_tokens: int = 600,
 ) -> dict[str, Any]:
     provider = active_provider()
-    profiles = GROQ_MODEL_PROFILES if provider == "groq" else OLLAMA_MODEL_PROFILES
-    profile = profiles[normalize_profile(response_profile)]
+    profile = _profile_config_for_provider(provider, response_profile)
     return {
         **await generate_provider_text(
             provider=provider,

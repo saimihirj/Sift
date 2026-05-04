@@ -9,7 +9,14 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from backend.core import memory
 
-from backend.services.auth import auth_provider_catalog, build_auth_user, extract_user_info, get_oauth_client, sanitize_next_path
+from backend.services.auth import (
+    auth_provider_catalog,
+    build_auth_user,
+    extract_user_info,
+    get_oauth_client,
+    oauth_provider_label,
+    sanitize_next_path,
+)
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -49,6 +56,7 @@ async def auth_session(request: Request) -> dict:
 
 @router.get("/login/{provider}")
 async def auth_login(request: Request, provider: str, next: str = Query(default="/")):
+    provider = (provider or "").strip().lower()
     client = get_oauth_client(provider)
     session = _session_store(request)
     if session is None:
@@ -68,6 +76,7 @@ async def auth_login(request: Request, provider: str, next: str = Query(default=
 
 @router.api_route("/callback/{provider}", methods=["GET", "POST"])
 async def auth_callback(request: Request, provider: str):
+    provider = (provider or "").strip().lower()
     client = get_oauth_client(provider)
     session = _session_store(request)
     if session is None:
@@ -78,10 +87,10 @@ async def auth_callback(request: Request, provider: str):
     next_path = sanitize_next_path(session.pop("auth_next", "/"))
     try:
         token = await client.authorize_access_token(request)
-        claims = await extract_user_info(request, client, token)
+        claims = await extract_user_info(provider, request, client, token)
         user = build_auth_user(provider, claims)
     except Exception:
-        session["auth_error"] = f"{provider.title()} sign-in failed. Check OAuth credentials and redirect setup."
+        session["auth_error"] = f"{oauth_provider_label(provider)} sign-in failed. Check OAuth credentials and redirect setup."
         return RedirectResponse(_frontend_redirect(next_path), status_code=302)
 
     session["auth_user"] = user

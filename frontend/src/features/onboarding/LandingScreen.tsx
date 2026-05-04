@@ -10,7 +10,7 @@ type Props = {
   onEmailOrHandleChange: (value: string) => void;
   onAccessKeyChange: (value: string) => void;
   onGenerateAccessKey: () => void;
-  onContinue: () => void;
+  onContinue: () => void | Promise<void>;
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
   error: string;

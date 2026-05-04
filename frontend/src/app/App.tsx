@@ -43,6 +43,76 @@ const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
     balancedLabel: "Qwen3 sharper",
     publicReadiness: "Local install required",
     openWeight: true,
+    modelPresets: [
+      { label: "Llama 3.2", value: "llama3.2:latest", note: "Fast laptop fallback." },
+      { label: "Qwen3 8B", value: "qwen3:8b", note: "Sharper local text." },
+      { label: "GPT-OSS 20B", value: "gpt-oss:20b", note: "Better reasoning if memory allows." },
+      { label: "Qwen2.5 VL", value: "qwen2.5vl:7b", note: "Local deck and image review." },
+    ],
+  },
+  {
+    key: "local_openai",
+    label: "Local OpenAI-compatible",
+    requiresApiKey: false,
+    defaultSpeedModel: "Qwen/Qwen3-8B",
+    defaultBalancedModel: "openai/gpt-oss-20b",
+    supportsVisionModels: true,
+    recommendedDeckModel: "Qwen/Qwen2.5-VL-7B-Instruct",
+    latencyHint: "Open-source models served by vLLM, TGI, LM Studio, llama.cpp, or another OpenAI-compatible local server.",
+    bestFor: "Fast local GPUs, Hugging Face models, and private hosted endpoints without changing Sift.",
+    speedLabel: "Qwen3 8B",
+    balancedLabel: "GPT-OSS 20B",
+    publicReadiness: "Local endpoint",
+    openWeight: true,
+    modelPresets: [
+      { label: "Qwen3 8B", value: "Qwen/Qwen3-8B", note: "Fast open-weight default." },
+      { label: "GPT-OSS 20B", value: "openai/gpt-oss-20b", note: "Reasoning-heavy open-weight model." },
+      { label: "Gemma 3 12B", value: "google/gemma-3-12b-it", note: "Strong general local model." },
+      { label: "Qwen2.5 VL", value: "Qwen/Qwen2.5-VL-7B-Instruct", note: "Vision/deck review endpoint." },
+    ],
+  },
+  {
+    key: "open_source",
+    label: "Open-source endpoint",
+    requiresApiKey: true,
+    defaultSpeedModel: "Qwen/Qwen2.5-VL-7B-Instruct",
+    defaultBalancedModel: "Qwen/Qwen2.5-VL-7B-Instruct",
+    supportsVisionModels: true,
+    recommendedDeckModel: "Qwen/Qwen2.5-VL-7B-Instruct",
+    latencyHint: "Server-side open-source model endpoint for Qwen, Llama, Gemma, Pixtral, or other OpenAI-compatible deployments.",
+    bestFor: "Public demos that need open-source models without making users run local hardware.",
+    speedLabel: "Qwen VL",
+    balancedLabel: "Qwen VL",
+    publicReadiness: "Open-source cloud lane",
+    openWeight: true,
+    modelPresets: [
+      { label: "Qwen2.5 VL", value: "Qwen/Qwen2.5-VL-7B-Instruct", note: "Best open-source deck vision default." },
+      { label: "Qwen3 VL", value: "Qwen/Qwen3-VL-8B-Instruct", note: "Newer open-source vision lane when available." },
+      { label: "Llama Vision", value: "meta-llama/Llama-3.2-11B-Vision-Instruct", note: "Alternative open-source visual reviewer." },
+      { label: "Pixtral", value: "mistralai/Pixtral-12B-2409", note: "Open multimodal deck reader." },
+    ],
+  },
+  {
+    key: "vertex",
+    label: "Vertex AI Gemini",
+    requiresApiKey: false,
+    serverConfigured: true,
+    defaultSpeedModel: "gemini-2.5-flash",
+    defaultBalancedModel: "gemini-2.5-pro",
+    supportsVisionModels: true,
+    recommendedDeckModel: "gemini-2.5-flash",
+    latencyHint: "Google Cloud hosted Gemini path using the Cloud Run service account.",
+    bestFor: "Using GCP credits and IAM instead of per-session API keys.",
+    speedLabel: "Gemini Flash",
+    balancedLabel: "Gemini Pro",
+    publicReadiness: "GCP-native lane",
+    openWeight: false,
+    modelPresets: [
+      { label: "Gemini 2.5 Flash", value: "gemini-2.5-flash", note: "Stable low-latency GCP default." },
+      { label: "Gemini 2.5 Pro", value: "gemini-2.5-pro", note: "Stable higher-quality GCP default." },
+      { label: "Gemini 3 Flash", value: "gemini-3-flash-preview", note: "Latest fast preview lane." },
+      { label: "Gemini 3.1 Pro", value: "gemini-3.1-pro-preview", note: "Latest reasoning preview lane." },
+    ],
   },
   {
     key: "groq",
@@ -58,6 +128,10 @@ const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
     balancedLabel: "GPT-OSS 120B",
     publicReadiness: "Recommended hosted default",
     openWeight: true,
+    modelPresets: [
+      { label: "GPT-OSS 20B", value: "openai/gpt-oss-20b", note: "Very low latency." },
+      { label: "GPT-OSS 120B", value: "openai/gpt-oss-120b", note: "Higher quality open-weight." },
+    ],
   },
   {
     key: "cerebras",
@@ -105,7 +179,7 @@ const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
     openWeight: true,
   },
   { key: "anthropic", label: "Anthropic", requiresApiKey: true, defaultSpeedModel: "claude-3-5-haiku-latest", defaultBalancedModel: "claude-3-7-sonnet-latest", supportsVisionModels: true, recommendedDeckModel: "claude-3-7-sonnet-latest", latencyHint: "Strong long-form synthesis with hosted API latency.", bestFor: "Careful narrative analysis and investor-style memo work.", speedLabel: "Haiku", balancedLabel: "Sonnet", publicReadiness: "Quality lane" },
-  { key: "gemini", label: "Gemini", requiresApiKey: true, defaultSpeedModel: "gemini-2.0-flash", defaultBalancedModel: "gemini-1.5-pro", supportsVisionModels: true, recommendedDeckModel: "gemini-2.0-flash", latencyHint: "Fast hosted multimodal fallback for broad consumer access.", bestFor: "Affordable hosted analysis and deck-adjacent workflows.", speedLabel: "Flash", balancedLabel: "Pro", publicReadiness: "Multimodal lane" },
+  { key: "gemini", label: "Gemini", requiresApiKey: true, defaultSpeedModel: "gemini-2.5-flash", defaultBalancedModel: "gemini-2.5-pro", supportsVisionModels: true, recommendedDeckModel: "gemini-2.5-flash", latencyHint: "Fast hosted multimodal fallback for broad consumer access.", bestFor: "Affordable hosted analysis and deck-adjacent workflows.", speedLabel: "Flash", balancedLabel: "Pro", publicReadiness: "Multimodal lane" },
 ];
 const DEFAULT_SETUP_DRAFT: SetupDraft = {
   runtimeKind: "external",
@@ -124,6 +198,11 @@ const DEFAULT_SETUP_DRAFT: SetupDraft = {
   helpMode: "coach_me",
   liveWebEnabled: true,
 };
+
+function isLocalProviderKey(key: string): boolean {
+  return key === "ollama" || key === "local_openai";
+}
+
 function getClientId(): string {
   const existing = localStorage.getItem(CLIENT_STORAGE_KEY);
   if (existing) {
@@ -294,7 +373,25 @@ function AppBody() {
 
   useEffect(() => {
     void listProviders()
-      .then((response) => setProviderOptions(response.providers))
+      .then((response) => {
+        setProviderOptions(response.providers);
+        const hostedDefault = response.providers.find((item) => !isLocalProviderKey(item.key) && item.serverConfigured);
+        if (!hostedDefault) {
+          return;
+        }
+        setSetupDraft((current) => {
+          const currentProvider = response.providers.find((item) => item.key === current.provider);
+          const needsClientKey = Boolean(currentProvider?.requiresApiKey && !currentProvider.serverConfigured);
+          if (current.runtimeKind !== "external" || !needsClientKey || current.apiKey.trim()) {
+            return current;
+          }
+          return {
+            ...current,
+            provider: hostedDefault.key,
+            model: hostedDefault.defaultBalancedModel || hostedDefault.defaultSpeedModel || current.model,
+          };
+        });
+      })
       .catch(() => setProviderOptions(DEFAULT_PROVIDER_OPTIONS));
   }, []);
 
@@ -447,8 +544,8 @@ function AppBody() {
     }
   };
 
-  const handleContinueWithIdentity = () => {
-    const identity = createWorkspaceIdentity(displayName, emailOrHandle, accessKey);
+  const handleContinueWithIdentity = async () => {
+    const identity = await createWorkspaceIdentity(displayName, emailOrHandle, accessKey);
     if (!identity) {
       setSetupError("Enter your name, email or handle, and a Sift key with at least 8 characters.");
       return;

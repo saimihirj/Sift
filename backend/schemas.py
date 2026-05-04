@@ -13,7 +13,7 @@ Stage = Literal["idea", "pre-revenue", "early-revenue", "growth", "unknown"]
 Mode = Literal["think_it_through", "quick_stress_test"]
 ResponseProfile = Literal["speed", "balanced"]
 SessionType = Literal["mentor", "evaluator", "expert"]
-Provider = Literal["ollama", "cerebras", "groq", "openai", "openrouter", "anthropic", "gemini"]
+Provider = Literal["ollama", "local_openai", "open_source", "cerebras", "groq", "openai", "openrouter", "anthropic", "gemini", "vertex"]
 HelpMode = Literal["coach_me", "challenge_me", "explain_directly"]
 EvaluatorMode = Literal["idea_review", "deck_review"]
 
