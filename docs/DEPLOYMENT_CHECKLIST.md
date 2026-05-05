@@ -124,6 +124,22 @@ docs/GCP_SERVERLESS_DEPLOYMENT.md
 That path uses the included `cloudbuild.yaml` and is designed for project
 `sift-495116`.
 
+For the current public link, register OAuth callbacks on the Firebase Hosting
+front door, not the raw Cloud Run URL:
+
+```text
+https://sift-vc.web.app/api/auth/callback/google
+https://sift-vc.web.app/api/auth/callback/apple
+https://sift-vc.web.app/api/auth/callback/linkedin
+https://sift-vc.web.app/api/auth/callback/x
+```
+
+After creating provider clients, run:
+
+```bash
+bash tools/configure_oauth_cloud_run.sh
+```
+
 ## Post-Deploy Verification
 
 Check these first:

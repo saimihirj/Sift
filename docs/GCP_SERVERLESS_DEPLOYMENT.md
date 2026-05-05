@@ -165,10 +165,10 @@ such as `sift.yourdomain.com`, map a verified domain to the service and add the
 DNS records that Google provides.
 
 If you do not want to buy a domain, use Firebase Hosting's free `web.app`
-front door:
+front door. The current clean public link is `https://sift-vc.web.app`.
 
 ```bash
-bash tools/deploy_clean_webapp_link.sh sift-platform
+bash tools/deploy_clean_webapp_link.sh sift-vc
 ```
 
 If that site id is unavailable, pick another globally unique id, for example:
@@ -177,7 +177,7 @@ If that site id is unavailable, pick another globally unique id, for example:
 bash tools/deploy_clean_webapp_link.sh sift-workbench
 ```
 
-This gives users one clean link like `https://sift-platform.web.app`. Firebase
+This gives users one clean link like `https://sift-vc.web.app`. Firebase
 Hosting serves the React app and rewrites `/api/**` to the same Cloud Run
 service, so OAuth callbacks and API calls stay under the one visible link.
 Firebase Hosting has a 60-second timeout for dynamic Cloud Run rewrites, so
@@ -232,6 +232,8 @@ The included `cloudbuild.yaml` deploys with:
 - `SIFT_ENABLE_LOCAL_OPENAI=false`
 - `SIFT_DECK_REVIEW_PROVIDER=vertex`
 - `SIFT_DECK_REVIEW_MODEL=gemini-2.5-flash`
+- `SIFT_FRONTEND_URL=https://sift-vc.web.app`
+- `SIFT_COOKIE_SAMESITE=none` for OAuth callbacks, including Apple's form post
 - `VERTEX_LOCATION=us-central1`
 - `VERTEX_MODEL_SPEED=gemini-2.5-flash`
 - `VERTEX_MODEL_BALANCED=gemini-2.5-pro`
@@ -270,17 +272,20 @@ The app also supports OpenAI, OpenRouter, Anthropic, and Cerebras through enviro
 The code supports Google, Apple, LinkedIn, and X sign-in. Each provider only
 appears in the UI after its client id and secret are present in Cloud Run.
 
-For the current service URL, register these callback URLs in the provider
+For the clean public URL, register these callback URLs in the provider
 developer consoles:
 
 ```text
-https://sift-7ncwbjz3ca-uc.a.run.app/api/auth/callback/google
-https://sift-7ncwbjz3ca-uc.a.run.app/api/auth/callback/apple
-https://sift-7ncwbjz3ca-uc.a.run.app/api/auth/callback/linkedin
-https://sift-7ncwbjz3ca-uc.a.run.app/api/auth/callback/x
+https://sift-vc.web.app/api/auth/callback/google
+https://sift-vc.web.app/api/auth/callback/apple
+https://sift-vc.web.app/api/auth/callback/linkedin
+https://sift-vc.web.app/api/auth/callback/x
 ```
 
-If you later add a custom domain, register the same paths on that domain too.
+Cloud Run should also keep `SIFT_FRONTEND_URL=https://sift-vc.web.app` so
+outbound OAuth requests use the same callback URL. Apple sign-in posts back
+cross-site, so production cookies use `SIFT_COOKIE_SAMESITE=none` with
+`SIFT_COOKIE_SECURE=true`.
 
 Recommended secret names:
 
@@ -295,12 +300,30 @@ x-oauth-client-id
 x-oauth-client-secret
 ```
 
-Then map them to Cloud Run environment variables:
+Export the eight provider-issued values locally, then run the helper. Do not
+paste provider secrets into chat or commit them.
+
+```bash
+export GOOGLE_OAUTH_CLIENT_ID='...'
+export GOOGLE_OAUTH_CLIENT_SECRET='...'
+export APPLE_OAUTH_CLIENT_ID='...'
+export APPLE_OAUTH_CLIENT_SECRET='...'
+export LINKEDIN_OAUTH_CLIENT_ID='...'
+export LINKEDIN_OAUTH_CLIENT_SECRET='...'
+export X_OAUTH_CLIENT_ID='...'
+export X_OAUTH_CLIENT_SECRET='...'
+
+bash tools/configure_oauth_cloud_run.sh
+```
+
+Or map existing secrets to Cloud Run manually:
 
 ```bash
 gcloud run services update sift \
+  --project=sift-495116 \
   --region=us-central1 \
-  --set-secrets=GOOGLE_OAUTH_CLIENT_ID=google-oauth-client-id:latest,GOOGLE_OAUTH_CLIENT_SECRET=google-oauth-client-secret:latest,APPLE_OAUTH_CLIENT_ID=apple-oauth-client-id:latest,APPLE_OAUTH_CLIENT_SECRET=apple-oauth-client-secret:latest,LINKEDIN_OAUTH_CLIENT_ID=linkedin-oauth-client-id:latest,LINKEDIN_OAUTH_CLIENT_SECRET=linkedin-oauth-client-secret:latest,X_OAUTH_CLIENT_ID=x-oauth-client-id:latest,X_OAUTH_CLIENT_SECRET=x-oauth-client-secret:latest
+  --update-env-vars=SIFT_FRONTEND_URL=https://sift-vc.web.app,SIFT_CORS_ORIGINS=https://sift-vc.web.app,SIFT_COOKIE_SECURE=true,SIFT_COOKIE_SAMESITE=none \
+  --update-secrets=GOOGLE_OAUTH_CLIENT_ID=google-oauth-client-id:latest,GOOGLE_OAUTH_CLIENT_SECRET=google-oauth-client-secret:latest,APPLE_OAUTH_CLIENT_ID=apple-oauth-client-id:latest,APPLE_OAUTH_CLIENT_SECRET=apple-oauth-client-secret:latest,LINKEDIN_OAUTH_CLIENT_ID=linkedin-oauth-client-id:latest,LINKEDIN_OAUTH_CLIENT_SECRET=linkedin-oauth-client-secret:latest,X_OAUTH_CLIENT_ID=x-oauth-client-id:latest,X_OAUTH_CLIENT_SECRET=x-oauth-client-secret:latest
 ```
 
 ## What Changed For GCP

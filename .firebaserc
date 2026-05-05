@@ -5,8 +5,11 @@
   "targets": {
     "sift-495116": {
       "hosting": {
-        "sift-clean": []
+        "sift-clean": [
+          "sift-vc"
+        ]
       }
     }
-  }
+  },
+  "etags": {}
 }

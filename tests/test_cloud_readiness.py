@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+from backend.api import auth as auth_routes
 from backend.schemas import StartSessionRequest
 from backend.services import auth
 from backend.services.model_router import _ollama_payload, _profile_config_for_provider, active_provider, provider_catalog
@@ -27,6 +28,31 @@ class CloudReadinessTests(unittest.TestCase):
 
         self.assertEqual([provider["key"] for provider in providers], ["google", "apple", "linkedin", "x"])
         self.assertTrue(all("configured" in provider for provider in providers))
+
+    def test_oauth_callback_url_prefers_clean_public_frontend(self) -> None:
+        class Request:
+            def url_for(self, *_args, **_kwargs):
+                raise AssertionError("SIFT_FRONTEND_URL should provide the callback host")
+
+        with patch.dict("os.environ", {"SIFT_FRONTEND_URL": "https://sift-vc.web.app/"}, clear=False):
+            callback_url = auth_routes._oauth_callback_url(Request(), "google")
+
+        self.assertEqual(callback_url, "https://sift-vc.web.app/api/auth/callback/google")
+
+    def test_oauth_callback_url_falls_back_to_request_url_for_local_dev(self) -> None:
+        class Request:
+            def url_for(self, route_name, provider):
+                self.route_name = route_name
+                self.provider = provider
+                return "http://testserver/api/auth/callback/linkedin"
+
+        request = Request()
+        with patch.dict("os.environ", {"SIFT_FRONTEND_URL": ""}, clear=False):
+            callback_url = auth_routes._oauth_callback_url(request, "linkedin")
+
+        self.assertEqual(callback_url, "http://testserver/api/auth/callback/linkedin")
+        self.assertEqual(request.route_name, "auth_callback")
+        self.assertEqual(request.provider, "linkedin")
 
     def test_cloud_provider_catalog_hides_ollama_and_marks_vertex_ready(self) -> None:
         with patch.dict("os.environ", {"SIFT_ENABLE_OLLAMA": "false", "SIFT_ENABLE_LOCAL_OPENAI": "false", "SIFT_GCP_PROJECT_ID": "sift-495116"}, clear=False):

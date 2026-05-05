@@ -36,6 +36,13 @@ def _frontend_redirect(path: str) -> str:
     return f"{frontend_url}{path}"
 
 
+def _oauth_callback_url(request: Request, provider: str) -> str:
+    frontend_url = os.environ.get("SIFT_FRONTEND_URL", "").strip().rstrip("/")
+    if frontend_url:
+        return f"{frontend_url}/api/auth/callback/{provider}"
+    return str(request.url_for("auth_callback", provider=provider))
+
+
 @router.get("/providers")
 async def auth_providers() -> dict:
     return {"providers": auth_provider_catalog()}
@@ -65,7 +72,7 @@ async def auth_login(request: Request, provider: str, next: str = Query(default=
         raise HTTPException(status_code=404, detail="OAuth provider is not configured")
 
     session["auth_next"] = sanitize_next_path(next)
-    redirect_uri = str(request.url_for("auth_callback", provider=provider))
+    redirect_uri = _oauth_callback_url(request, provider)
     authorize_kwargs = {}
     if provider == "google":
         authorize_kwargs["prompt"] = "select_account"

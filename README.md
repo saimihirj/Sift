@@ -1,72 +1,153 @@
 # Sift
 
-Sift is a startup evaluation workbench for shaping ideas, reviewing pitch decks, and pressure-testing early companies with structured AI feedback.
+Sift is an AI workbench for startup ideation, pitch deck review, and investor-style evaluation.
 
-It is designed for founders, students, operators, and analysts who want more than a generic chatbot. Sift keeps the work organized across three focused workflows:
+It gives founders, operators, students, and analysts one focused workspace to turn rough startup material into clearer thinking: a sharper pitch, a structured evaluation, and a practical next-actions report.
 
-- `Ideate`: shape a rough idea into a clearer pitch story.
-- `Evaluate`: score an idea or review a pitch deck with evidence-based feedback.
-- `Expert`: ask domain questions, compare startup concepts, and pre-screen opportunities with retrieved context.
+Public app:
 
-For controlled beta testing, Sift uses a lightweight workspace key instead of full authentication. A tester enters their name, email or handle, and Sift key; the same email/handle and key pair resumes only that tester's sessions.
+```text
+https://sift-vc.web.app
+```
 
-## What Sift Can Do
+## What Sift Does
 
-### Ideate
+Sift is organized around three workflows.
 
-- Holds a focused two-way conversation about the startup.
-- Tracks pitch coverage across problem, solution, market, business model, traction, team, and ask.
-- Supports uploads, session history, and a refined pitch artifact.
+`Ideate` helps shape an early idea into a clearer company narrative. It asks targeted questions, tracks pitch coverage, and helps produce a refined founder-ready articulation.
 
-### Evaluate
+`Evaluate` reviews a startup idea or pitch deck. It returns a structured verdict, score, confidence level, strengths, risks, missing evidence, and suggested next steps.
 
-- Runs adaptive idea reviews with a score, verdict, confidence, weak spots, and suggested fixes.
-- Accepts a startup website URL as evaluation context.
-- Supports direct pitch deck review for `.pdf` and `.pptx` uploads.
-- Produces structured reports instead of one-off chat responses.
+`Expert` answers startup, market, and venture-style questions with a bundled expert corpus and retrieved context. It is useful for concept breakdowns, risk mapping, deck pre-screening, and investor memo-style thinking.
 
-### Deck Review
+## Current Production Stack
 
-Deck review is a first-class mode inside `Evaluate`.
+The current shareable deployment runs on Google Cloud:
+
+- Firebase Hosting provides the clean public `web.app` link.
+- Cloud Run serves the FastAPI backend and built React frontend.
+- Firestore stores sessions and turns.
+- Cloud Storage stores uploads and deck artifacts.
+- BigQuery stores analytics events.
+- Vertex AI Gemini is the default server-side model path.
+- Firebase Hosting rewrites `/api/**` to Cloud Run so users only need one public URL.
+
+The production URL is:
+
+```text
+https://sift-vc.web.app
+```
+
+Useful live checks:
+
+```bash
+curl -fsS https://sift-vc.web.app/api/health
+curl -fsS https://sift-vc.web.app/api/session/providers
+curl -fsS https://sift-vc.web.app/api/auth/providers
+```
+
+## Model Options
+
+Sift supports both hosted and local/open-source model paths.
+
+Hosted providers:
+
+- Vertex AI Gemini
+- Gemini API
+- Groq
+- Cerebras
+- OpenAI
+- OpenRouter
+- Anthropic
+
+Local or private open-source providers:
+
+- Ollama
+- OpenAI-compatible local servers such as vLLM, Hugging Face TGI, LM Studio, and llama.cpp server
+- Private OpenAI-compatible GPU endpoints
+
+For public Google Cloud deployment, Vertex AI is the default because it uses Google Cloud IAM and project billing. Users can still bring their own API key for supported providers when enabled in the UI.
+
+## Deck Review
+
+Deck review is part of `Evaluate`.
 
 It can:
 
-- Parse uploaded pitch decks into ordered slide or page artifacts.
-- Score the deck against built-in startup pitch criteria.
-- Flag what is working, what is weak, what is unproven, and what is missing.
-- Give slide-by-slide notes and top fixes.
-- Cite slide or page references when available.
-- Mark missing claims as `not shown`, `unclear`, or `unverified` instead of guessing.
+- ingest `.pdf` and `.pptx` pitch decks
+- extract ordered slide or page content
+- score the deck against startup pitch criteria
+- produce slide-by-slide notes
+- identify strengths, risks, missing proof, and unclear claims
+- produce an investor-style report without pretending missing evidence exists
 
-PDF reviews can use slide images when the selected model supports vision and page rendering is available. PPTX reviews currently rely mostly on extracted slide text, so visual design feedback is treated as unverified.
+PDF review can use page images when the selected model supports vision. PPTX review relies mostly on extracted slide text unless a richer visual extraction path is configured.
 
-### Expert
+## OAuth
 
-- Answers startup and finance questions using the bundled knowledge base.
-- Shows source and confidence context where available.
-- Helps with concept explanations, framework comparisons, deck pre-screening, and investor-style analysis.
+The app has OAuth routes for:
 
-## Quick Start
+- Google
+- Apple
+- LinkedIn
+- X
 
-### 1. Install dependencies
+OAuth providers only appear as active when their client ID and secret are attached to Cloud Run through Secret Manager.
+
+Production callback URLs:
+
+```text
+https://sift-vc.web.app/api/auth/callback/google
+https://sift-vc.web.app/api/auth/callback/apple
+https://sift-vc.web.app/api/auth/callback/linkedin
+https://sift-vc.web.app/api/auth/callback/x
+```
+
+After creating provider apps, export the issued values locally and run:
 
 ```bash
-git clone <your-repo-url>
-cd sift
+export GOOGLE_OAUTH_CLIENT_ID='...'
+export GOOGLE_OAUTH_CLIENT_SECRET='...'
+export APPLE_OAUTH_CLIENT_ID='...'
+export APPLE_OAUTH_CLIENT_SECRET='...'
+export LINKEDIN_OAUTH_CLIENT_ID='...'
+export LINKEDIN_OAUTH_CLIENT_SECRET='...'
+export X_OAUTH_CLIENT_ID='...'
+export X_OAUTH_CLIENT_SECRET='...'
+
+bash tools/configure_oauth_cloud_run.sh
+```
+
+Do not commit OAuth secrets. Apple uses a generated client-secret JWT, not a normal static password. X currently uses the OAuth 1.0a API key and API secret flow.
+
+## Local Setup
+
+Install Python and Node dependencies:
+
+```bash
+git clone git@github.com:saimihirj/Sift.git
+cd Sift
+
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+
 npm install
 npm --prefix frontend install
 cp .env.example .env
 ```
 
-### 2. Run with API providers
-
-Use this path if you want to use Groq, Cerebras, OpenAI, OpenRouter, Anthropic, or Gemini.
+Run with hosted/API-key providers:
 
 ```bash
 npm run mvp:api
+```
+
+Run with local Ollama:
+
+```bash
+ollama pull llama3.2
+npm run mvp
 ```
 
 Open:
@@ -75,76 +156,84 @@ Open:
 http://127.0.0.1:7860
 ```
 
-You can enter an API key in the UI for a session, or set one in your shell before launch:
+Development split stack:
 
 ```bash
-export GROQ_API_KEY=...
-npm run mvp:api
+npm run dev
 ```
 
-### 3. Run fully local with Ollama
+Frontend:
 
-Install Ollama, pull a model, then launch Sift:
-
-```bash
-ollama pull llama3.2
-npm run mvp
+```text
+http://127.0.0.1:5173
 ```
 
-Optional stronger local model:
+Backend:
 
-```bash
-ollama pull qwen3:8b
+```text
+http://127.0.0.1:8000
 ```
 
-Sift will try to start Ollama automatically when running in local model mode.
-For Hugging Face/open-source models served through vLLM, TGI, LM Studio, or llama.cpp, set `SIFT_MODEL_PROVIDER=local_openai` and point `LOCAL_OPENAI_BASE_URL` at that server.
-
-Generated workspace keys are compact `SF...` keys. New keys store a short hashed workspace id instead of repeating the user's email/handle and raw key in session and analytics records; older `SIFT-...` keys still open their existing sessions.
-
-## Main Commands
+## Common Commands
 
 ```bash
 npm run mvp        # single-port local app with Ollama support
 npm run mvp:api    # single-port local app for API-key providers
 npm run mvp:lan    # share on the local network
-npm run admin      # open the admin view
+npm run admin      # launch with admin mode
 npm run dev        # run backend and frontend separately
 npm run build      # build the frontend
-npm run knowledge:vc
+python3 -m pytest  # run backend tests
 ```
 
-Development mode uses:
+## Fresh Data Reset
 
-- Frontend: `http://127.0.0.1:5173`
-- Backend: `http://127.0.0.1:8000`
+Reset local runtime data:
 
-## Providers
+```bash
+python3 tools/reset_runtime_data.py --local --yes
+```
 
-Local:
+Reset production Google Cloud runtime data:
 
-- `ollama`
-- `local_openai`
+```bash
+python3 tools/reset_runtime_data.py --gcp --project=sift-495116 --yes
+```
 
-Hosted:
+The reset keeps source code, deployment config, Firestore database, Cloud Storage bucket, and BigQuery schema intact. It deletes generated sessions, turns, analytics events, uploads, and generated local runtime indexes.
 
-- `groq`
-- `cerebras`
-- `openai`
-- `openrouter`
-- `anthropic`
-- `gemini`
-- `vertex`
+## Deploy To Google Cloud
 
-Server-side provider keys can be configured for hosted demos so visitors do not need to bring their own key.
+The project includes a Cloud Build and Firebase Hosting deployment path for project `sift-495116`.
+
+Deploy Cloud Run:
+
+```bash
+gcloud builds submit --project=sift-495116 --region=us-central1 --config=cloudbuild.yaml .
+```
+
+Deploy the clean public Firebase Hosting link:
+
+```bash
+bash tools/deploy_clean_webapp_link.sh sift-vc
+```
+
+Verify:
+
+```bash
+curl -fsS https://sift-vc.web.app/api/health
+curl -fsS https://sift-vc.web.app/api/session/providers
+```
+
+Full deployment details are in [docs/GCP_SERVERLESS_DEPLOYMENT.md](docs/GCP_SERVERLESS_DEPLOYMENT.md).
 
 ## Project Structure
 
 ```text
 backend/
   api/          FastAPI route handlers
-  core/         shared state, prompts, knowledge, RAG, and SQLite persistence
-  services/     evaluator, deck review, uploads, model routing, retrieval
+  core/         persistence, analytics, knowledge, and shared runtime state
+  services/     evaluation, deck review, uploads, retrieval, auth, and model routing
 
 frontend/
   src/          React application source
@@ -154,68 +243,38 @@ knowledge_base/
   expert/       bundled Expert knowledge corpus
   inbox/        source files for offline knowledge builds
 
-tools/          local launch and operator scripts
-legacy/         archived Gradio prototype
+tools/          launch, reset, deployment, and operator scripts
 docs/           architecture, execution, and deployment notes
 tests/          backend tests
-data/           local runtime state, uploads, and generated indexes
+data/           local runtime state, ignored by git
 ```
 
-The root directory is kept intentionally small: configuration, documentation, deployment files, and top-level package metadata.
+## Verification Status
 
-## Persistence
+Latest local verification:
 
-Sift is local-first by default.
+```text
+python3 -m pytest
+27 passed
 
-- Sessions and analytics are stored in SQLite under `data/`.
-- Session access is scoped by the beta Sift key supplied at entry.
-- Uploads are stored on local disk under `data/session_uploads/`.
-- Generated retrieval indexes are stored under `data/`.
+npm --prefix frontend run build
+passed
+```
 
-Do not commit the `data/` directory from a local development machine.
+## Notes For Operators
 
-## Deployment
-
-The full app is best deployed as a long-running Python service because the backend serves both the API and the built frontend.
-
-Recommended full-stack path:
-
-- Render or another long-running Python host.
-- Persistent disk for SQLite and uploads.
-- Server-side provider keys for public demos.
-
-Google Cloud serverless deployment is now supported with Cloud Run, Firestore,
-Cloud Storage, and BigQuery. See
-[Google Cloud Serverless Deployment](docs/GCP_SERVERLESS_DEPLOYMENT.md).
-
-Frontend-only Vercel deployment is also supported when paired with a hosted backend:
-
-- `vercel.json` builds `frontend/`.
-- Set `VITE_API_BASE_URL` to the hosted backend URL.
-- Set `SIFT_CORS_ORIGINS` on the backend to the Vercel app URL.
-
-See [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md) for details.
+- Keep `.env`, local caches, `frontend/dist`, and `data/` out of git.
+- Keep OAuth and model provider secrets in Secret Manager or local environment variables.
+- For public usage, prefer the clean Firebase Hosting URL over the raw Cloud Run URL.
+- For lowest public latency on Google Cloud, keep `min-instances` above zero and use Vertex/Gemini or another hosted low-latency provider.
+- For open-source model experiments, point `OPEN_SOURCE_BASE_URL` or `LOCAL_OPENAI_BASE_URL` at a vLLM/TGI/OpenAI-compatible endpoint.
 
 ## Documentation
 
-- [Execution Guide](docs/EXECUTION.md)
+- [Google Cloud Serverless Deployment](docs/GCP_SERVERLESS_DEPLOYMENT.md)
 - [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)
-- [Beta Readiness Checklist](docs/BETA_READINESS.md)
+- [Execution Guide](docs/EXECUTION.md)
 - [Platform Overview](docs/PLATFORM_OVERVIEW.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Beta Readiness Checklist](docs/BETA_READINESS.md)
 - [Changelog](CHANGELOG.md)
-
-## Current Status
-
-Sift is an MVP with the main product flows wired end to end:
-
-- Ideation workspace
-- Adaptive idea evaluator
-- Structured deck reviewer
-- Expert workbench
-- Local session history
-- Upload parsing and retrieval
-- Local and hosted model providers
-- Admin analytics view
-
-The project is still evolving. The most important current limitation is that website evaluation uses single-page context, not a full crawler or diligence engine.
