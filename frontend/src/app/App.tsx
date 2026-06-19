@@ -583,9 +583,20 @@ function AppBody() {
   };
 
   const handleContinueWithIdentity = async () => {
-    const identity = await createWorkspaceIdentity(displayName, emailOrHandle, accessKey);
+    let finalAccessKey = accessKey;
+    if (!finalAccessKey || finalAccessKey.length < 8) {
+      finalAccessKey = generateAccessKey();
+    }
+    let finalDisplayName = displayName;
+    if (!finalDisplayName.trim() && emailOrHandle.includes("@")) {
+      finalDisplayName = emailOrHandle.split("@")[0];
+    } else if (!finalDisplayName.trim()) {
+      finalDisplayName = emailOrHandle;
+    }
+
+    const identity = await createWorkspaceIdentity(finalDisplayName, emailOrHandle, finalAccessKey);
     if (!identity) {
-      setSetupError("Enter your name, email or handle, and a Sift key with at least 8 characters.");
+      setSetupError("Enter your email to continue.");
       return;
     }
     setStoredIdentity(identity);
@@ -599,11 +610,6 @@ function AppBody() {
     void listSessions(identity.clientId)
       .then((response) => setRecentSessions(response.sessions))
       .catch(() => setRecentSessions([]));
-  };
-
-  const handleGenerateAccessKey = () => {
-    setAccessKey(generateAccessKey());
-    setSetupError("");
   };
 
   const handleSwitchIdentity = () => {
@@ -789,13 +795,8 @@ function AppBody() {
           ) : (
             entryScreen === "landing" ? (
               <LandingScreen
-                displayName={displayName}
                 emailOrHandle={emailOrHandle}
-                accessKey={accessKey}
-                onDisplayNameChange={setDisplayName}
                 onEmailOrHandleChange={setEmailOrHandle}
-                onAccessKeyChange={setAccessKey}
-                onGenerateAccessKey={handleGenerateAccessKey}
                 onContinue={handleContinueWithIdentity}
                 theme={theme}
                 onThemeChange={setTheme}

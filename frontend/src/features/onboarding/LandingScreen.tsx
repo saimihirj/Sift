@@ -3,13 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import type { ThemeMode } from "../../app/types";
 
 type Props = {
-  displayName: string;
   emailOrHandle: string;
-  accessKey: string;
-  onDisplayNameChange: (value: string) => void;
   onEmailOrHandleChange: (value: string) => void;
-  onAccessKeyChange: (value: string) => void;
-  onGenerateAccessKey: () => void;
   onContinue: () => void | Promise<void>;
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
@@ -73,13 +68,8 @@ const MODE_CARDS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function LandingScreen({
-  displayName,
   emailOrHandle,
-  accessKey,
-  onDisplayNameChange,
   onEmailOrHandleChange,
-  onAccessKeyChange,
-  onGenerateAccessKey,
   onContinue,
   theme,
   onThemeChange,
@@ -87,31 +77,16 @@ export function LandingScreen({
   authProviders = [],
 }: Props) {
   const [hoveredMode, setHoveredMode] = useState<string | null>(null);
-  const [feedbackCopied, setFeedbackCopied] = useState(false);
-  const [keyCopied, setKeyCopied] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
 
-  const canContinue = Boolean(displayName.trim() && emailOrHandle.trim() && accessKey.trim().length >= 8);
+  const canContinue = Boolean(emailOrHandle.trim().length >= 3);
 
   const handleModeClick = () => {
     if (!canContinue) {
-      nameInputRef.current?.focus();
+      emailInputRef.current?.focus();
       return;
     }
     onContinue();
-  };
-
-  const copyAccessKey = async () => {
-    if (!accessKey.trim()) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(accessKey.trim());
-      setKeyCopied(true);
-      window.setTimeout(() => setKeyCopied(false), 1800);
-    } catch {
-      setKeyCopied(false);
-    }
   };
 
   return (
@@ -196,28 +171,10 @@ export function LandingScreen({
           )}
 
           <label className="identity-field">
-            <span className="rail-label">Your name</span>
+            <span className="rail-label">Enter your email</span>
             <input
-              ref={nameInputRef}
-              type="text"
-              value={displayName}
-              onChange={(event) => onDisplayNameChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && canContinue) {
-                  event.preventDefault();
-                  onContinue();
-                }
-              }}
-              placeholder="How should Sift address you?"
-              aria-required="true"
-              autoComplete="given-name"
-            />
-          </label>
-
-          <label className="identity-field">
-            <span className="rail-label">Email or handle</span>
-            <input
-              type="text"
+              ref={emailInputRef}
+              type="email"
               value={emailOrHandle}
               onChange={(event) => onEmailOrHandleChange(event.target.value)}
               onKeyDown={(event) => {
@@ -226,40 +183,11 @@ export function LandingScreen({
                   onContinue();
                 }
               }}
-              placeholder="Used with your Sift key"
+              placeholder="Used to sync your workspace"
               aria-required="true"
               autoComplete="email"
             />
           </label>
-
-          <label className="identity-field">
-            <span className="rail-label">Sift key</span>
-            <input
-              type="text"
-              value={accessKey}
-              onChange={(event) => onAccessKeyChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && canContinue) {
-                  event.preventDefault();
-                  onContinue();
-                }
-              }}
-              placeholder="Generate or enter your saved key"
-              aria-required="true"
-              autoComplete="off"
-            />
-          </label>
-
-          <div className="identity-key-actions">
-            <button type="button" className="ghost-button compact" onClick={onGenerateAccessKey}>
-              Generate key
-            </button>
-            <button type="button" className="ghost-button compact" onClick={() => void copyAccessKey()} disabled={!accessKey.trim()}>
-              {keyCopied ? "Key copied" : "Copy key"}
-            </button>
-          </div>
-
-
           {error ? <div className="setup-alert" role="alert">{error}</div> : null}
 
           <button
