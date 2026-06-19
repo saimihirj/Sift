@@ -13,7 +13,7 @@ import type {
   StartSessionPayload,
 } from "../../app/types";
 
-const API_BASE = (() => {
+export const API_BASE = (() => {
   const explicit = import.meta.env.VITE_API_BASE_URL;
   if (explicit) {
     return explicit;

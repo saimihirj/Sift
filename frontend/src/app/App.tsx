@@ -18,6 +18,7 @@ import { ExpertScreen } from "../features/expert/ExpertScreen";
 import { LandingScreen } from "../features/onboarding/LandingScreen";
 import { SetupWizard } from "../features/onboarding/SetupWizard";
 import { OutlineScreen } from "../features/outline/OutlineScreen";
+import { DashboardScreen } from "../features/dashboard/DashboardScreen";
 import { saveSessionCredential } from "../lib/sessionCredentials";
 import { createWorkspaceIdentity, generateAccessKey, type WorkspaceIdentity } from "../lib/workspaceIdentity";
 
@@ -857,6 +858,7 @@ function AppBody() {
           />
         }
       />
+      <Route path="/dashboard" element={<DashboardScreen />} />
       <Route
         path="/admin"
         element={adminEnabled ? <AdminScreen theme={theme} onThemeChange={setTheme} /> : <Navigate to="/" replace />}

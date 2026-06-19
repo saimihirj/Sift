@@ -15,6 +15,8 @@ import asyncio
 from fastapi import APIRouter, Query, BackgroundTasks
 from pydantic import BaseModel
 
+from backend.services.expert_knowledge import load_expert_corpus
+
 router = APIRouter(prefix="/api/brain", tags=["brain"])
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -135,6 +137,53 @@ async def brain_status():
 async def index_status():
     """Return ChromaDB index health."""
     return _chromadb_index_status()
+
+
+@router.get("/graph")
+async def get_knowledge_graph():
+    """Returns the topology of the expert knowledge base for visualization."""
+    corpus = load_expert_corpus()
+    cards = corpus.get("cards", [])
+    
+    nodes = []
+    links = []
+    
+    # Central Hub
+    nodes.append({"id": "hub", "name": "Neural Engine", "group": "hub", "val": 20})
+    
+    domain_nodes = set()
+    subdomain_nodes = set()
+    
+    for card in cards:
+        domain = card.get("domain", "general")
+        subdomain = card.get("subdomain", "General")
+        
+        # Ensure domain node exists
+        if domain not in domain_nodes:
+            nodes.append({"id": f"domain_{domain}", "name": domain.upper(), "group": "domain", "val": 10})
+            links.append({"source": "hub", "target": f"domain_{domain}", "value": 3})
+            domain_nodes.add(domain)
+            
+        # Ensure subdomain node exists
+        subdomain_id = f"sub_{domain}_{subdomain}"
+        if subdomain_id not in subdomain_nodes:
+            nodes.append({"id": subdomain_id, "name": subdomain, "group": "subdomain", "val": 5})
+            links.append({"source": f"domain_{domain}", "target": subdomain_id, "value": 2})
+            subdomain_nodes.add(subdomain_id)
+            
+        # Add card node
+        card_id = card.get("id")
+        nodes.append({
+            "id": card_id, 
+            "name": card.get("title"), 
+            "group": "card", 
+            "val": 1.5,
+            "domain": domain,
+            "confidence": card.get("confidenceTier", "medium")
+        })
+        links.append({"source": subdomain_id, "target": card_id, "value": 1})
+        
+    return {"nodes": nodes, "links": links}
 
 
 @router.get("/decision-trace")
