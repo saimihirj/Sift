@@ -6,6 +6,7 @@ import { ThemePicker } from "../../app/ThemePicker";
 import { answerEvaluator, updateSessionRuntime } from "../../lib/api/client";
 import { loadSessionCredential, saveSessionCredential } from "../../lib/sessionCredentials";
 import { ALL_UPLOAD_EXTENSIONS, DECK_UPLOAD_EXTENSIONS, uploadAccept, uploadHint, validateUploadFile } from "../../lib/uploadValidation";
+import { DeckUploadZone } from "./DeckUploadZone";
 import { RuntimeSidebar } from "../session/RuntimeSidebar";
 import { SessionSidebar } from "../session/SessionSidebar";
 import { ChatMessageList } from "../chat/ChatMessageList";
@@ -415,33 +416,45 @@ export function EvaluatorScreen({
                   <p>{deckReviewCapability.note}</p>
                 </div>
               ) : null}
-              <div className="attachment-row">
-                <div className="attachment-meta">
-                  <span className="rail-label">Context</span>
-                  <small>{evaluatorMode === "deck_review" ? `Deck only · ${currentUploadHint}` : `Optional context · ${currentUploadHint}`}</small>
-                </div>
-                <div className="attachment-actions">
-                  <button type="button" className="ghost-button compact" onClick={() => inputRef.current?.click()}>
-                    {selectedFile ? "Change file" : "Upload file"}
-                  </button>
-                  {selectedFile ? <span className="attachment-pill">{selectedFile.name}</span> : null}
-                  {selectedFile ? (
-                    <button type="button" className="ghost-button compact" onClick={() => handleFileSelected(null)}>
-                      Remove
-                    </button>
-                  ) : null}
-                </div>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  hidden
-                  accept={uploadAccept(allowedUploadExtensions)}
-                  onChange={(event) => {
-                    handleFileSelected(event.target.files?.[0] ?? null);
-                    event.currentTarget.value = "";
-                  }}
+              {evaluatorMode === "deck_review" ? (
+                /* ── Deck review: rich drag-drop zone with vision badge ── */
+                <DeckUploadZone
+                  visionSupported={runtimeSupportsVision}
+                  selectedFile={selectedFile}
+                  onFileSelect={(file) => handleFileSelected(file)}
+                  onFileClear={() => handleFileSelected(null)}
+                  uploading={pending && Boolean(selectedFile)}
                 />
-              </div>
+              ) : (
+                /* ── Other modes: compact attachment row ── */
+                <div className="attachment-row">
+                  <div className="attachment-meta">
+                    <span className="rail-label">Context</span>
+                    <small>{`Optional context · ${currentUploadHint}`}</small>
+                  </div>
+                  <div className="attachment-actions">
+                    <button type="button" className="ghost-button compact" onClick={() => inputRef.current?.click()}>
+                      {selectedFile ? "Change file" : "Upload file"}
+                    </button>
+                    {selectedFile ? <span className="attachment-pill">{selectedFile.name}</span> : null}
+                    {selectedFile ? (
+                      <button type="button" className="ghost-button compact" onClick={() => handleFileSelected(null)}>
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    hidden
+                    accept={uploadAccept(allowedUploadExtensions)}
+                    onChange={(event) => {
+                      handleFileSelected(event.target.files?.[0] ?? null);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </div>
+              )}
               <div className="composer-row">
                 <textarea
                   value={draft}

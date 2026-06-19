@@ -1,6 +1,6 @@
 export type ResponseProfile = "speed" | "balanced";
 export type SessionType = "mentor" | "evaluator" | "expert";
-export type Provider = "ollama" | "local_openai" | "open_source" | "cerebras" | "groq" | "openai" | "openrouter" | "anthropic" | "gemini" | "vertex";
+export type Provider = "ollama" | "local_openai" | "sift_brain" | "open_source" | "cerebras" | "groq" | "openai" | "openrouter" | "anthropic" | "gemini" | "vertex";
 export type ThemeMode = "light" | "dark" | "dusk" | "neon";
 export type OAuthProvider = "google" | "apple" | "linkedin" | "x";
 export type HelpMode = "coach_me" | "challenge_me" | "explain_directly";

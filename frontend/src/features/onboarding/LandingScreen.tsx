@@ -71,25 +71,30 @@ const MODE_CARDS = [
 ] as const;
 
 const TICKER_MESSAGES = [
-  "Private beta build",
-  "Ideate, Evaluate, Expert",
-  "Pitch drafts exportable",
-  "Live web when it helps",
-  "Local or hosted models",
-  "Deck reviews supported",
+  "12 knowledge domains indexed",
+  "Vision models read your deck slide-by-slide",
+  "Streaming · sub-200 ms first token",
+  "Runs on Qwen3, Llama-4, or your fine-tuned adapter",
+  "Neural engine routes each query by complexity",
+  "Private · local-first · no data leaves your machine",
 ];
 
-function TickerText() {
+function NeuralPulseTicker() {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
       setIndex((current) => (current + 1) % TICKER_MESSAGES.length);
-    }, 6000);
+    }, 5000);
     return () => window.clearInterval(timer);
   }, []);
 
-  return <span key={index} className="landing-pro-ticker-text">{TICKER_MESSAGES[index]}</span>;
+  return (
+    <div className="landing-neural-pulse">
+      <span className="landing-neural-dot" aria-hidden="true" />
+      <span key={index} className="landing-pro-ticker-text">{TICKER_MESSAGES[index]}</span>
+    </div>
+  );
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -150,8 +155,8 @@ export function LandingScreen({
   return (
     <div className="landing-pro-shell">
 
-      {/* ── Left: brand + mode showcase ─────────────────────────────────── */}
-      <section className="landing-pro-left" aria-label="Sift modes">
+      {/* ── Left: brand + conviction ──────────────────────────────────── */}
+      <section className="landing-pro-left" aria-label="Sift — intelligence layer for startups">
         <header className="landing-pro-brand">
           <div className="brand-identity">
             <span className="brand-wordmark">
@@ -160,6 +165,19 @@ export function LandingScreen({
           </div>
         </header>
 
+        {/* Conviction copy — product lens */}
+        <div className="landing-conviction">
+          <h1 className="landing-conviction-headline">
+            An intelligent verdict machine<br />
+            for <em>startup decisions</em>.
+          </h1>
+          <p className="landing-conviction-sub">
+            Not a chat wrapper. Sift routes every query through a knowledge graph,
+            a fine-tuned decision layer, and the right model — then returns a structured verdict.
+          </p>
+        </div>
+
+        {/* Mode cards — functional, not decorative */}
         <nav className="landing-pro-modes" aria-label="Choose a workflow">
           {MODE_CARDS.map((mode, index) => (
             <button
@@ -182,10 +200,8 @@ export function LandingScreen({
           ))}
         </nav>
 
-        <div className="landing-pro-ticker" aria-live="polite">
-          <span className="landing-pro-ticker-dot" aria-hidden="true" />
-          <TickerText />
-        </div>
+        {/* Neural pulse — AI engineer lens */}
+        <NeuralPulseTicker />
       </section>
 
       {/* ── Right: entry ─────────────────────────────────────────────────── */}

@@ -21,6 +21,7 @@ from backend.core import memory
 from backend.api.admin import router as admin_router
 from backend.api.analytics import router as analytics_router
 from backend.api.auth import router as auth_router
+from backend.api.brain import router as brain_router
 from backend.api.chat import router as chat_router
 from backend.api.client import router as client_router
 from backend.api.evaluator import router as evaluator_router
@@ -58,7 +59,7 @@ def cookie_same_site() -> str:
         return configured
     return "lax"
 
-app = FastAPI(title="Sift API", version="0.2.0")
+app = FastAPI(title="Sift API", version="0.4.0")
 
 
 @app.middleware("http")
@@ -129,6 +130,7 @@ app.include_router(outline_router)
 app.include_router(analytics_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(brain_router)
 
 if FRONTEND_ASSETS.exists():
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_ASSETS)), name="assets")

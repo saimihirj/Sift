@@ -433,6 +433,7 @@ async def chat(
 
             assistant_chunks: list[str] = []
             completion_payload = None
+            ttft_ms: float | None = None
             max_output_tokens, output_timeout = _stream_limits(session_type, has_upload=upload_entry is not None)
             async for event, payload in stream_chat_completion(
                 system=system_prompt,
@@ -463,6 +464,8 @@ async def chat(
                     payload["analysisSnapshot"] = session_metadata.get("activeAnalysis", _empty_analysis_snapshot())
                     yield _sse("meta", payload)
                 elif event == "delta":
+                    if ttft_ms is None:
+                        ttft_ms = round((time.perf_counter() - started_at) * 1000, 1)
                     assistant_chunks.append(payload["delta"])
                     yield _sse("delta", payload)
                 elif event == "complete":
@@ -591,6 +594,12 @@ async def chat(
                 },
             )
 
+            completion_tokens = assistant_metadata["usage"].get("completionTokens", 0) or len(" ".join(assistant_chunks).split()) // 1
+            total_seconds = round(time.perf_counter() - started_at, 3)
+            tps: float | None = None
+            if completion_tokens and total_seconds > 0:
+                tps = round(completion_tokens / total_seconds, 1)
+
             yield _sse(
                 "done",
                 {
@@ -622,6 +631,9 @@ async def chat(
                     "helpMode": session_metadata.get("helpMode", "coach_me"),
                     "liveWebEnabled": session_metadata.get("liveWebEnabled", False),
                     "analysisSnapshot": session_metadata.get("activeAnalysis", _empty_analysis_snapshot()),
+                    # ── Performance metrics ────────────────────────────────────
+                    "ttftMs": ttft_ms,
+                    "tps": tps,
                 },
             )
         except httpx.ReadTimeout:

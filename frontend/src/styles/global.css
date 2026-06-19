@@ -17,6 +17,19 @@
   --font-display: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", monospace;
+  /* ── Sift Brain intelligence layer tokens ──────────────────────────── */
+  --brain-accent: #00c96b;
+  --brain-accent-weak: rgba(0, 201, 107, 0.1);
+  --brain-glow: 0 0 16px rgba(0, 201, 107, 0.28);
+  --brain-glow-strong: 0 0 32px rgba(0, 201, 107, 0.45);
+  --brain-pulse-color: rgba(0, 201, 107, 0.6);
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --surface-glass-border: rgba(17, 24, 39, 0.09);
+  --vision-on: #00c96b;
+  --vision-off: #f59e0b;
+  --latency-ok: #10b981;
+  --latency-warn: #f59e0b;
+  --latency-slow: #ef4444;
 }
 
 :root[data-theme="dark"] {
@@ -33,6 +46,18 @@
   --shadow-soft: 0 28px 80px rgba(0, 0, 0, 0.36);
   --shadow-hover: 0 18px 38px rgba(0, 0, 0, 0.28);
   --focus-ring: 0 0 0 3px rgba(139, 211, 221, 0.18);
+  --brain-accent: #00e87a;
+  --brain-accent-weak: rgba(0, 232, 122, 0.12);
+  --brain-glow: 0 0 20px rgba(0, 232, 122, 0.32);
+  --brain-glow-strong: 0 0 40px rgba(0, 232, 122, 0.5);
+  --brain-pulse-color: rgba(0, 232, 122, 0.7);
+  --surface-glass: rgba(18, 24, 32, 0.78);
+  --surface-glass-border: rgba(244, 247, 251, 0.08);
+  --vision-on: #00e87a;
+  --vision-off: #fbbf24;
+  --latency-ok: #34d399;
+  --latency-warn: #fbbf24;
+  --latency-slow: #f87171;
 }
 
 :root[data-theme="dusk"] {
@@ -49,6 +74,18 @@
   --shadow-soft: 0 28px 80px rgba(5, 4, 3, 0.42);
   --shadow-hover: 0 18px 38px rgba(5, 4, 3, 0.34);
   --focus-ring: 0 0 0 3px rgba(217, 181, 111, 0.2);
+  --brain-accent: #00d97e;
+  --brain-accent-weak: rgba(0, 217, 126, 0.1);
+  --brain-glow: 0 0 18px rgba(0, 217, 126, 0.28);
+  --brain-glow-strong: 0 0 36px rgba(0, 217, 126, 0.45);
+  --brain-pulse-color: rgba(0, 217, 126, 0.65);
+  --surface-glass: rgba(35, 31, 27, 0.8);
+  --surface-glass-border: rgba(255, 248, 239, 0.1);
+  --vision-on: #00d97e;
+  --vision-off: #f59e0b;
+  --latency-ok: #2dd4bf;
+  --latency-warn: #fbbf24;
+  --latency-slow: #fb7185;
 }
 
 :root[data-theme="neon"] {
@@ -65,6 +102,34 @@
   --shadow-soft: 0 28px 72px rgba(0, 0, 0, 0.48);
   --shadow-hover: 0 18px 38px rgba(0, 0, 0, 0.34);
   --focus-ring: 0 0 0 3px rgba(255, 255, 255, 0.2);
+  --brain-accent: #00ff88;
+  --brain-accent-weak: rgba(0, 255, 136, 0.1);
+  --brain-glow: 0 0 24px rgba(0, 255, 136, 0.4);
+  --brain-glow-strong: 0 0 48px rgba(0, 255, 136, 0.6);
+  --brain-pulse-color: rgba(0, 255, 136, 0.8);
+  --surface-glass: rgba(15, 15, 15, 0.85);
+  --surface-glass-border: rgba(255, 255, 255, 0.1);
+  --vision-on: #00ff88;
+  --vision-off: #ffd700;
+  --latency-ok: #00ff88;
+  --latency-warn: #ffd700;
+  --latency-slow: #ff4444;
+}
+
+/* ── Sift Brain token fallbacks (light theme inherits here) ─────────── */
+:root {
+  --brain-accent: #00c96b;
+  --brain-accent-weak: rgba(0, 201, 107, 0.1);
+  --brain-glow: 0 0 16px rgba(0, 201, 107, 0.28);
+  --brain-glow-strong: 0 0 32px rgba(0, 201, 107, 0.45);
+  --brain-pulse-color: rgba(0, 201, 107, 0.6);
+  --surface-glass: rgba(255, 255, 255, 0.72);
+  --surface-glass-border: rgba(17, 24, 39, 0.09);
+  --vision-on: #00c96b;
+  --vision-off: #f59e0b;
+  --latency-ok: #10b981;
+  --latency-warn: #f59e0b;
+  --latency-slow: #ef4444;
 }
 
 * {
@@ -128,6 +193,50 @@ a {
   display: grid;
   place-items: center;
   background: var(--bg);
+  min-height: 100dvh;
+}
+
+.sift-loading-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  animation: sift-fade-up 400ms var(--ease-fluid);
+}
+
+.sift-loading-wordmark {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+
+.sift-loading-wordmark span {
+  color: var(--brain-accent);
+}
+
+.sift-loading-bar {
+  width: 80px;
+  height: 2px;
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.sift-loading-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--brain-accent);
+  animation: sift-loading-sweep 1.2s ease-in-out infinite;
+  border-radius: 2px;
+}
+
+@keyframes sift-loading-sweep {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
 }
 
 .landing-shell {
@@ -3621,3 +3730,647 @@ a:focus-visible,
     display: none;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SIFT v0.4 — New Component Styles
+   DeckUploadZone · DeckVisionBadge · SiftBrainPanel · Streaming UI
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Global keyframes ─────────────────────────────────────────────────────── */
+
+@keyframes sift-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sift-brain-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--brain-pulse-color); }
+  50%       { box-shadow: var(--brain-glow-strong); }
+}
+
+@keyframes sift-stream-cursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes sift-score-ring {
+  from { --ring-pct: 0%; }
+  to   { --ring-pct: var(--score-pct, 70%); }
+}
+
+@keyframes sift-deck-border {
+  0%, 100% { border-color: var(--accent); opacity: 0.5; }
+  50%       { border-color: var(--brain-accent); opacity: 1; }
+}
+
+/* ── Streaming cursor ─────────────────────────────────────────────────────── */
+
+.stream-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--accent);
+  border-radius: 1px;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: sift-stream-cursor 600ms ease-in-out infinite;
+}
+
+/* ── Abort button ─────────────────────────────────────────────────────────── */
+
+.abort-stream-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--latency-slow);
+  background: transparent;
+  color: var(--latency-slow);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease;
+}
+
+.abort-stream-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  box-shadow: 0 0 0 1px var(--latency-slow);
+}
+
+.abort-stream-btn::before {
+  content: "■";
+  font-size: 0.6rem;
+}
+
+/* ── Throughput / TTFT meter ──────────────────────────────────────────────── */
+
+.stream-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--panel-muted);
+  border: 1px solid var(--line);
+  font-size: 0.73rem;
+  font-family: var(--font-mono);
+  color: var(--ink-soft);
+  animation: sift-fade-up 200ms var(--ease-fluid);
+}
+
+.stream-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stream-stat-value {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.stream-stat-value.ok    { color: var(--latency-ok); }
+.stream-stat-value.warn  { color: var(--latency-warn); }
+.stream-stat-value.slow  { color: var(--latency-slow); }
+
+.stream-stat-sep {
+  color: var(--line-strong);
+}
+
+/* ── DeckVisionBadge ──────────────────────────────────────────────────────── */
+
+.deck-vision-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.deck-vision-badge.vision-on {
+  background: var(--brain-accent-weak);
+  color: var(--vision-on);
+  border: 1px solid var(--vision-on);
+}
+
+.deck-vision-badge.vision-off {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--vision-off);
+  border: 1px solid var(--vision-off);
+}
+
+.deck-vision-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.deck-vision-badge.vision-on .deck-vision-badge-dot {
+  animation: sift-brain-pulse 2s ease-in-out infinite;
+}
+
+/* ── DeckUploadZone ───────────────────────────────────────────────────────── */
+
+.deck-upload-zone {
+  position: relative;
+  border: 2px dashed var(--line-strong);
+  border-radius: 16px;
+  padding: clamp(24px, 4vw, 40px) clamp(20px, 3vw, 32px);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 220ms var(--ease-fluid),
+              background 220ms var(--ease-fluid),
+              box-shadow 220ms var(--ease-fluid);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  outline: none;
+}
+
+.deck-upload-zone:hover,
+.deck-upload-zone.drag-active {
+  border-color: var(--brain-accent);
+  background: var(--brain-accent-weak);
+  box-shadow: var(--brain-glow);
+  animation: sift-deck-border 2s ease-in-out infinite;
+}
+
+.deck-upload-zone:focus-visible {
+  box-shadow: var(--focus-ring), var(--brain-glow);
+}
+
+.deck-upload-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--ink-soft);
+  transition: color 220ms ease, transform 220ms ease;
+}
+
+.deck-upload-zone:hover .deck-upload-icon,
+.deck-upload-zone.drag-active .deck-upload-icon {
+  color: var(--brain-accent);
+  transform: translateY(-3px);
+}
+
+.deck-upload-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+.deck-upload-hint {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.deck-upload-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+/* File preview card (after selection) */
+
+.deck-file-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--panel-muted);
+  border: 1px solid var(--line);
+  animation: sift-fade-up 240ms var(--ease-fluid);
+}
+
+.deck-file-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--accent-weak);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.deck-file-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.deck-file-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-file-meta {
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+}
+
+.deck-file-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+  padding: 4px;
+  border-radius: 6px;
+  font-size: 1rem;
+  line-height: 1;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.deck-file-remove:hover {
+  color: var(--latency-slow);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Upload progress */
+
+.deck-upload-progress {
+  width: 100%;
+  height: 3px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.deck-upload-progress-bar {
+  height: 100%;
+  background: var(--brain-accent);
+  border-radius: 3px;
+  transition: width 300ms var(--ease-fluid);
+  box-shadow: var(--brain-glow);
+}
+
+/* ── SiftBrainPanel ───────────────────────────────────────────────────────── */
+
+.sift-brain-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--surface-glass);
+  border: 1px solid var(--surface-glass-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: sift-fade-up 320ms var(--ease-fluid);
+}
+
+.sift-brain-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sift-brain-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* Neural engine badge */
+
+.neural-engine-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.neural-engine-badge.active {
+  background: var(--brain-accent-weak);
+  color: var(--brain-accent);
+  border: 1px solid var(--brain-accent);
+  animation: sift-brain-pulse 2.5s ease-in-out infinite;
+}
+
+.neural-engine-badge.standby {
+  background: var(--panel-muted);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+
+.neural-engine-badge.unconfigured {
+  background: var(--panel-muted);
+  color: var(--ink-soft);
+  border: 1px dashed var(--line-strong);
+  opacity: 0.7;
+}
+
+.neural-engine-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* Brain stats grid */
+
+.brain-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.brain-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--panel-muted);
+  border: 1px solid var(--line);
+}
+
+.brain-stat-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.brain-stat-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: var(--font-mono);
+}
+
+.brain-stat-value.brain-active {
+  color: var(--brain-accent);
+}
+
+.brain-stat-sub {
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+}
+
+/* Decision trace */
+
+.brain-decision-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--panel-muted);
+  border: 1px solid var(--line);
+}
+
+.brain-trace-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 2px;
+}
+
+.brain-trace-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.76rem;
+}
+
+.brain-trace-key {
+  color: var(--ink-soft);
+}
+
+.brain-trace-value {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--ink);
+  background: var(--accent-weak);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.brain-trace-value.hit {
+  background: var(--brain-accent-weak);
+  color: var(--brain-accent);
+}
+
+/* Domain freshness */
+
+.brain-domain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.brain-domain-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.brain-domain-row:last-child {
+  border-bottom: none;
+}
+
+.brain-domain-name {
+  color: var(--ink);
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.brain-domain-count {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--brain-accent);
+  font-weight: 600;
+}
+
+.brain-domain-fresh {
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+}
+
+/* Adapter badge */
+
+.brain-adapter-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--brain-accent-weak);
+  border: 1px solid var(--brain-accent);
+}
+
+.brain-adapter-label {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--brain-accent);
+  letter-spacing: 0.03em;
+}
+
+.brain-adapter-meta {
+  font-size: 0.68rem;
+  color: var(--ink-soft);
+}
+
+/* ── Landing redesign — v0.4 additions ────────────────────────────────────── */
+
+.landing-conviction {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.landing-conviction-headline {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.landing-conviction-headline em {
+  font-style: normal;
+  color: var(--brain-accent);
+}
+
+.landing-conviction-sub {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  max-width: 36ch;
+}
+
+.landing-neural-pulse {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--brain-accent-weak);
+  border: 1px solid var(--brain-accent);
+  width: fit-content;
+}
+
+.landing-neural-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brain-accent);
+  animation: sift-brain-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ── Runtime sidebar upgrades ─────────────────────────────────────────────── */
+
+.runtime-brain-section {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.runtime-brain-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--ink);
+  padding: 4px 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.runtime-brain-toggle-chevron {
+  font-size: 0.65rem;
+  color: var(--ink-soft);
+  transition: transform 220ms ease;
+}
+
+.runtime-brain-toggle-chevron.open {
+  transform: rotate(180deg);
+}
+
+.runtime-throughput-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--panel-muted);
+  border: 1px solid var(--line);
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+}
+
+.runtime-throughput-label {
+  color: var(--ink-soft);
+  flex: 1;
+}
+
+.runtime-throughput-value {
+  font-weight: 700;
+  color: var(--latency-ok);
+}
+
+.runtime-ttft-value {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.runtime-ttft-value.warn { color: var(--latency-warn); }
+.runtime-ttft-value.slow { color: var(--latency-slow); }
