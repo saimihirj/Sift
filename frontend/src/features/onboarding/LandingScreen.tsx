@@ -57,6 +57,13 @@ function ExpertGlyph() {
 
 // ─── Static Data ──────────────────────────────────────────────────────────────
 
+const THEME_SWATCHES: Array<{ key: ThemeMode; bg: string; label: string }> = [
+  { key: "light",  bg: "#164e63", label: "Light" },
+  { key: "dark",   bg: "#8bd3dd", label: "Graphite" },
+  { key: "dusk",   bg: "#d9b56f", label: "Dusk" },
+  { key: "neon",   bg: "#e2e2e2", label: "Focus" },
+];
+
 const MODE_CARDS = [
   { idx: "01", key: "ideate",   label: "Ideate",   hint: "Pitch draft",    Glyph: IdeateGlyph },
   { idx: "02", key: "evaluate", label: "Evaluate", hint: "Score + report", Glyph: EvaluateGlyph },
@@ -147,6 +154,21 @@ export function LandingScreen({
 
       {/* ── Right: entry ─────────────────────────────────────────────────── */}
       <section className="landing-pro-right">
+
+        {/* Theme dots */}
+        <div className="theme-swatch-row" role="group" aria-label="Select theme">
+          {THEME_SWATCHES.map((swatch) => (
+            <button
+              key={swatch.key}
+              type="button"
+              className={`theme-swatch${theme === swatch.key ? " active" : ""}`}
+              style={{ "--sw-bg": swatch.bg } as React.CSSProperties}
+              onClick={() => onThemeChange(swatch.key)}
+              aria-label={swatch.label}
+              aria-pressed={theme === swatch.key}
+            />
+          ))}
+        </div>
 
         {/* Entry form */}
         <div className="landing-pro-entry">
