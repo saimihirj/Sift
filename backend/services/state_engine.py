@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
-from state import ConversationState
+from backend.core.state import ConversationState
 
 
 SECTION_KEYWORDS = {

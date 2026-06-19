@@ -19,12 +19,16 @@ class DeckReviewTests(unittest.TestCase):
         self.tempdir = tempfile.TemporaryDirectory()
         self.original_data_dir = uploads.DATA_DIR
         self.original_uploads_dir = uploads.UPLOADS_DIR
+        self.original_max_upload_bytes = uploads.MAX_UPLOAD_BYTES
+        self.original_max_uploads = uploads.MAX_UPLOADS_PER_SESSION
         uploads.DATA_DIR = Path(self.tempdir.name)
         uploads.UPLOADS_DIR = uploads.DATA_DIR / "session_uploads"
 
     def tearDown(self) -> None:
         uploads.DATA_DIR = self.original_data_dir
         uploads.UPLOADS_DIR = self.original_uploads_dir
+        uploads.MAX_UPLOAD_BYTES = self.original_max_upload_bytes
+        uploads.MAX_UPLOADS_PER_SESSION = self.original_max_uploads
         self.tempdir.cleanup()
 
     def _pptx_bytes(self) -> bytes:
@@ -65,6 +69,28 @@ class DeckReviewTests(unittest.TestCase):
         self.assertEqual(artifact["slideCount"], 2)
         self.assertFalse(artifact["hasRenderableSlides"])
         self.assertEqual(artifact["slides"][0]["label"], "Slide 1")
+
+    def test_upload_rejects_unsupported_file_type(self) -> None:
+        upload = UploadFile(filename="payload.exe", file=BytesIO(b"not allowed"))
+
+        with self.assertRaisesRegex(ValueError, "Unsupported file type"):
+            asyncio.run(uploads.ingest_upload("bad-type", upload))
+
+    def test_upload_rejects_files_over_beta_limit(self) -> None:
+        uploads.MAX_UPLOAD_BYTES = 4
+        upload = UploadFile(filename="notes.txt", file=BytesIO(b"too large"))
+
+        with self.assertRaisesRegex(ValueError, "File is too large"):
+            asyncio.run(uploads.ingest_upload("too-large", upload))
+
+    def test_upload_rejects_too_many_files_in_session(self) -> None:
+        uploads.MAX_UPLOADS_PER_SESSION = 1
+        first = UploadFile(filename="one.txt", file=BytesIO(b"first note"))
+        second = UploadFile(filename="two.txt", file=BytesIO(b"second note"))
+
+        asyncio.run(uploads.ingest_upload("upload-cap", first))
+        with self.assertRaisesRegex(ValueError, "already has 1 uploads"):
+            asyncio.run(uploads.ingest_upload("upload-cap", second))
 
     def test_review_deck_session_uses_structured_artifact(self) -> None:
         upload = UploadFile(filename="deck.pptx", file=BytesIO(self._pptx_bytes()))

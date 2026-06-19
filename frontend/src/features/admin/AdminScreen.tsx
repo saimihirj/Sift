@@ -5,7 +5,7 @@ import type { AdminEvent, AdminOverview, SessionSummary, ThemeMode } from "../..
 import { ThemePicker } from "../../app/ThemePicker";
 import { getAdminEvents, getAdminOverview } from "../../lib/api/client";
 
-const ADMIN_TOKEN_STORAGE_KEY = "vishwakarma-admin-token";
+const ADMIN_TOKEN_STORAGE_KEY = "sift-admin-token";
 
 type Props = {
   theme: ThemeMode;

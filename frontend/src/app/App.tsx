@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
 import type {
-  AuthProviderOption,
-  AuthUser,
   ProviderOption,
   SessionPayload,
   SessionSummary,
@@ -11,7 +9,7 @@ import type {
   StartSessionPayload,
   ThemeMode,
 } from "./types";
-import { clearSessionHistory, getAuthSession, getSession, listProviders, listSessions, logoutAuth, postAnalyticsEvent, sendHeartbeat, startSession } from "../lib/api/client";
+import { clearSessionHistory, getAuthSession, getSession, listProviders, listSessions, postAnalyticsEvent, sendHeartbeat, startSession } from "../lib/api/client";
 import { AdminScreen } from "../features/admin/AdminScreen";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { EvaluatorReportScreen } from "../features/evaluator/EvaluatorReportScreen";
@@ -21,80 +19,177 @@ import { LandingScreen } from "../features/onboarding/LandingScreen";
 import { SetupWizard } from "../features/onboarding/SetupWizard";
 import { OutlineScreen } from "../features/outline/OutlineScreen";
 import { saveSessionCredential } from "../lib/sessionCredentials";
+import { createWorkspaceIdentity, generateAccessKey, type WorkspaceIdentity } from "../lib/workspaceIdentity";
 
 declare const __APP_BUILD__: string;
 
-const SESSION_STORAGE_KEY = "signalx-session-id";
-const DISPLAY_NAME_STORAGE_KEY = "signalx-display-name";
-const LEGACY_SESSION_STORAGE_KEY = "vishwakarma-session-id";
-const LEGACY_DISPLAY_NAME_STORAGE_KEY = "vishwakarma-display-name";
-const THEME_STORAGE_KEY = "vishwakarma-theme";
-const CLIENT_STORAGE_KEY = "vishwakarma-client-id";
-const APP_BUILD_STORAGE_KEY = "signalx-app-build";
-const DEFAULT_AUTH_PROVIDERS: AuthProviderOption[] = [
-  { key: "google", label: "Google", configured: false },
-  { key: "apple", label: "Apple", configured: false },
-];
+const SESSION_STORAGE_KEY = "sift-session-id";
+const IDENTITY_STORAGE_KEY = "sift-beta-identity";
+const THEME_STORAGE_KEY = "sift-theme";
+const CLIENT_STORAGE_KEY = "sift-client-id";
+const APP_BUILD_STORAGE_KEY = "sift-app-build";
 const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
   {
     key: "ollama",
     label: "Ollama",
     requiresApiKey: false,
-    defaultSpeedModel: "llama3.2:latest",
-    defaultBalancedModel: "qwen3:8b",
+    defaultSpeedModel: "qwen3:8b",
+    defaultBalancedModel: "qwen3:30b",
     supportsVisionModels: true,
     recommendedDeckModel: "qwen2.5vl:7b",
-    latencyHint: "Best when privacy matters and the user can run local models.",
-    bestFor: "Local-first demos, private notes, and zero-key use.",
-    speedLabel: "Llama 3.2 fast",
-    balancedLabel: "Qwen3 sharper",
+    latencyHint: "Local models — zero latency on device, complete data privacy.",
+    bestFor: "Local-first, private inference, and zero-key use.",
+    speedLabel: "Qwen3 8B",
+    balancedLabel: "Qwen3 30B",
     publicReadiness: "Local install required",
     openWeight: true,
+    modelPresets: [
+      { label: "Qwen3 8B", value: "qwen3:8b", note: "Fast default." },
+      { label: "Qwen3 30B", value: "qwen3:30b", note: "Deeper reasoning." },
+      { label: "Qwen2.5 VL", value: "qwen2.5vl:7b", note: "Vision · deck image reading." },
+      { label: "Llama 3.2", value: "llama3.2:latest", note: "Lightweight fallback." },
+    ],
+  },
+  {
+    key: "local_openai",
+    label: "Local OpenAI-compatible",
+    requiresApiKey: false,
+    defaultSpeedModel: "Qwen/Qwen3-8B",
+    defaultBalancedModel: "Qwen/Qwen3-30B",
+    supportsVisionModels: true,
+    recommendedDeckModel: "Qwen/Qwen2.5-VL-7B-Instruct",
+    latencyHint: "Open-source models served by vLLM, TGI, LM Studio, or llama.cpp.",
+    bestFor: "Fast local GPUs, Hugging Face models, private endpoints.",
+    speedLabel: "Qwen3 8B",
+    balancedLabel: "Qwen3 30B",
+    publicReadiness: "Local endpoint",
+    openWeight: true,
+    modelPresets: [
+      { label: "Qwen3 8B", value: "Qwen/Qwen3-8B", note: "Fast open-weight default." },
+      { label: "Qwen3 30B", value: "Qwen/Qwen3-30B-A3B", note: "MoE · better reasoning." },
+      { label: "Qwen2.5 VL", value: "Qwen/Qwen2.5-VL-7B-Instruct", note: "Vision · deck image reading." },
+      { label: "Llama 4 Scout", value: "meta-llama/Llama-4-Scout-17B-16E", note: "Efficient MoE open-weight." },
+    ],
+  },
+  {
+    key: "sift_brain",
+    label: "Sift Brain",
+    requiresApiKey: false,
+    defaultSpeedModel: "sift-brain",
+    defaultBalancedModel: "sift-brain",
+    supportsVisionModels: false,
+    recommendedDeckModel: "",
+    latencyHint: "Fine-tuned local adapter served at port 8001. Runs `npm run brain:serve` first.",
+    bestFor: "Proprietary Sift intelligence layer — runs your own fine-tuned adapter.",
+    speedLabel: "Sift Brain",
+    balancedLabel: "Sift Brain",
+    publicReadiness: "Neural engine · local port 8001",
+    openWeight: true,
+    modelPresets: [
+      { label: "Sift Brain (latest)", value: "sift-brain", note: "Best adapter by eval score." },
+    ],
+  },
+  {
+    key: "open_source",
+    label: "Open-source endpoint",
+    requiresApiKey: true,
+    defaultSpeedModel: "Qwen/Qwen2.5-VL-7B-Instruct",
+    defaultBalancedModel: "Qwen/Qwen2.5-VL-7B-Instruct",
+    supportsVisionModels: true,
+    recommendedDeckModel: "Qwen/Qwen2.5-VL-7B-Instruct",
+    latencyHint: "Server-side open-source model endpoint for Qwen, Llama, Gemma, Pixtral, or other OpenAI-compatible deployments.",
+    bestFor: "Public demos that need open-source models without making users run local hardware.",
+    speedLabel: "Qwen VL",
+    balancedLabel: "Qwen VL",
+    publicReadiness: "Open-source cloud lane",
+    openWeight: true,
+    modelPresets: [
+      { label: "Qwen2.5 VL", value: "Qwen/Qwen2.5-VL-7B-Instruct", note: "Best open-source deck vision default." },
+      { label: "Qwen3 VL", value: "Qwen/Qwen3-VL-8B-Instruct", note: "Newer open-source vision lane when available." },
+      { label: "Llama Vision", value: "meta-llama/Llama-3.2-11B-Vision-Instruct", note: "Alternative open-source visual reviewer." },
+      { label: "Pixtral", value: "mistralai/Pixtral-12B-2409", note: "Open multimodal deck reader." },
+    ],
+  },
+  {
+    key: "vertex",
+    label: "Vertex AI Gemini",
+    requiresApiKey: false,
+    serverConfigured: true,
+    defaultSpeedModel: "gemini-2.5-flash",
+    defaultBalancedModel: "gemini-2.5-pro",
+    supportsVisionModels: true,
+    recommendedDeckModel: "gemini-2.5-flash",
+    latencyHint: "Google Cloud hosted Gemini path using the Cloud Run service account.",
+    bestFor: "Using GCP credits and IAM instead of per-session API keys.",
+    speedLabel: "Gemini Flash",
+    balancedLabel: "Gemini Pro",
+    publicReadiness: "GCP-native lane",
+    openWeight: false,
+    modelPresets: [
+      { label: "Gemini 2.5 Flash", value: "gemini-2.5-flash", note: "Stable low-latency GCP default." },
+      { label: "Gemini 2.5 Pro", value: "gemini-2.5-pro", note: "Stable higher-quality GCP default." },
+      { label: "Gemini 3 Flash", value: "gemini-3-flash-preview", note: "Latest fast preview lane." },
+      { label: "Gemini 3.1 Pro", value: "gemini-3.1-pro-preview", note: "Latest reasoning preview lane." },
+    ],
   },
   {
     key: "groq",
     label: "Groq",
     requiresApiKey: true,
-    defaultSpeedModel: "openai/gpt-oss-20b",
-    defaultBalancedModel: "openai/gpt-oss-120b",
-    supportsVisionModels: true,
+    defaultSpeedModel: "meta-llama/llama-4-scout-17b-16e-instruct",
+    defaultBalancedModel: "meta-llama/llama-4-maverick-17b-128e-instruct",
+    supportsVisionModels: false,
     recommendedDeckModel: "",
-    latencyHint: "Very fast hosted open-weight lane for public MVP traffic.",
-    bestFor: "Low-latency public launch with GPT-OSS or Llama-class models.",
-    speedLabel: "GPT-OSS 20B",
-    balancedLabel: "GPT-OSS 120B",
+    latencyHint: "World’s fastest hosted inference — sub-100 ms TTFT on Llama-4.",
+    bestFor: "Low-latency public launch with Llama-4 open-weight models.",
+    speedLabel: "Llama-4 Scout",
+    balancedLabel: "Llama-4 Maverick",
     publicReadiness: "Recommended hosted default",
     openWeight: true,
+    modelPresets: [
+      { label: "Llama-4 Scout", value: "meta-llama/llama-4-scout-17b-16e-instruct", note: "Fast 17B MoE." },
+      { label: "Llama-4 Maverick", value: "meta-llama/llama-4-maverick-17b-128e-instruct", note: "Higher quality, 128E." },
+      { label: "Qwen3 8B", value: "qwen/qwen3-8b", note: "Groq open-weight alternative." },
+    ],
   },
   {
     key: "cerebras",
     label: "Cerebras",
     requiresApiKey: true,
-    defaultSpeedModel: "gpt-oss-120b",
-    defaultBalancedModel: "gpt-oss-120b",
+    defaultSpeedModel: "qwen-3-8b",
+    defaultBalancedModel: "qwen-3-32b",
     supportsVisionModels: false,
     recommendedDeckModel: "",
-    latencyHint: "Fastest hosted open-weight throughput when the account tier supports it.",
-    bestFor: "High-speed expert and evaluation turns on GPT-OSS 120B.",
-    speedLabel: "GPT-OSS 120B",
-    balancedLabel: "GPT-OSS 120B",
+    latencyHint: "Fastest hosted open-weight throughput — Qwen3 on Cerebras silicon.",
+    bestFor: "High-speed expert and evaluation turns on Qwen3.",
+    speedLabel: "Qwen3 8B",
+    balancedLabel: "Qwen3 32B",
     publicReadiness: "Performance lane",
     openWeight: true,
+    modelPresets: [
+      { label: "Qwen3 8B", value: "qwen-3-8b", note: "Fast Cerebras lane." },
+      { label: "Qwen3 32B", value: "qwen-3-32b", note: "Higher quality Cerebras lane." },
+    ],
   },
   {
     key: "openai",
     label: "OpenAI",
     requiresApiKey: true,
-    defaultSpeedModel: "gpt-5.4-mini",
-    defaultBalancedModel: "gpt-5.5",
+    defaultSpeedModel: "gpt-4.1-mini",
+    defaultBalancedModel: "gpt-4.1",
     supportsVisionModels: true,
-    recommendedDeckModel: "gpt-5.5",
+    recommendedDeckModel: "gpt-4.1",
     latencyHint: "Frontier quality for complex synthesis, deck reasoning, and polish.",
     bestFor: "Highest-quality public mode when cost is acceptable.",
-    speedLabel: "GPT-5.4 mini",
-    balancedLabel: "GPT-5.5",
+    speedLabel: "GPT-4.1 mini",
+    balancedLabel: "GPT-4.1",
     publicReadiness: "Frontier quality lane",
     openWeight: false,
+    modelPresets: [
+      { label: "GPT-4.1 mini", value: "gpt-4.1-mini", note: "Fast and affordable." },
+      { label: "GPT-4.1", value: "gpt-4.1", note: "Strongest reasoning." },
+      { label: "GPT-4o", value: "gpt-4o", note: "Vision + multimodal." },
+    ],
   },
   {
     key: "openrouter",
@@ -111,13 +206,18 @@ const DEFAULT_PROVIDER_OPTIONS: ProviderOption[] = [
     publicReadiness: "Experiment lane",
     openWeight: true,
   },
-  { key: "anthropic", label: "Anthropic", requiresApiKey: true, defaultSpeedModel: "claude-3-5-haiku-latest", defaultBalancedModel: "claude-3-7-sonnet-latest", supportsVisionModels: true, recommendedDeckModel: "claude-3-7-sonnet-latest", latencyHint: "Strong long-form synthesis with hosted API latency.", bestFor: "Careful narrative analysis and investor-style memo work.", speedLabel: "Haiku", balancedLabel: "Sonnet", publicReadiness: "Quality lane" },
-  { key: "gemini", label: "Gemini", requiresApiKey: true, defaultSpeedModel: "gemini-2.0-flash", defaultBalancedModel: "gemini-1.5-pro", supportsVisionModels: true, recommendedDeckModel: "gemini-2.0-flash", latencyHint: "Fast hosted multimodal fallback for broad consumer access.", bestFor: "Affordable hosted analysis and deck-adjacent workflows.", speedLabel: "Flash", balancedLabel: "Pro", publicReadiness: "Multimodal lane" },
+  { key: "anthropic", label: "Anthropic", requiresApiKey: true, defaultSpeedModel: "claude-haiku-4-5", defaultBalancedModel: "claude-sonnet-4-5", supportsVisionModels: true, recommendedDeckModel: "claude-sonnet-4-5", latencyHint: "Strong long-form synthesis with hosted API latency.", bestFor: "Careful narrative analysis and investor-style memo work.", speedLabel: "Haiku 4.5", balancedLabel: "Sonnet 4.5", publicReadiness: "Quality lane",
+    modelPresets: [
+      { label: "Haiku 4.5", value: "claude-haiku-4-5", note: "Fast, affordable." },
+      { label: "Sonnet 4.5", value: "claude-sonnet-4-5", note: "Best balance for decks." },
+    ],
+  },
+  { key: "gemini", label: "Gemini", requiresApiKey: true, defaultSpeedModel: "gemini-2.5-flash", defaultBalancedModel: "gemini-2.5-pro", supportsVisionModels: true, recommendedDeckModel: "gemini-2.5-flash", latencyHint: "Fast hosted multimodal fallback for broad consumer access.", bestFor: "Affordable hosted analysis and deck-adjacent workflows.", speedLabel: "Flash", balancedLabel: "Pro", publicReadiness: "Multimodal lane" },
 ];
 const DEFAULT_SETUP_DRAFT: SetupDraft = {
-  runtimeKind: "local",
-  provider: "ollama",
-  model: "llama3.2:latest",
+  runtimeKind: "external",
+  provider: "groq",
+  model: "openai/gpt-oss-20b",
   apiKey: "",
   founderType: "founder",
   sector: "saas",
@@ -131,7 +231,10 @@ const DEFAULT_SETUP_DRAFT: SetupDraft = {
   helpMode: "coach_me",
   liveWebEnabled: true,
 };
-const LAST_SETUP_STEP = 2;
+
+function isLocalProviderKey(key: string): boolean {
+  return key === "ollama" || key === "local_openai";
+}
 
 function getClientId(): string {
   const existing = localStorage.getItem(CLIENT_STORAGE_KEY);
@@ -145,24 +248,34 @@ function getClientId(): string {
   return generated;
 }
 
-function getStoredDisplayName(): string {
+function getStoredIdentity(): WorkspaceIdentity | null {
   if (typeof window === "undefined") {
-    return "";
+    return null;
   }
-  return localStorage.getItem(DISPLAY_NAME_STORAGE_KEY) || "";
+  try {
+    const raw = sessionStorage.getItem(IDENTITY_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as WorkspaceIdentity;
+    if (!parsed.clientId || !parsed.displayName || !parsed.emailOrHandle || !parsed.accessKey) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
-function setStoredDisplayName(displayName: string): void {
+function setStoredIdentity(identity: WorkspaceIdentity | null): void {
   if (typeof window === "undefined") {
     return;
   }
-  const nextValue = displayName.trim();
-  if (nextValue) {
-    localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, nextValue);
-  } else {
-    localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY);
+  if (!identity) {
+    sessionStorage.removeItem(IDENTITY_STORAGE_KEY);
+    return;
   }
-  localStorage.removeItem(LEGACY_DISPLAY_NAME_STORAGE_KEY);
+  sessionStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify(identity));
 }
 
 function getStoredSessionId(): string | null {
@@ -173,8 +286,6 @@ function getStoredSessionId(): string | null {
   if (activeSessionId) {
     return activeSessionId;
   }
-  localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
-  sessionStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
   return null;
 }
 
@@ -182,8 +293,6 @@ function setStoredSessionId(sessionId: string): void {
   if (typeof window === "undefined") {
     return;
   }
-  localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
-  sessionStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
   sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId);
 }
 
@@ -192,8 +301,6 @@ function clearStoredSessionId(): void {
     return;
   }
   sessionStorage.removeItem(SESSION_STORAGE_KEY);
-  localStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
-  sessionStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
 }
 
 function applyBuildResetIfNeeded(): boolean {
@@ -206,8 +313,7 @@ function applyBuildResetIfNeeded(): boolean {
     return false;
   }
   clearStoredSessionId();
-  localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY);
-  localStorage.removeItem(LEGACY_DISPLAY_NAME_STORAGE_KEY);
+  sessionStorage.removeItem(IDENTITY_STORAGE_KEY);
   localStorage.setItem(APP_BUILD_STORAGE_KEY, currentBuild);
   return true;
 }
@@ -225,17 +331,18 @@ function AppBody() {
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>(DEFAULT_PROVIDER_OPTIONS);
   const [recentSessions, setRecentSessions] = useState<SessionSummary[]>([]);
   const [clearingHistory, setClearingHistory] = useState(false);
-  const [anonymousClientId] = useState<string>(() => getClientId());
-  const [displayName, setDisplayName] = useState<string>(() => getStoredDisplayName());
+  const [deviceClientId] = useState<string>(() => getClientId());
+  const [activeIdentity, setActiveIdentity] = useState<WorkspaceIdentity | null>(() => getStoredIdentity());
+  const [displayName, setDisplayName] = useState("");
+  const [emailOrHandle, setEmailOrHandle] = useState("");
+  const [accessKey, setAccessKey] = useState("");
   const [theme, setTheme] = useState<ThemeMode>(
     () => (localStorage.getItem(THEME_STORAGE_KEY) as ThemeMode | null) ?? "dark",
   );
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [authProviders, setAuthProviders] = useState<AuthProviderOption[]>(DEFAULT_AUTH_PROVIDERS);
-  const [authError, setAuthError] = useState("");
   const [adminEnabled, setAdminEnabled] = useState(false);
-  const effectiveClientId = authUser?.clientId || anonymousClientId;
-  const effectiveDisplayName = (displayName || authUser?.displayName || "").trim();
+  const sessionClientId = activeIdentity?.clientId || "";
+  const analyticsClientId = sessionClientId || deviceClientId;
+  const effectiveDisplayName = (activeIdentity?.displayName || displayName || "").trim();
 
   useEffect(() => {
     const resetApplied = applyBuildResetIfNeeded();
@@ -255,8 +362,13 @@ function AppBody() {
   }, [theme]);
 
   useEffect(() => {
-    setStoredDisplayName(displayName);
-  }, [displayName]);
+    if (activeIdentity && !session) {
+      setEntryScreen("setup");
+    }
+  }, [activeIdentity, session]);
+
+  const [authProviders, setAuthProviders] = useState<Array<{ key: string; label: string; configured: boolean }>>([]);
+  const [authError, setAuthError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -265,16 +377,26 @@ function AppBody() {
         if (cancelled) {
           return;
         }
-        setAuthUser(response.user);
-        setAuthProviders(response.providers.length > 0 ? response.providers : DEFAULT_AUTH_PROVIDERS);
-        setAuthError(response.error || "");
         setAdminEnabled(Boolean(response.adminMode));
+        setAuthProviders(response.providers || []);
+        if (response.error) {
+          setAuthError(response.error);
+        }
+        if (response.user && response.user.clientId) {
+          const identity: WorkspaceIdentity = {
+            clientId: response.user.clientId,
+            displayName: response.user.displayName,
+            emailOrHandle: response.user.email,
+            accessKey: "oauth-session",
+          };
+          setStoredIdentity(identity);
+          setActiveIdentity(identity);
+        }
       })
       .catch(() => {
         if (!cancelled) {
-          setAuthUser(null);
-          setAuthProviders(DEFAULT_AUTH_PROVIDERS);
           setAdminEnabled(false);
+          setAuthProviders([]);
         }
       });
     return () => {
@@ -284,13 +406,37 @@ function AppBody() {
 
   useEffect(() => {
     void listProviders()
-      .then((response) => setProviderOptions(response.providers))
+      .then((response) => {
+        setProviderOptions(response.providers);
+        const hostedDefault = response.providers.find((item) => !isLocalProviderKey(item.key) && item.serverConfigured);
+        if (!hostedDefault) {
+          return;
+        }
+        setSetupDraft((current) => {
+          const currentProvider = response.providers.find((item) => item.key === current.provider);
+          const needsClientKey = Boolean(currentProvider?.requiresApiKey && !currentProvider.serverConfigured);
+          if (current.runtimeKind !== "external" || !needsClientKey || current.apiKey.trim()) {
+            return current;
+          }
+          return {
+            ...current,
+            provider: hostedDefault.key,
+            model: hostedDefault.defaultBalancedModel || hostedDefault.defaultSpeedModel || current.model,
+          };
+        });
+      })
       .catch(() => setProviderOptions(DEFAULT_PROVIDER_OPTIONS));
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    void listSessions(effectiveClientId)
+    if (!sessionClientId) {
+      setRecentSessions([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+    void listSessions(sessionClientId)
       .then((response) => {
         if (!cancelled) {
           setRecentSessions(response.sessions);
@@ -304,20 +450,24 @@ function AppBody() {
     return () => {
       cancelled = true;
     };
-  }, [effectiveClientId]);
+  }, [sessionClientId]);
 
   useEffect(() => {
     let cancelled = false;
     const storedSessionId = getStoredSessionId();
 
-    if (!storedSessionId) {
+    if (!storedSessionId || !sessionClientId) {
+      if (!sessionClientId) {
+        clearStoredSessionId();
+      }
       setLoadingSession(false);
       return () => {
         cancelled = true;
       };
     }
 
-    void getSession(storedSessionId)
+    setLoadingSession(true);
+    void getSession(storedSessionId, sessionClientId)
       .then((response) => {
         if (!cancelled) {
           setSession(response);
@@ -335,26 +485,26 @@ function AppBody() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sessionClientId]);
 
   useEffect(() => {
-    void sendHeartbeat(effectiveClientId).catch(() => undefined);
+    void sendHeartbeat(analyticsClientId).catch(() => undefined);
     const timer = window.setInterval(() => {
-      void sendHeartbeat(effectiveClientId).catch(() => undefined);
+      void sendHeartbeat(analyticsClientId).catch(() => undefined);
     }, 5000);
     return () => {
       window.clearInterval(timer);
     };
-  }, [effectiveClientId]);
+  }, [analyticsClientId]);
 
   useEffect(() => {
     void postAnalyticsEvent({
       eventType: "page_view",
-      clientId: effectiveClientId,
+      clientId: analyticsClientId,
       displayName: effectiveDisplayName,
       pathname: location.pathname,
     }).catch(() => undefined);
-  }, [effectiveClientId, effectiveDisplayName, location.pathname]);
+  }, [analyticsClientId, effectiveDisplayName, location.pathname]);
 
   const hydrateStartedSession = (payload: StartSessionPayload) => {
     const next: SessionPayload = {
@@ -388,7 +538,7 @@ function AppBody() {
     };
     setStoredSessionId(payload.sessionId);
     setSession(next);
-    void listSessions(effectiveClientId)
+    void listSessions(sessionClientId)
       .then((response) => setRecentSessions(response.sessions))
       .catch(() => undefined);
     if (payload.sessionType === "evaluator" && payload.evaluationProgress?.completed) {
@@ -399,8 +549,12 @@ function AppBody() {
   };
 
   const refreshSessions = async () => {
+    if (!sessionClientId) {
+      setRecentSessions([]);
+      return;
+    }
     try {
-      const response = await listSessions(effectiveClientId);
+      const response = await listSessions(sessionClientId);
       setRecentSessions(response.sessions);
     } catch {
       setRecentSessions([]);
@@ -408,12 +562,12 @@ function AppBody() {
   };
 
   const handleClearHistory = async () => {
-    if (!effectiveClientId || clearingHistory) {
+    if (!sessionClientId || clearingHistory) {
       return;
     }
     setClearingHistory(true);
     try {
-      await clearSessionHistory(effectiveClientId);
+      await clearSessionHistory(sessionClientId);
       clearStoredSessionId();
       setSession(null);
       setRecentSessions([]);
@@ -421,6 +575,45 @@ function AppBody() {
     } finally {
       setClearingHistory(false);
     }
+  };
+
+  const handleContinueWithIdentity = async () => {
+    const identity = await createWorkspaceIdentity(displayName, emailOrHandle, accessKey);
+    if (!identity) {
+      setSetupError("Enter your name, email or handle, and a Sift key with at least 8 characters.");
+      return;
+    }
+    setStoredIdentity(identity);
+    setActiveIdentity(identity);
+    setDisplayName("");
+    setEmailOrHandle("");
+    setAccessKey("");
+    setSetupError("");
+    setEntryScreen("setup");
+    setSetupStep(0);
+    void listSessions(identity.clientId)
+      .then((response) => setRecentSessions(response.sessions))
+      .catch(() => setRecentSessions([]));
+  };
+
+  const handleGenerateAccessKey = () => {
+    setAccessKey(generateAccessKey());
+    setSetupError("");
+  };
+
+  const handleSwitchIdentity = () => {
+    clearStoredSessionId();
+    setStoredIdentity(null);
+    setActiveIdentity(null);
+    setDisplayName("");
+    setEmailOrHandle("");
+    setAccessKey("");
+    setSession(null);
+    setRecentSessions([]);
+    setEntryScreen("landing");
+    setSetupStep(0);
+    setSetupError("");
+    navigate("/", { replace: true });
   };
 
   const handleStartSession = async (payload: {
@@ -439,8 +632,8 @@ function AppBody() {
     helpMode: "coach_me" | "challenge_me" | "explain_directly";
     liveWebEnabled: boolean;
   }) => {
-    if (!effectiveDisplayName) {
-      setSetupError("Name missing. Go back and enter your name on the first screen before starting a session.");
+    if (!sessionClientId || !effectiveDisplayName) {
+      setSetupError("Enter your name and Sift key before starting a session.");
       return;
     }
     setSetupError("");
@@ -461,7 +654,7 @@ function AppBody() {
         apiKey: payload.apiKey.trim(),
         websiteUrl: payload.websiteUrl,
         setupContext: payload.setupContext,
-        clientId: effectiveClientId,
+        clientId: sessionClientId,
         displayName: effectiveDisplayName,
       });
       if (payload.apiKey.trim()) {
@@ -483,9 +676,9 @@ function AppBody() {
     clearStoredSessionId();
     setSession(null);
     setSetupError("");
-    if (effectiveDisplayName) {
+    if (sessionClientId) {
       setEntryScreen("setup");
-      setSetupStep(LAST_SETUP_STEP);
+      setSetupStep(0);
     } else {
       setEntryScreen("landing");
       setSetupStep(0);
@@ -498,9 +691,9 @@ function AppBody() {
     clearStoredSessionId();
     setSession(null);
     setSetupError("");
-    if (effectiveDisplayName) {
+    if (sessionClientId) {
       setEntryScreen("setup");
-      setSetupStep(LAST_SETUP_STEP);
+      setSetupStep(0);
     } else {
       setEntryScreen("landing");
       setSetupStep(0);
@@ -510,20 +703,27 @@ function AppBody() {
   };
 
   const handleOpenSession = async (sessionId: string) => {
-    const response = await getSession(sessionId);
+    if (!sessionClientId) {
+      setSetupError("Enter the matching Sift key before opening a saved session.");
+      return;
+    }
+    const response = await getSession(sessionId, sessionClientId);
     setStoredSessionId(sessionId);
     setSession(response);
     navigate("/");
   };
 
-  const handleSignOut = async () => {
-    await logoutAuth();
-    setAuthUser(null);
-    setAuthError("");
-  };
-
   if (loadingSession) {
-    return <div className="loading-screen">Loading SignalX...</div>;
+    return (
+      <div className="loading-screen" role="status" aria-label="Loading Sift">
+        <div className="sift-loading-inner">
+          <div className="sift-loading-wordmark">
+            SIFT<span>.</span>
+          </div>
+          <div className="sift-loading-bar" aria-hidden="true" />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -546,6 +746,7 @@ function AppBody() {
                 providerOptions={providerOptions}
                 theme={theme}
                 onThemeChange={setTheme}
+                clientId={sessionClientId}
               />
             ) : session.sessionType === "expert" ? (
               <ExpertScreen
@@ -561,6 +762,7 @@ function AppBody() {
                 providerOptions={providerOptions}
                 theme={theme}
                 onThemeChange={setTheme}
+                clientId={sessionClientId}
               />
             ) : (
               <ChatScreen
@@ -576,33 +778,40 @@ function AppBody() {
                 providerOptions={providerOptions}
                 theme={theme}
                 onThemeChange={setTheme}
+                clientId={sessionClientId}
               />
             )
           ) : (
             entryScreen === "landing" ? (
               <LandingScreen
                 displayName={displayName}
+                emailOrHandle={emailOrHandle}
+                accessKey={accessKey}
                 onDisplayNameChange={setDisplayName}
-                onContinue={() => {
-                  setSetupError("");
-                  setEntryScreen("setup");
-                  setSetupStep(0);
-                }}
+                onEmailOrHandleChange={setEmailOrHandle}
+                onAccessKeyChange={setAccessKey}
+                onGenerateAccessKey={handleGenerateAccessKey}
+                onContinue={handleContinueWithIdentity}
                 theme={theme}
                 onThemeChange={setTheme}
-                authUser={authUser}
+                error={setupError || authError}
                 authProviders={authProviders}
-                authError={authError}
-                onSignOut={handleSignOut}
               />
             ) : (
               <SetupWizard
                 providerOptions={providerOptions}
                 loading={starting}
                 error={setupError}
-                canStart={Boolean(effectiveDisplayName)}
+                canStart={Boolean(sessionClientId && effectiveDisplayName)}
                 step={setupStep}
                 draft={setupDraft}
+                theme={theme}
+                onThemeChange={setTheme}
+                identityLabel={activeIdentity?.emailOrHandle || ""}
+                identityKey={activeIdentity?.accessKey || ""}
+                recentSessions={recentSessions}
+                onOpenSession={handleOpenSession}
+                onSwitchIdentity={handleSwitchIdentity}
                 onStepChange={(nextStep) => {
                   setSetupError("");
                   setSetupStep(nextStep);
@@ -611,11 +820,7 @@ function AppBody() {
                   setSetupError("");
                   setSetupDraft(updater);
                 }}
-                onBack={() => {
-                  setSetupError("");
-                  setEntryScreen("landing");
-                  setSetupStep(0);
-                }}
+                onBack={handleSwitchIdentity}
                 onStart={handleStartSession}
               />
             )
@@ -629,8 +834,8 @@ function AppBody() {
             theme={theme}
             onThemeChange={setTheme}
             onExitSession={handleExitSession}
-            displayName={displayName}
-            clientId={effectiveClientId}
+            displayName={effectiveDisplayName}
+            clientId={sessionClientId}
           />
         }
       />
@@ -642,6 +847,7 @@ function AppBody() {
             onThemeChange={setTheme}
             onExitSession={handleExitSession}
             onResumeSession={handleOpenSession}
+            clientId={sessionClientId}
           />
         }
       />

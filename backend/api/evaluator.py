@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 
-import memory
-from state import ConversationState
+from backend.core import memory
+from backend.core.state import ConversationState
 
 from backend.schemas import EvaluatorAnswerResponse, EvaluatorReportResponse
 from backend.services.deck_review import (
@@ -34,6 +34,7 @@ from backend.services.model_router import (
     normalize_usage,
 )
 from backend.services.retrieval import build_retrieval_context
+from backend.services.session_access import require_session_owner
 from backend.services.state_engine import update_state_from_turn
 from backend.services.uploads import ingest_upload, list_active_uploads, retrieve_upload_context
 
@@ -68,6 +69,7 @@ def _restore_state(session_row: dict, turns: list[dict]) -> ConversationState:
 @router.post("/answer", response_model=EvaluatorAnswerResponse)
 async def answer_question(
     sessionId: str = Form(...),
+    clientId: str = Form(""),
     answer: str = Form(""),
     evaluatorMode: str = Form(""),
     provider: str = Form(""),
@@ -78,6 +80,7 @@ async def answer_question(
     session_row = memory.get_session(sessionId)
     if session_row is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    require_session_owner(session_row, clientId)
     if session_row.get("session_type") != "evaluator":
         raise HTTPException(status_code=400, detail="This session is not an evaluator session")
 
@@ -100,7 +103,10 @@ async def answer_question(
 
     upload_entry = None
     if file is not None:
-        upload_entry = await ingest_upload(sessionId, file)
+        try:
+            upload_entry = await ingest_upload(sessionId, file)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     turns = memory.get_session_turns(sessionId)
     state = _restore_state(session_row, turns)
@@ -436,10 +442,15 @@ async def answer_question(
 
 
 @router.post("/{session_id}/deeper", response_model=EvaluatorAnswerResponse)
-async def continue_deeper(session_id: str) -> EvaluatorAnswerResponse:
+async def continue_deeper(
+    session_id: str,
+    clientId: str = "",
+    x_sift_client_id: str = Header(default="", alias="x-sift-client-id"),
+) -> EvaluatorAnswerResponse:
     session_row = memory.get_session(session_id)
     if session_row is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    require_session_owner(session_row, x_sift_client_id or clientId)
     if session_row.get("session_type") != "evaluator":
         raise HTTPException(status_code=400, detail="This session is not an evaluator session")
 
@@ -542,10 +553,15 @@ async def continue_deeper(session_id: str) -> EvaluatorAnswerResponse:
 
 
 @router.get("/{session_id}/report", response_model=EvaluatorReportResponse)
-async def get_report(session_id: str) -> EvaluatorReportResponse:
+async def get_report(
+    session_id: str,
+    clientId: str = "",
+    x_sift_client_id: str = Header(default="", alias="x-sift-client-id"),
+) -> EvaluatorReportResponse:
     session_row = memory.get_session(session_id)
     if session_row is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    require_session_owner(session_row, x_sift_client_id or clientId)
     if session_row.get("session_type") != "evaluator":
         raise HTTPException(status_code=400, detail="This session is not an evaluator session")
 

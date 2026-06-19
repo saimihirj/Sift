@@ -8,7 +8,7 @@ type Props = {
 const OPTIONS: Array<{ key: ThemeMode; label: string; note: string }> = [
   { key: "light", label: "Light", note: "Bright workspace" },
   { key: "dark", label: "Graphite", note: "Low glare" },
-  { key: "dusk", label: "Warm", note: "Soft contrast" },
+  { key: "dusk", label: "Dusk", note: "Soft contrast" },
   { key: "neon", label: "Focus", note: "High contrast" },
 ];
 

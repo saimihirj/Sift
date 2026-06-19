@@ -1,8 +1,8 @@
 export type ResponseProfile = "speed" | "balanced";
 export type SessionType = "mentor" | "evaluator" | "expert";
-export type Provider = "ollama" | "cerebras" | "groq" | "openai" | "openrouter" | "anthropic" | "gemini";
+export type Provider = "ollama" | "local_openai" | "sift_brain" | "open_source" | "cerebras" | "groq" | "openai" | "openrouter" | "anthropic" | "gemini" | "vertex";
 export type ThemeMode = "light" | "dark" | "dusk" | "neon";
-export type OAuthProvider = "google" | "apple";
+export type OAuthProvider = "google" | "apple" | "linkedin" | "x";
 export type HelpMode = "coach_me" | "challenge_me" | "explain_directly";
 export type EvaluatorMode = "idea_review" | "deck_review";
 
@@ -96,6 +96,7 @@ export type UploadSummary = {
   docType: string;
   chunkCount: number;
   chars: number;
+  bytes?: number;
   uploadedAt: string;
   slideCount?: number;
   hasRenderableSlides?: boolean;
@@ -238,6 +239,12 @@ export type RuntimeUsageSummary = {
   session: RuntimeUsageSnapshot;
 };
 
+export type ModelPreset = {
+  label: string;
+  value: string;
+  note?: string;
+};
+
 export type ProviderOption = {
   key: Provider;
   label: string;
@@ -254,6 +261,7 @@ export type ProviderOption = {
   publicReadiness?: string;
   openWeight?: boolean;
   docsUrl?: string;
+  modelPresets?: ModelPreset[];
 };
 
 export type AuthProviderOption = {

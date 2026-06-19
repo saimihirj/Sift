@@ -1,0 +1,166 @@
+"""Sift Brain status and decision-trace API.
+
+Endpoints:
+  GET /api/brain/status        — knowledge graph card counts, engine status, adapter
+  GET /api/brain/decision-trace — last routing decision for a session
+  GET /api/brain/index-status   — ChromaDB index health
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from fastapi import APIRouter, Query
+
+router = APIRouter(prefix="/api/brain", tags=["brain"])
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+DATA_DIR = ROOT_DIR / "data"
+ADAPTER_REGISTRY_PATH = DATA_DIR / "adapter_registry.json"
+KNOWLEDGE_BASE_DIR = ROOT_DIR / "knowledge_base" / "expert"
+
+
+def _count_cards_per_domain() -> dict[str, dict]:
+    """Scan knowledge_base/expert/ for timestamped JSON shards."""
+    domain_stats: dict[str, dict] = {}
+    if not KNOWLEDGE_BASE_DIR.exists():
+        return domain_stats
+    for domain_dir in sorted(KNOWLEDGE_BASE_DIR.iterdir()):
+        if not domain_dir.is_dir():
+            continue
+        key = domain_dir.name
+        total = 0
+        last_updated: str | None = None
+        for shard in sorted(domain_dir.glob("*.json"), reverse=True):
+            try:
+                data = json.loads(shard.read_text(encoding="utf-8"))
+                cards = data if isinstance(data, list) else data.get("cards", [])
+                total += len(cards)
+                if last_updated is None:
+                    # Use modification time as proxy if no metadata
+                    meta_ts = data.get("fetched_at") if isinstance(data, dict) else None
+                    if meta_ts:
+                        last_updated = str(meta_ts)
+                    else:
+                        import datetime
+                        last_updated = datetime.datetime.fromtimestamp(
+                            shard.stat().st_mtime
+                        ).isoformat()
+            except Exception:
+                pass
+        domain_stats[key] = {"cardCount": total, "lastUpdated": last_updated}
+    return domain_stats
+
+
+def _chromadb_index_status() -> dict:
+    """Check ChromaDB collection status if available."""
+    try:
+        import chromadb  # type: ignore
+
+        client = chromadb.PersistentClient(path=str(DATA_DIR / "chromadb"))
+        collection = client.get_or_create_collection("sift_knowledge")
+        count = collection.count()
+        return {"status": "ok", "indexedCards": count}
+    except Exception as exc:
+        return {"status": "unavailable", "indexedCards": 0, "error": str(exc)}
+
+
+def _adapter_info() -> dict | None:
+    """Return the best adapter entry from the registry, if any."""
+    if not ADAPTER_REGISTRY_PATH.exists():
+        return None
+    try:
+        data = json.loads(ADAPTER_REGISTRY_PATH.read_text(encoding="utf-8"))
+        adapters = list(data.get("adapters", {}).values())
+        if not adapters:
+            return None
+        # Prefer highest eval score
+        scored = [(a.get("eval_scores", {}).get("avg_overall_score", 0.0), a) for a in adapters]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        best = scored[0][1]
+        return {
+            "adapterName": best.get("name"),
+            "adapterBaseModel": best.get("base_model"),
+            "adapterScore": scored[0][0] or None,
+        }
+    except Exception:
+        return None
+
+
+def _detect_engine_status(domain_stats: dict, index_info: dict) -> str:
+    total_cards = sum(v["cardCount"] for v in domain_stats.values())
+    if total_cards > 0 and index_info.get("indexedCards", 0) > 0:
+        return "active"
+    if total_cards > 0:
+        return "standby"
+    return "unconfigured"
+
+
+@router.get("/status")
+async def brain_status():
+    """Return full Sift Brain status including knowledge graph stats."""
+    domain_stats = _count_cards_per_domain()
+    index_info = _chromadb_index_status()
+    adapter = _adapter_info()
+
+    total_cards = sum(v["cardCount"] for v in domain_stats.values())
+    engine_status = _detect_engine_status(domain_stats, index_info)
+
+    domains = [
+        {
+            "key": key,
+            "cardCount": val["cardCount"],
+            "lastUpdated": val.get("lastUpdated"),
+        }
+        for key, val in domain_stats.items()
+        if val["cardCount"] > 0
+    ]
+
+    result = {
+        "engineStatus": engine_status,
+        "totalCards": total_cards,
+        "totalDomains": len(domains),
+        "indexedCards": index_info.get("indexedCards", 0),
+        "domains": domains,
+    }
+    if adapter:
+        result.update(adapter)
+    return result
+
+
+@router.get("/index-status")
+async def index_status():
+    """Return ChromaDB index health."""
+    return _chromadb_index_status()
+
+
+@router.get("/decision-trace")
+async def decision_trace(session_id: str = Query(default="")):
+    """
+    Return the last routing decision for a session.
+
+    The decision trace is written by sift_brain/decision_layer/router.py
+    and stored per-session as trace metadata in SQLite. Falls back to
+    an empty trace if the brain is not active.
+    """
+    if not session_id:
+        return {"available": False, "reason": "No session_id provided"}
+
+    try:
+        from backend.core import memory
+
+        session_row = memory.get_session(session_id)
+        if not session_row:
+            return {"available": False, "reason": "Session not found"}
+
+        meta = memory.get_session_metadata(session_row)
+        trace = meta.get("sift_brain_trace")
+        if not trace:
+            return {
+                "available": False,
+                "reason": "No Sift Brain trace for this session. Brain may not be active.",
+            }
+        return {"available": True, "trace": trace}
+    except Exception as exc:
+        return {"available": False, "reason": str(exc)}

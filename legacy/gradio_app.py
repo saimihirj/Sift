@@ -1,8 +1,8 @@
 """Pitch Deck Mentor — Socratic Thinking Partner for Startup Founders.
 
 Usage:
-  python app.py           → User interface  (http://localhost:7860)
-  python app.py --admin   → Admin interface (http://localhost:7861)
+  python legacy/gradio_app.py           → User interface  (http://localhost:7860)
+  python legacy/gradio_app.py --admin   → Admin interface (http://localhost:7861)
 
 Model selection (set in .env):
   ANTHROPIC_API_KEY=sk-ant-...   → uses Claude (recommended)
@@ -17,19 +17,23 @@ from pathlib import Path
 
 import gradio as gr
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 IS_ADMIN = "--admin" in sys.argv
 
 # ── Load .env if present ──────────────────────────────────────────────────────
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(PROJECT_ROOT / ".env")
 except ImportError:
     pass
 
 # ── RAG + Memory (graceful degradation if deps missing) ───────────────────────
 try:
-    import rag as _rag
-    import memory as _memory
+    from backend.core import rag as _rag
+    from backend.core import memory as _memory
     _memory.init_db()
     RAG_ENABLED = True
 except Exception:
@@ -37,7 +41,7 @@ except Exception:
     _memory = None  # type: ignore
     RAG_ENABLED = False
 
-from prompts import (
+from backend.core.prompts import (
     ANALYSIS_SYSTEM_PROMPT,
     build_analysis_prompt,
     build_personalized_opening,
@@ -140,7 +144,7 @@ def generate_contextual_chips(assistant_msg: str, state) -> list[dict]:
 
     # No keyword match — fall back to phase/coverage-based chips
     return get_chip_suggestions(state)
-from state import ConversationState
+from backend.core.state import ConversationState
 
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 USE_CLAUDE = bool(ANTHROPIC_API_KEY)
@@ -1268,7 +1272,7 @@ if IS_ADMIN:
                             label="Sector tag",
                         )
                         kb_ingest_btn = gr.Button("Index", variant="primary")
-                        kb_inbox_btn = gr.Button("Index knowledge_inbox/ folder")
+                        kb_inbox_btn = gr.Button("Index knowledge_base/inbox/ folder")
                         kb_status = gr.Markdown("")
 
                         gr.Markdown("### Remove content")

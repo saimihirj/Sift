@@ -32,6 +32,7 @@ type Props = {
   providerOptions: ProviderOption[];
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
+  clientId: string;
 };
 
 type MobilePane = "chat" | "evidence";
@@ -112,6 +113,22 @@ function confidenceLabel(confidence: number): string {
   return "Thin";
 }
 
+function sourceQualityClass(confidence: string): "high" | "medium" | "low" {
+  const normalized = confidence.toLowerCase();
+  if (normalized.includes("high") || normalized.includes("strong")) {
+    return "high";
+  }
+  if (normalized.includes("low") || normalized.includes("thin")) {
+    return "low";
+  }
+  return "medium";
+}
+
+function sourceQualityLabel(confidence: string): string {
+  const quality = sourceQualityClass(confidence);
+  return quality === "high" ? "High" : quality === "low" ? "Low" : "Medium";
+}
+
 
 function workflowLabel(sessionType: SessionPayload["sessionType"]) {
   if (sessionType === "expert") {
@@ -155,6 +172,7 @@ export function ExpertScreen({
   providerOptions,
   theme,
   onThemeChange,
+  clientId,
 }: Props) {
   const [draft, setDraft] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -166,6 +184,7 @@ export function ExpertScreen({
   const [runtimeOpen, setRuntimeOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const [filesOpen, setFilesOpen] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(() => session.sources.length > 0);
   const [applyingRuntime, setApplyingRuntime] = useState(false);
   const [runtimeProvider, setRuntimeProvider] = useState<SessionPayload["provider"]>(session.provider);
   const [runtimeModel, setRuntimeModel] = useState(session.model);
@@ -181,7 +200,14 @@ export function ExpertScreen({
     setRuntimeOpen(false);
     setThemeOpen(false);
     setFilesOpen(false);
+    setSourcesOpen(session.sources.length > 0);
   }, [session.sessionId, session.provider, session.model, session.helpMode]);
+
+  useEffect(() => {
+    if (session.sources.length > 0) {
+      setSourcesOpen(true);
+    }
+  }, [session.sources.length]);
 
   const selectedProvider = useMemo(
     () => providerOptions.find((item) => item.key === runtimeProvider) ?? providerOptions[0] ?? null,
@@ -205,6 +231,7 @@ export function ExpertScreen({
     try {
       const response = await updateSessionRuntime({
         sessionId: session.sessionId,
+        clientId,
         provider: runtimeProvider,
         model: effectiveModel,
       });
@@ -267,6 +294,7 @@ export function ExpertScreen({
     try {
       await streamChat({
         sessionId: session.sessionId,
+        clientId,
         message,
         responseProfile: session.responseProfile,
         provider: runtimeProvider,
@@ -362,7 +390,7 @@ export function ExpertScreen({
 
   return (
     <div className="app-shell expert-workbench-shell">
-      <div className="expert-workbench-grid">
+      <div className={sourcesOpen ? "expert-workbench-grid" : "expert-workbench-grid sources-collapsed"}>
         <aside className="expert-left-column">
           <section className="expert-panel-card">
             <div className="expert-panel-head">
@@ -437,6 +465,9 @@ export function ExpertScreen({
                 <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(true)}>
                   Theme
                 </button>
+                <button type="button" className="ghost-button compact" onClick={() => setSourcesOpen((current) => !current)}>
+                  {sourcesOpen ? "Hide sources" : "Show sources"}
+                </button>
                 {session.activeUploads.length > 0 ? (
                   <button type="button" className="ghost-button compact" onClick={() => setFilesOpen(true)}>
                     Files
@@ -497,12 +528,12 @@ export function ExpertScreen({
             </div>
             <div className="interaction-hint expert-research-note">
               <strong>Auto research</strong>
-              <small>{session.usedLiveWeb ? "This answer used live web because local coverage was weak or stale." : "SignalX will pull in live web only when it improves answer quality."}</small>
+              <small>{session.usedLiveWeb ? "This answer used live web because local coverage was weak or stale." : "Sift will pull in live web only when it improves answer quality."}</small>
             </div>
           </div>
 
           {mobilePane === "chat" ? (
-            <div className="chat-panel expert-chat-panel">
+            <div className={showStarterCard ? "chat-panel expert-chat-panel starter-mode" : "chat-panel expert-chat-panel"}>
               <div className="expert-conversation-stack">
                 {showStarterCard ? (
                   <section className="expert-panel-card expert-starter-card">
@@ -521,20 +552,24 @@ export function ExpertScreen({
                     </div>
                   </section>
                 ) : null}
-                <ChatMessageList
-                  history={session.history}
-                  streamingAssistant={streamingAssistant}
-                  assistantLabel="Expert"
-                  sessionId={session.sessionId}
-                />
+                {!showStarterCard ? (
+                  <ChatMessageList
+                    history={session.history}
+                    streamingAssistant={streamingAssistant}
+                    assistantLabel="Expert"
+                    sessionId={session.sessionId}
+                  />
+                ) : null}
               </div>
-              <div className="expert-quick-actions">
-                {quickActions.map((chip) => (
-                  <button key={chip} type="button" className="chip-button" onClick={() => void submit(chip)} disabled={pending}>
-                    {chip}
-                  </button>
-                ))}
-              </div>
+              {!showStarterCard && quickActions.length > 0 ? (
+                <div className="expert-quick-actions">
+                  {quickActions.map((chip) => (
+                    <button key={chip} type="button" className="chip-button" onClick={() => void submit(chip)} disabled={pending}>
+                      {chip}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <Composer
                 value={draft}
                 onChange={setDraft}
@@ -566,7 +601,10 @@ export function ExpertScreen({
                         target={source.url ? "_blank" : undefined}
                         rel={source.url ? "noreferrer" : undefined}
                       >
-                        <strong>{source.title}</strong>
+                        <div className="expert-source-card-head">
+                          <strong>{source.title}</strong>
+                          <span className={`src-quality ${sourceQualityClass(source.confidence)}`}>{sourceQualityLabel(source.confidence)}</span>
+                        </div>
                         <span>{source.label || source.domain}</span>
                         <small>{source.geographyScope} · {source.confidence}</small>
                       </a>
@@ -586,6 +624,7 @@ export function ExpertScreen({
           )}
         </main>
 
+        {sourcesOpen ? (
         <aside className="expert-right-column">
           <section className="expert-panel-card">
             <div className="expert-panel-head">
@@ -603,7 +642,10 @@ export function ExpertScreen({
                     target={source.url ? "_blank" : undefined}
                     rel={source.url ? "noreferrer" : undefined}
                   >
-                    <strong>{source.title}</strong>
+                    <div className="expert-source-card-head">
+                      <strong>{source.title}</strong>
+                      <span className={`src-quality ${sourceQualityClass(source.confidence)}`}>{sourceQualityLabel(source.confidence)}</span>
+                    </div>
                     <span>{source.label || source.domain}</span>
                     <small>{source.geographyScope} · {source.confidence}</small>
                   </a>
@@ -631,6 +673,7 @@ export function ExpertScreen({
             empty="Knowledge gaps, contradictions, and next questions will surface here."
           />
         </aside>
+        ) : null}
       </div>
 
       <SessionSidebar

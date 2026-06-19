@@ -9,7 +9,7 @@ from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 
-from state import ConversationState
+from backend.core.state import ConversationState
 from backend.services.expert_knowledge import (
     build_card_context,
     retrieve_expert_cards,
@@ -397,7 +397,7 @@ def build_expert_system_prompt(
 ) -> str:
     role_style = ROLE_STYLE.get(state.founder_type, ROLE_STYLE["unknown"])
     prompt_parts = [
-        "You are SignalX Expert, a domain workbench for startup, VC, finance, regulation, and market questions.",
+        "You are Sift Expert, a domain workbench for startup, VC, finance, regulation, and market questions.",
         "Use only the supplied context and sources. If coverage is thin, stale, or geographically mismatched, say that directly instead of filling gaps from unstated memory.",
         "Never invent market facts, company activity, regulatory detail, or current-state claims that are not supported by the supplied context.",
         "Lead with the answer in one or two direct sentences, then support it with the strongest evidence and the next implication.",

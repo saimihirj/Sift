@@ -1,214 +1,259 @@
-# SignalX
+# Sift
 
-SignalX is a local-first startup and finance workbench with three workflows:
-- `Ideate` for shaping rough ideas and reasoning
-- `Evaluate` for structured pressure-testing and reports
-- `Expert` for domain discussion, concept learning, pre-screening, and deck analysis
+Sift is an AI workbench for startup ideation, pitch deck review, and investor-style evaluation.
 
-It is built to feel more like a sharp operator than a generic chatbot:
-- it stays two-way instead of dumping generic advice
-- it shows evidence and grounded reasoning in `Expert`
-- it supports both open-source local runtime and API-key runtime
-- it stores sessions locally so users can resume work
-- it can turn an `Ideate` session into a refined pitch artifact
+It gives founders, operators, students, and analysts one focused workspace to turn rough startup material into clearer thinking: a sharper pitch, a structured evaluation, and a practical next-actions report.
 
-## Quick Start
+## What Sift Does
 
-### Clone-and-run with API keys
+Sift is organized around three workflows.
 
-Best path if you want the easiest local setup and prefer providers like `Groq`, `Cerebras`, `OpenAI`, `OpenRouter`, `Anthropic`, or `Gemini`.
+`Ideate` helps shape an early idea into a clearer company narrative. It asks targeted questions, tracks pitch coverage, and helps produce a refined founder-ready articulation.
+
+`Evaluate` reviews a startup idea or pitch deck. It returns a structured verdict, score, confidence level, strengths, risks, missing evidence, and suggested next steps.
+
+`Expert` answers startup, market, and venture-style questions with a bundled expert corpus and retrieved context. It is useful for concept breakdowns, risk mapping, deck pre-screening, and investor memo-style thinking.
+
+## Current Stack
+
+Sift runs **localhost-first**. No cloud services required.
+
+| Layer | Technology |
+|---|---|
+| Frontend | React + TypeScript (Vite) |
+| Backend | FastAPI + Uvicorn |
+| Persistence | SQLite (`data/sessions.db`) |
+| File storage | Local disk (`data/session_uploads/`) |
+| Knowledge base | Bundled expert corpus + dynamic knowledge graph |
+| Model inference | Ollama (local) or any API-key provider |
+
+For shared access, the recommended production path is **Render** with a persistent disk (SQLite + uploads intact, no cloud DB migration needed).
+
+## Model Options
+
+Sift supports both local and hosted model paths.
+
+**Local open-source (default):**
+
+- Ollama — `qwen3:8b` (speed) · `qwen3:30b` (balanced) · `qwen2.5vl:7b` (deck review)
+- Local OpenAI-compatible server — vLLM, Hugging Face TGI, LM Studio, llama.cpp
+- Sift Brain — custom fine-tuned decision layer (see below)
+
+**Hosted providers:**
+
+- Groq — `llama-4-scout` (fast) · `llama-4-maverick` (balanced)
+- Cerebras — `qwen-3-8b` (fast) · `qwen-3-32b` (balanced)
+- OpenAI — `gpt-4.1-mini` / `gpt-4.1`
+- Anthropic — `claude-haiku-4-5` / `claude-sonnet-4-5`
+- OpenRouter — any open-weight or frontier model
+- Gemini API — `gemini-2.0-flash` / `gemini-2.5-flash`
+
+**Archived (optional GCP path):**
+
+- Vertex AI Gemini — available via `requirements-gcp.txt` and `legacy/gcp/`
+
+## Deck Review
+
+Deck review is part of `Evaluate`.
+
+It can:
+
+- ingest `.pdf` and `.pptx` pitch decks
+- extract ordered slide or page content
+- score the deck against startup pitch criteria
+- produce slide-by-slide notes
+- identify strengths, risks, missing proof, and unclear claims
+- produce an investor-style report without pretending missing evidence exists
+
+PDF review can use page images when the selected model supports vision. PPTX review relies mostly on extracted slide text.
+
+## Sift Brain — Knowledge Graph & Custom LLM
+
+Sift includes a `sift_brain/` intelligence layer with two parts.
+
+### Dynamic Knowledge Graph
+
+The knowledge graph continuously updates the expert corpus across all targeted domains:
+
+- SaaS, D2C, Fintech, India VC, PE/Growth, Macro, Regulation, Market Sizing, Unit Economics, PMF
+
+Run a domain update:
 
 ```bash
-git clone <your-repo-url>
-cd signalx
+npm run brain:update
+# or: python3 scripts/update_knowledge_graph.py [--domain all|saas|fintech|...]
+```
+
+This runs an async scraper → ChromaDB embedder pipeline that adds new knowledge cards incrementally to `knowledge_base/expert/` and `data/chroma/`.
+
+### Custom LLM — Fine-tuning & Serving
+
+Build and serve a Sift-specific decision layer on top of the best open-source base models:
+
+```bash
+# Build a fine-tuned adapter (LoRA/QLoRA)
+npm run brain:train
+# or: python3 scripts/train_sift_brain.py --base qwen3-8b --epochs 3 --lora-rank 16
+
+# Serve it locally (OpenAI-compatible on port 8001)
+npm run brain:serve
+# or: python3 scripts/serve_sift_brain.py --adapter latest
+```
+
+The serving server exposes an OpenAI-compatible `/v1/chat/completions` endpoint. Point `LOCAL_OPENAI_BASE_URL=http://127.0.0.1:8001/v1` in `.env` to use it, or set `SIFT_MODEL_PROVIDER=sift_brain`.
+
+Fine-tuning config is YAML-based and supports hyperparameter sweeps via Optuna.
+
+## OAuth
+
+The app has OAuth routes for:
+
+- Google
+- Apple
+- LinkedIn
+- X
+
+OAuth providers only appear when their client ID and secret are set in the environment.
+
+Local callback URLs:
+
+```text
+http://127.0.0.1:7860/api/auth/callback/google
+http://127.0.0.1:7860/api/auth/callback/apple
+http://127.0.0.1:7860/api/auth/callback/linkedin
+http://127.0.0.1:7860/api/auth/callback/x
+```
+
+Dev split-stack callback URLs use port `8000` for the backend.
+
+## Local Setup
+
+```bash
+git clone git@github.com:saimihirj/Sift.git
+cd Sift
+
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+
 npm install
 npm --prefix frontend install
 cp .env.example .env
-npm run mvp:api
 ```
 
-Open `http://127.0.0.1:7860`, choose `Use API key`, then pick your provider.
-
-### Run fully local with open-source models
-
-If you want the app to stay local and avoid paid APIs, use the same setup steps above, then:
+Run with local Ollama (default):
 
 ```bash
-ollama pull llama3.2
-# Optional sharper local model if your machine can handle it:
 ollama pull qwen3:8b
 npm run mvp
 ```
 
-SignalX will auto-start Ollama if it is installed and not already running.
-
-## What You Get
-
-### Ideate
-- open-ended discussion
-- sharper framing of problem, customer, wedge, and pitch
-- uploads and session resume
-- refined pitch generation from the conversation
-
-### Evaluate
-- `Idea review` for adaptive pressure-testing of a startup idea
-- `Deck review` for direct `.pdf` and `.pptx` pitch-deck assessment inside Evaluate
-- structured reports with verdict, evidence gaps, weak claims, and next steps
-- slide/page-aware feedback instead of a generic one-shot chatbot answer
-
-### Expert
-- concept explanations and comparisons
-- evidence-backed answers using the bundled knowledge corpus
-- pre-screening and deck analysis
-- source, confidence, and analysis panels in the workbench
-
-## Runtime Modes
-
-### `npm run mvp`
-
-Single-port local app with open-source models.
-
-- serves frontend and backend together on `http://127.0.0.1:7860`
-- auto-starts Ollama if needed
-- good default for solo local use
-
-### `npm run mvp:api`
-
-Single-port local app without Ollama startup.
-
-- serves frontend and backend together on `http://127.0.0.1:7860`
-- optimized for API-key-based usage
-- supports `groq`, `cerebras`, `openai`, `openrouter`, `anthropic`, and `gemini`
-
-### `npm run mvp:lan`
-
-LAN sharing for people on the same network.
-
-### `npm run dev`
-
-Frontend and backend split for active development.
-
-- frontend: `http://127.0.0.1:5173`
-- backend: `http://127.0.0.1:8000`
-
-## Providers
-
-### Open-source local
-- `ollama`
-- recommended local fast model: `llama3.2:latest`
-- optional sharper local model: `qwen3:8b`
-
-### API-key providers
-- `groq`
-- `cerebras`
-- `openai`
-- `openrouter`
-- `anthropic`
-- `gemini`
-
-API keys can be entered in the UI for a session or exported in the shell before launch.
-For public deployments, set the provider key on the server so visitors do not need to bring their own key.
-
-Example:
+Run with API-key providers only:
 
 ```bash
-export GROQ_API_KEY=...
 npm run mvp:api
 ```
 
-Fast hosted open-weight defaults:
-- `Groq`: `openai/gpt-oss-20b` for Fast, `openai/gpt-oss-120b` for Sharper
-- `Cerebras`: `gpt-oss-120b`
+Open:
 
-Frontier OpenAI defaults:
-- `OpenAI`: `gpt-5.4-mini` for Fast, `gpt-5.5` for Sharper
+```text
+http://127.0.0.1:7860
+```
 
-## Deck Review
-
-`Evaluate` now has two modes:
-- `Idea review`
-- `Deck review`
-
-`Deck review` is meant for serious pitch-deck feedback, not a prompt hack inside chat.
-
-What it does:
-- reads uploaded `.pdf` and `.pptx` decks into an ordered slide/page artifact
-- evaluates the deck against the built-in rubric inside `Evaluate`
-- reports what is working, what is weak, what is unproven, and what is still missing
-- cites slide/page references where possible
-- marks missing material as `not shown`, `unclear`, or `unverified` instead of guessing
-
-Important runtime behavior:
-- if the active model supports vision and the deck has renderable slide/page images, the review can assess slides more directly
-- if the active model is text-only, SignalX runs a bounded transcript review from extracted deck text and explicitly avoids fake visual claims
-- `Qwen2.5-VL` is the recommended local Ollama path for stronger deck review
-- `Gemma 3` is a lighter local fallback when you want multimodal support on a smaller setup
-
-If you update the deck or improve the review pipeline, re-run `Deck review` to generate a fresh report. Existing saved reports do not automatically rewrite themselves.
-
-## Bundled Knowledge
-
-The Expert workbench ships with a bundled JSON corpus under `knowledge_base/expert/`.
-
-That means:
-- clone-and-run does not depend on a private `/Users/.../Desktop/data` path
-- `/api/health` reports whether the Expert corpus loaded
-- local users and hosted deployments read from the same bundled source by default
-
-## Project Layout
-
-- `frontend/` - React + Vite UI
-- `backend/` - FastAPI API and services
-- `knowledge_base/expert/` - bundled Expert corpus
-- `data/` - local runtime state, sessions, uploads, exports
-- `memory.py` - SQLite persistence
-- `signalx_app.py` - single-port launcher
-- `docs/` - runbook, architecture, and deployment notes
-
-## Deployment
-
-For the current codebase, the cleanest first public deployment is `Render`.
-
-Why:
-- the app is a single long-running `React + FastAPI` service
-- it uses SQLite and uploaded files on disk
-- it expects same-origin frontend and API behavior
-- the repo already includes `render.yaml` plus a deployment checklist
-
-Use:
-- [Execution Guide](docs/EXECUTION.md) for local and dev commands
-- [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md) for hosting
-
-## Main Commands
+Development split stack:
 
 ```bash
-npm run mvp
-npm run mvp:api
-npm run mvp:lan
-npm run admin
 npm run dev
-npm run build
-npm run knowledge:vc
 ```
 
-## Current State
+Frontend: `http://127.0.0.1:5173` · Backend: `http://127.0.0.1:8000`
 
-- `SignalX` is now a three-workflow MVP: `Ideate`, `Evaluate`, `Expert`
-- both open-source and API-key runtime paths are supported
-- the Expert corpus is bundled in the repo
-- local API-key mode works without Ollama
-- `Evaluate` supports both `Idea review` and structured `Deck review`
-- long analytical answers auto-continue once when providers stop on length
-- hosted provider keys can now be configured server-side for public demos
-- session history, uploads, and reports persist locally
+## Common Commands
 
-## Docs
+```bash
+npm run mvp            # single-port local app with Ollama
+npm run mvp:api        # single-port local app for API-key providers
+npm run mvp:lan        # share on the local network
+npm run admin          # launch with admin mode
+npm run dev            # run backend and frontend separately
+npm run build          # build the frontend only
+npm run brain:update   # update the knowledge graph
+npm run brain:train    # fine-tune the Sift Brain model
+npm run brain:serve    # serve the Sift Brain local model
+python3 -m pytest      # run backend tests
+```
 
-- [Execution Guide](docs/EXECUTION.md)
-- [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)
-- [Platform Overview](docs/PLATFORM_OVERVIEW.md)
+## Fresh Data Reset
+
+Reset local runtime data:
+
+```bash
+python3 tools/reset_runtime_data.py --local --yes
+```
+
+## Project Structure
+
+```text
+backend/
+  api/          FastAPI route handlers
+  core/         persistence, analytics, knowledge, and shared runtime state
+  services/     evaluation, deck review, uploads, retrieval, auth, and model routing
+
+frontend/
+  src/          React application source
+  index.html    Vite entrypoint
+
+knowledge_base/
+  expert/       bundled Expert knowledge corpus (static + dynamic shards)
+  inbox/        source files for offline knowledge builds
+
+sift_brain/
+  knowledge_graph/   dynamic domain updater, ChromaDB embedder, entity graph, retriever
+  decision_layer/    intelligent query router and context builder
+  training/          dataset builder, LoRA/QLoRA fine-tuner, hypertuner, evaluator
+  serving/           OpenAI-compatible local model server and adapter registry
+
+scripts/        knowledge graph update, training, and serving launchers
+tools/          local app launcher and reset scripts
+docs/           architecture, execution, and platform notes
+tests/          backend tests
+data/           local runtime state (SQLite, uploads, chroma, model adapters) — not in git
+legacy/gcp/     archived Google Cloud / Firebase deployment files
+```
+
+## Optional: Google Cloud Deployment
+
+The Firebase/GCP deployment path is archived in `legacy/gcp/`. To restore it:
+
+1. `pip install -r requirements-gcp.txt`
+2. Copy files from `legacy/gcp/` back to project root and `tools/` and `docs/`
+3. Set GCP environment variables in `.env`
+
+## Verification Status
+
+Latest local verification:
+
+```text
+python3 -m pytest
+27 passed
+
+npm --prefix frontend run build
+passed
+```
+
+## Notes For Operators
+
+- Keep `.env`, local caches, `frontend/dist`, and `data/` out of git.
+- Keep OAuth and model provider secrets in environment variables or a secrets manager.
+- For the best public demo experience, deploy to **Render** with a persistent disk.
+- For open-source inference, point `LOCAL_OPENAI_BASE_URL` at a vLLM/TGI/llama.cpp endpoint, or use Ollama locally.
+- For the Sift Brain custom model, start `scripts/serve_sift_brain.py` before the main app.
+
+## Documentation
+
 - [Architecture](docs/ARCHITECTURE.md)
+- [Platform Overview](docs/PLATFORM_OVERVIEW.md)
+- [Execution Guide](docs/EXECUTION.md)
+- [Beta Readiness](docs/BETA_READINESS.md)
 - [Changelog](CHANGELOG.md)
+- [GCP Deployment (archived)](legacy/gcp/README.md)

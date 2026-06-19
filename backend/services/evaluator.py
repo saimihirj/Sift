@@ -1,4 +1,4 @@
-"""Adaptive evaluator engine for SignalX."""
+"""Adaptive evaluator engine for Sift."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-from state import ConversationState
+from backend.core.state import ConversationState
 
 from backend.services.model_router import default_model_for_provider, generate_provider_text, normalize_provider
 from backend.services.deck_review import normalize_evaluator_mode, present_deck_review_report
@@ -18,7 +18,7 @@ from backend.services.refinement import (
     summarize_answer_record,
     update_answer_record,
 )
-from knowledge import VC_STAGE_MAP, get_stage_metrics_context, get_vc_pass_reasons_context, get_yc_frameworks_context
+from backend.core.knowledge import VC_STAGE_MAP, get_stage_metrics_context, get_vc_pass_reasons_context, get_yc_frameworks_context
 
 
 DIMENSION_LABELS = {
@@ -2020,7 +2020,7 @@ async def score_answer_with_model(
     pass_reasons = get_vc_pass_reasons_context()
     yc_benchmarks = get_yc_frameworks_context()
     system = (
-        "You are SignalX's evaluator grader. Score only the founder's latest answer. Return valid JSON only. "
+        "You are Sift's evaluator grader. Score only the founder's latest answer. Return valid JSON only. "
         "Use 0 to 5 scores. Keep why and coachLine short. "
         "coachLine must be one coaching sentence, not a question, and must not include the next question.\n\n"
         "Use the following VC evaluation standards to calibrate your scoring:\n\n"
@@ -2318,7 +2318,7 @@ async def phrase_evaluator_turn(
             "question": _fallback_phrased_question(question, state, move_type),
         }
     system = (
-        "You are SignalX's live evaluator interviewer. "
+        "You are Sift's live evaluator interviewer. "
         "You sound like a sharp early-stage VC operator: concise, natural, specific, and human. "
         "Use the knowledge base and conversation history as the primary source of truth. "
         "If the knowledge base is thin, say so briefly instead of pretending. "

@@ -1,12 +1,12 @@
-# SignalX Architecture
+# Sift Architecture
 
-This document explains how SignalX works today, how it should run for a shareable MVP, and what to monitor.
+This document explains how Sift works today, how it should run for a shareable MVP, and what to monitor.
 
 It is written for product and technical review.
 
 ## Product Goal
 
-SignalX is a domain workbench, not a generic chatbot.
+Sift is a domain workbench, not a generic chatbot.
 
 The product should:
 - help users clarify the real problem
@@ -23,7 +23,8 @@ For the best current MVP deployment:
 - `Database`: SQLite on persistent disk
 - `File storage`: persistent disk
 - `Auth`: optional OAuth later
-- `Model inference`: Groq GPT-OSS or another server-configured API provider in production, Ollama locally
+- `Model inference`: Groq Llama-4 Scout/Maverick or another server-configured API provider in production, Ollama locally
+- `Intelligence layer`: Sift Brain — dynamic knowledge graph + custom fine-tuned LLM (optional, local)
 - `Monitoring`: Render metrics + logs, in-app usage tracking
 
 ## 1. Current Local Architecture
@@ -38,12 +39,16 @@ flowchart LR
     A --> S["SQLite sessions.db"]
     A --> UPL["Local uploads folder"]
     A --> KB["Expert corpus"]
+    A --> SB["Sift Brain (optional)"]
+    SB --> KG["Knowledge Graph"]
+    SB --> LLM["Fine-tuned Adapter"]
     A --> O["Refined pitch / expert analysis"]
 
     subgraph Local Ports
       F
       A
       M
+      SB
     end
 ```
 
@@ -58,7 +63,7 @@ Browser -> http://127.0.0.1:7860
 This is started by:
 
 ```bash
-python3 signalx_app.py --build
+python3 tools/sift_app.py --build
 ```
 
 The backend serves the built frontend and API from one process.
@@ -85,7 +90,7 @@ This is the architecture recommended for sharing the current app with early test
 flowchart LR
     B["User Browser"] --> R["Render Web Service\nReact build + FastAPI API"]
     R --> DB["Persistent Disk\nSQLite + uploads"]
-    R --> G["Groq Model API"]
+    R --> G["Groq / Cerebras\nLlama-4 Scout / Maverick"]
 
     R --> LG["Render Logs / Metrics"]
 ```
@@ -96,7 +101,9 @@ flowchart LR
 - Render fits the current Dockerized FastAPI app well
 - persistent disk keeps the current SQLite and upload model intact
 - a server-configured Groq key removes the need for visitors to paste their own API keys
-- GPT-OSS hosted on Groq or Cerebras gives the MVP a fast open-weight path before paying for frontier models
+- Llama-4 Scout/Maverick on Groq gives fast open-weight inference at very low latency
+
+> **GCP / Firebase**: the Cloud Run + Firestore + BigQuery deployment is archived in `legacy/gcp/`. See [legacy/gcp/README.md](legacy/gcp/README.md) to restore it.
 
 ## 3. Request Workflow
 
@@ -200,6 +207,11 @@ Responsibilities:
 - `backend/api/chat.py`
 - `backend/api/outline.py`
 - `backend/api/client.py`
+- `backend/api/brain.py`
+- `backend/api/evaluator.py`
+- `backend/api/analytics.py`
+- `backend/api/admin.py`
+- `backend/api/auth.py`
 
 Responsibilities:
 - session start and load
@@ -229,7 +241,7 @@ Responsibilities:
 ### Persistence
 
 Current local storage:
-- `memory.py` -> SQLite at `data/sessions.db`
+- `backend/core/memory.py` -> SQLite at `data/sessions.db`
 - `backend/services/uploads.py` -> `data/session_uploads/`
 
 Recommended production storage:
@@ -246,17 +258,24 @@ Recommended production storage:
 | `8000` | FastAPI backend | API health and backend debugging |
 | `5173` | Vite frontend | frontend dev only |
 | `11434` | Ollama | local model runtime |
+| `8001` | Sift Brain server | fine-tuned adapter (optional) |
 
 ### Local endpoints
 
 | Endpoint | Purpose |
 |---|---|
-| `/api/health` | health check |
-| `/api/session/start` | session creation |
-| `/api/session` | list user sessions |
-| `/api/chat` | streamed chat |
-| `/api/outline` | outline generation |
-| `/api/client/heartbeat` | local app browser heartbeat |
+| `GET /api/health` | health check |
+| `POST /api/session/start` | session creation |
+| `GET /api/session` | list user sessions |
+| `POST /api/chat` | streamed chat (SSE) |
+| `POST /api/outline` | outline generation |
+| `POST /api/evaluator/answer` | evaluator turn |
+| `POST /api/client/heartbeat` | local app browser heartbeat |
+| `GET /api/brain/status` | Sift Brain KB status |
+| `GET /api/brain/index-status` | ChromaDB index health |
+| `GET /api/brain/decision-trace` | last session routing trace |
+| `GET /api/admin/overview` | admin metrics |
+| `GET /api/admin/events` | recent events |
 
 ### Production ports
 
@@ -371,14 +390,14 @@ Suggested sections:
 - Ollama
 - SQLite
 - local uploads
-- `python3 signalx_app.py --build`
+- `python3 tools/sift_app.py --build`
 
 ### Local API-key mode
 
 - Groq, Cerebras, OpenAI, OpenRouter, Anthropic, or Gemini
 - SQLite
 - local uploads
-- `python3 signalx_app.py --build --no-ollama`
+- `python3 tools/sift_app.py --build --no-ollama`
 
 ### MVP / staging
 
@@ -399,14 +418,16 @@ Suggested sections:
 Today:
 - local-first app
 - React + FastAPI
-- Ollama or API providers
+- Ollama or API providers (Groq Llama-4 as hosted default)
 - SQLite
 - local upload storage
+- dynamic knowledge graph + ChromaDB (`sift_brain/`)
+- custom LLM fine-tuning + serving pipeline (`sift_brain/training/`, `sift_brain/serving/`)
 
 Best MVP deployment:
 - Render web service
 - persistent disk for SQLite and uploads
-- Groq inference
+- Groq Llama-4 inference
 - internal product analytics
 
 Main technical reason:

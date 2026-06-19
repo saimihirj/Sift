@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 DATA_DIR = Path("data")
 CHROMA_DIR = DATA_DIR / "chroma"
-INBOX_DIR = Path("knowledge_inbox")
+INBOX_DIR = Path("knowledge_base") / "inbox"
 INDEXED_LOG = DATA_DIR / ".indexed_files"
 
 CHUNK_SIZE = 500
@@ -151,28 +151,28 @@ def ingest_text(
 
 
 def ingest_file(file_path: str, sector: str = "general") -> int:
-    """Parse a file using existing parsers and ingest into knowledge collection."""
-    from app import _parse_pdf, _parse_docx, _parse_txt, _parse_pptx
+    """Parse a supported file and ingest it into the knowledge collection."""
+    from backend.services.uploads import parse_uploaded_path
+
     path = Path(file_path)
     ext = path.suffix.lower()
-    parsers = {
-        ".pdf": (_parse_pdf, "pdf"),
-        ".docx": (_parse_docx, "document"),
-        ".txt": (_parse_txt, "text"),
-        ".pptx": (_parse_pptx, "presentation"),
+    doc_types = {
+        ".pdf": "pdf",
+        ".docx": "document",
+        ".txt": "text",
+        ".pptx": "presentation",
     }
-    if ext not in parsers:
+    if ext not in doc_types:
         logger.warning(f"Unsupported file type: {ext}")
         return 0
-    parser_fn, doc_type = parsers[ext]
     try:
-        text = parser_fn(str(path))
+        text, _ = parse_uploaded_path(path)
     except Exception as e:
         logger.error(f"Failed to parse {path.name}: {e}")
         return 0
     if not text.strip():
         return 0
-    return ingest_text(text, source=path.name, doc_type=doc_type, sector=sector)
+    return ingest_text(text, source=path.name, doc_type=doc_types[ext], sector=sector)
 
 
 def ingest_url(url: str, sector: str = "general") -> int:
@@ -226,7 +226,7 @@ def ingest_vc_firm_documents(documents: list[dict]) -> int:
 
 
 def ingest_inbox() -> int:
-    """Index any unindexed files in knowledge_inbox/. Returns new chunk count."""
+    """Index any unindexed files in knowledge_base/inbox/. Returns new chunk count."""
     INBOX_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
     indexed = set()

@@ -1,4 +1,18 @@
+import { useState } from "react";
 import type { ProviderOption, ResponseProfile, RuntimeUsageSummary } from "../../app/types";
+import { SiftBrainPanel } from "./SiftBrainPanel";
+
+function isLocalProviderKey(key: string): boolean {
+  return key === "ollama" || key === "local_openai" || key === "sift_brain";
+}
+
+type DecisionTrace = {
+  queryType: string;
+  provider: string;
+  kbHits: number;
+  complexity: string;
+  usedKB: boolean;
+};
 
 type Props = {
   isOpen: boolean;
@@ -17,7 +31,28 @@ type Props = {
   onApiKeyChange: (value: string) => void;
   onUseDefaultModel: (profile: ResponseProfile) => void;
   onApply: () => void;
+  /** True while the model is streaming a response — shows abort button. */
+  streaming?: boolean;
+  /** Called when user presses the abort/stop button. */
+  onAbort?: () => void;
+  /** Time-to-first-token in ms for the last completed response. */
+  ttft?: number;
+  /** Tokens per second for the last completed response. */
+  tps?: number;
+  /** Decision trace from the last turn (populated by router.py). */
+  decisionTrace?: DecisionTrace;
 };
+
+function ttftClass(ms: number): string {
+  if (ms < 500) return "ok";
+  if (ms < 1500) return "warn";
+  return "slow";
+}
+
+function formatTtft(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  return `${(ms / 1000).toFixed(1)} s`;
+}
 
 export function RuntimeSidebar({
   isOpen,
@@ -36,7 +71,14 @@ export function RuntimeSidebar({
   onApiKeyChange,
   onUseDefaultModel,
   onApply,
+  streaming = false,
+  onAbort,
+  ttft,
+  tps,
+  decisionTrace,
 }: Props) {
+  const [brainExpanded, setBrainExpanded] = useState(false);
+
   const selectedProvider = providerOptions.find((item) => item.key === provider) ?? providerOptions[0] ?? null;
   const requiresApiKey = Boolean(selectedProvider?.requiresApiKey);
   const requiresClientApiKey = Boolean(selectedProvider?.requiresApiKey && !selectedProvider.serverConfigured);
@@ -68,10 +110,39 @@ export function RuntimeSidebar({
             <span className="rail-label">Model</span>
             <strong>{title}</strong>
           </div>
-          <button type="button" className="ghost-button compact" onClick={onClose}>
-            Close
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {/* Abort button — only shown while streaming */}
+            {streaming && onAbort && (
+              <button type="button" className="abort-stream-btn" onClick={onAbort} aria-label="Stop generation">
+                Stop
+              </button>
+            )}
+            <button type="button" className="ghost-button compact" onClick={onClose}>
+              Close
+            </button>
+          </div>
         </div>
+
+        {/* Streaming stats row */}
+        {(ttft !== undefined || tps !== undefined) && !streaming && (
+          <div className="stream-stats">
+            {ttft !== undefined && (
+              <div className="stream-stat">
+                <span>TTFT</span>
+                <span className={`stream-stat-value ${ttftClass(ttft)}`}>{formatTtft(ttft)}</span>
+              </div>
+            )}
+            {ttft !== undefined && tps !== undefined && (
+              <span className="stream-stat-sep">·</span>
+            )}
+            {tps !== undefined && (
+              <div className="stream-stat">
+                <span>Throughput</span>
+                <span className="stream-stat-value ok">{tps.toFixed(1)} tok/s</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {onResponseProfileChange ? (
           <div className="identity-field">
@@ -102,7 +173,7 @@ export function RuntimeSidebar({
                 onClick={() => onProviderChange(item.key)}
               >
                 <span>{item.label}</span>
-                <small>{item.requiresApiKey ? (item.serverConfigured ? "Server key" : "Bring key") : "Local"}</small>
+                <small>{item.requiresApiKey ? (item.serverConfigured ? "Server key" : "Bring key") : (isLocalProviderKey(item.key) ? "Local" : "Server")}</small>
               </button>
             ))}
           </div>
@@ -136,6 +207,22 @@ export function RuntimeSidebar({
             Sharper
           </button>
         </div>
+
+        {selectedProvider?.modelPresets?.length ? (
+          <div className="model-preset-grid compact-model-preset-grid">
+            {selectedProvider.modelPresets.map((preset) => (
+              <button
+                key={`${selectedProvider.key}-${preset.value}`}
+                type="button"
+                className={modelValue === preset.value ? "model-preset-chip active" : "model-preset-chip"}
+                onClick={() => onModelChange(preset.value)}
+              >
+                <span>{preset.label}</span>
+                {preset.note ? <small>{preset.note}</small> : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         {requiresApiKey ? (
           <label className="identity-field">
@@ -180,6 +267,15 @@ export function RuntimeSidebar({
             ? (selectedProvider?.serverConfigured ? "Server key is used unless you override it." : "Your key stays in this browser session.")
             : `${profileLabel} local mode.`}
         </p>
+
+        {/* ── Sift Brain Panel ─────────────────────────────────────────── */}
+        <SiftBrainPanel
+          ttft={ttft}
+          tps={tps}
+          decisionTrace={decisionTrace}
+          expanded={brainExpanded}
+          onToggle={() => setBrainExpanded((v) => !v)}
+        />
 
         <div className="floating-actions">
           <button type="button" className="ghost-button" onClick={onClose}>

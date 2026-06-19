@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
-import type { HelpMode, Provider, ProviderOption, SetupDraft } from "../../app/types";
+import { ThemePicker } from "../../app/ThemePicker";
+import type { HelpMode, Provider, ProviderOption, SessionSummary, SetupDraft, ThemeMode } from "../../app/types";
 
 type Props = {
   providerOptions: ProviderOption[];
@@ -9,8 +10,15 @@ type Props = {
   canStart: boolean;
   step: number;
   draft: SetupDraft;
+  theme: ThemeMode;
+  onThemeChange: (theme: ThemeMode) => void;
+  identityLabel: string;
+  identityKey: string;
+  recentSessions: SessionSummary[];
   onStepChange: (step: number) => void;
   onDraftChange: (updater: (current: SetupDraft) => SetupDraft) => void;
+  onOpenSession: (sessionId: string) => void | Promise<void>;
+  onSwitchIdentity: () => void;
   onBack: () => void;
   onStart: (payload: {
     sessionType: SetupDraft["sessionType"];
@@ -76,14 +84,51 @@ const geographyOptions: Array<{ value: string; label: string }> = [
   { value: "global", label: "Global" },
 ];
 
+const sampleContexts = [
+  {
+    label: "Sample SaaS",
+    context: "We are building a workflow intelligence platform for finance teams that catches reconciliation errors before month-end close. The first wedge is mid-market companies using spreadsheets and ERP exports. We have spoken with 9 finance managers and found that close delays usually come from duplicate manual checks.",
+    sector: "saas",
+    stage: "pre-revenue",
+  },
+  {
+    label: "Sample marketplace",
+    context: "We are testing a curated marketplace that helps boutique hotels find verified local experience operators. Hotels currently use informal WhatsApp networks and manual vendor checks. The first experiment is a concierge MVP with 5 hotels and 20 operators in one city.",
+    sector: "marketplace",
+    stage: "idea",
+  },
+] as const;
+
+const stepLabels = ["Workflow", "Context", "Runtime"];
+
+function formatSessionTime(raw?: string | null): string {
+  if (!raw) {
+    return "No activity yet";
+  }
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) {
+    return "Recent";
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
 function providerAccessLabel(option: ProviderOption | undefined): string {
   if (!option) {
     return "Runtime";
   }
   if (!option.requiresApiKey) {
-    return "Local";
+    return isLocalProviderKey(option.key) ? "Local" : "Server ready";
   }
   return option.serverConfigured ? "Server ready" : "Bring key";
+}
+
+function isLocalProviderKey(key: string): boolean {
+  return key === "ollama" || key === "local_openai";
 }
 
 function modelPresetLabel(option: ProviderOption | undefined, profile: "speed" | "balanced"): string {
@@ -96,15 +141,15 @@ function modelPresetLabel(option: ProviderOption | undefined, profile: "speed" |
 }
 
 function stepTitle(step: number) {
-  if (step === 0) return "Choose a workspace";
-  if (step === 1) return "Add context";
-  return "Pick a runtime";
+  if (step === 0) return "What do you want to do?";
+  if (step === 1) return "About you";
+  return "AI engine";
 }
 
 function stepSubtitle(step: number) {
-  if (step === 0) return "Start with the output you need.";
-  if (step === 1) return "Only the basics.";
-  return "Local or hosted.";
+  if (step === 0) return "Pick the output you need right now.";
+  if (step === 1) return "A little context improves the result.";
+  return "Use the hosted default, bring a provider key, or choose a local open-source runtime.";
 }
 
 function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
@@ -126,28 +171,94 @@ function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
   nextButton.click();
 }
 
-export function SetupWizard({ providerOptions, loading, error, canStart, step, draft, onStepChange, onDraftChange, onBack, onStart }: Props) {
+export function SetupWizard({
+  providerOptions,
+  loading,
+  error,
+  canStart,
+  step,
+  draft,
+  theme,
+  onThemeChange,
+  identityLabel,
+  identityKey,
+  recentSessions,
+  onStepChange,
+  onDraftChange,
+  onOpenSession,
+  onSwitchIdentity,
+  onBack,
+  onStart,
+}: Props) {
   const [optionalContextOpen, setOptionalContextOpen] = useState(false);
+  const [identityKeyCopied, setIdentityKeyCopied] = useState(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
+  const hasLocalRuntime = useMemo(() => providerOptions.some((item) => isLocalProviderKey(item.key)), [providerOptions]);
+  const effectiveRuntimeKind = hasLocalRuntime ? draft.runtimeKind : "external";
   const filteredProviders = useMemo(
-    () => (draft.runtimeKind === "local" ? providerOptions.filter((item) => item.key === "ollama") : providerOptions.filter((item) => item.key !== "ollama")),
-    [providerOptions, draft.runtimeKind],
+    () => (effectiveRuntimeKind === "local" ? providerOptions.filter((item) => isLocalProviderKey(item.key)) : providerOptions.filter((item) => !isLocalProviderKey(item.key))),
+    [providerOptions, effectiveRuntimeKind],
   );
   const providerMeta = useMemo(() => {
-    const fallback = draft.runtimeKind === "local"
-      ? providerOptions.find((item) => item.key === "ollama")
+    const fallback = effectiveRuntimeKind === "local"
+      ? providerOptions.find((item) => isLocalProviderKey(item.key))
       : filteredProviders[0];
-    return providerOptions.find((item) => item.key === draft.provider) ?? fallback ?? providerOptions[0];
-  }, [draft.provider, draft.runtimeKind, filteredProviders, providerOptions]);
+    return filteredProviders.find((item) => item.key === draft.provider) ?? fallback ?? providerOptions[0];
+  }, [draft.provider, effectiveRuntimeKind, filteredProviders, providerOptions]);
 
-  const resolvedProvider = draft.runtimeKind === "local" ? "ollama" : (providerMeta?.key ?? "groq");
+  const resolvedProvider = providerMeta?.key ?? (effectiveRuntimeKind === "local" ? "ollama" : "groq");
   const resolvedModel = draft.model.trim()
-    || (draft.runtimeKind === "local"
+    || (effectiveRuntimeKind === "local"
       ? providerMeta?.defaultSpeedModel
       : providerMeta?.defaultBalancedModel || providerMeta?.defaultSpeedModel)
     || "";
   const requiresClientApiKey = Boolean(providerMeta?.requiresApiKey && !providerMeta.serverConfigured);
-  const canAdvanceRuntime = Boolean(resolvedModel) && (draft.runtimeKind === "local" || !requiresClientApiKey || draft.apiKey.trim());
+  const canAdvanceRuntime = Boolean(resolvedModel) && (effectiveRuntimeKind === "local" || !requiresClientApiKey || draft.apiKey.trim());
+  const canStartFromCurrentStep = canStart && canAdvanceRuntime && !loading;
+
+  useEffect(() => {
+    if (hasLocalRuntime || draft.runtimeKind !== "local") {
+      return;
+    }
+    const firstExternal = providerOptions.find((item) => !isLocalProviderKey(item.key) && item.serverConfigured)
+      ?? providerOptions.find((item) => !isLocalProviderKey(item.key));
+    onDraftChange((current) => ({
+      ...current,
+      runtimeKind: "external",
+      provider: firstExternal?.key ?? current.provider,
+      model: firstExternal?.defaultBalancedModel || firstExternal?.defaultSpeedModel || current.model,
+    }));
+  }, [draft.runtimeKind, hasLocalRuntime, onDraftChange, providerOptions]);
+
+  const startWithCurrentDraft = () => onStart({
+    sessionType: draft.sessionType,
+    evaluatorMode: draft.evaluatorMode,
+    founderType: draft.founderType,
+    sector: draft.sector,
+    stage: draft.stage,
+    geography: draft.geography,
+    mode: draft.mode,
+    provider: resolvedProvider as Provider,
+    model: resolvedModel,
+    apiKey: effectiveRuntimeKind === "external" ? draft.apiKey.trim() : "",
+    websiteUrl: draft.websiteUrl,
+    setupContext: draft.setupContext,
+    helpMode: draft.helpMode,
+    liveWebEnabled: draft.sessionType === "expert" ? true : draft.liveWebEnabled,
+  });
+
+  const copyIdentityKey = async () => {
+    if (!identityKey) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(identityKey);
+      setIdentityKeyCopied(true);
+      window.setTimeout(() => setIdentityKeyCopied(false), 1800);
+    } catch {
+      setIdentityKeyCopied(false);
+    }
+  };
 
   useEffect(() => {
     cardRef.current?.scrollTo({ top: 0 });
@@ -159,13 +270,29 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
         <div className="onboarding-meta">
           <div className="plain-header-block">
             <span className="eyebrow">Setup</span>
-            <strong>Session</strong>
+            <strong>{identityLabel ? `Workspace: ${identityLabel}` : "Session"}</strong>
           </div>
-          <div className="step-dots" aria-hidden="true">
+          <div className="setup-key-actions">
+            <button type="button" className="ghost-button compact" onClick={() => void copyIdentityKey()} disabled={!identityKey}>
+              {identityKeyCopied ? "Key copied" : "Copy key"}
+            </button>
+            <button type="button" className="ghost-button compact" onClick={onSwitchIdentity}>
+              Switch key
+            </button>
+          </div>
+          <div className="step-dots step-dots-clickable" aria-label="Jump to setup section">
             {[0, 1, 2].map((value) => (
-              <span key={value} className={value === step ? "dot active" : "dot"} />
+              <button
+                key={value}
+                type="button"
+                className={value === step ? "dot active" : "dot"}
+                onClick={() => onStepChange(value)}
+                aria-label={stepLabels[value]}
+                aria-current={value === step ? "step" : undefined}
+              />
             ))}
           </div>
+          <ThemePicker theme={theme} onChange={onThemeChange} />
         </div>
 
         <div className="onboarding-copy">
@@ -173,34 +300,66 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
           <p>{stepSubtitle(step)}</p>
         </div>
 
+        <div className="beta-note-card">
+          <span className="rail-label">Beta</span>
+          <p>Sift is ready for controlled user testing. Keep sensitive decks private unless you trust the selected model provider.</p>
+        </div>
+
+        {recentSessions.length > 0 ? (
+          <div className="drawer-card">
+            <div className="setup-section-head">
+              <div>
+                <span className="rail-label">Previous sessions</span>
+                <strong>Resume this workspace directly.</strong>
+              </div>
+            </div>
+            <div className="session-list setup-session-list">
+              {recentSessions.slice(0, 4).map((item) => (
+                <button
+                  key={item.sessionId}
+                  type="button"
+                  className="session-card"
+                  onClick={() => void onOpenSession(item.sessionId)}
+                >
+                  <strong>{item.title}</strong>
+                  <span>{item.subtitle}</span>
+                  <span>{formatSessionTime(item.lastActive)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         {error ? <div className="setup-alert" role="alert">{error}</div> : null}
 
         {step === 2 ? (
           <>
             <div className="workflow-row" onKeyDown={handleArrowSelection}>
+              {hasLocalRuntime ? (
+                <button
+                  type="button"
+                  className={effectiveRuntimeKind === "local" ? "choice-card active" : "choice-card"}
+                  onClick={() => {
+                    const localProvider = providerOptions.find((item) => isLocalProviderKey(item.key));
+                    onDraftChange((current) => ({
+                      ...current,
+                      runtimeKind: "local",
+                      provider: localProvider?.key ?? "ollama",
+                      model: localProvider?.defaultSpeedModel || current.model,
+                      apiKey: "",
+                    }));
+                  }}
+                >
+                  <span>Local</span>
+                  <small>Runs on this machine.</small>
+                </button>
+              ) : null}
               <button
                 type="button"
-                className={draft.runtimeKind === "local" ? "choice-card active" : "choice-card"}
+                className={effectiveRuntimeKind === "external" ? "choice-card active" : "choice-card"}
                 onClick={() => {
-                  const ollama = providerOptions.find((item) => item.key === "ollama");
-                  onDraftChange((current) => ({
-                    ...current,
-                    runtimeKind: "local",
-                    provider: "ollama",
-                    model: ollama?.defaultSpeedModel || current.model,
-                    apiKey: "",
-                  }));
-                }}
-              >
-                <span>Local</span>
-                <small>Runs on this machine.</small>
-              </button>
-              <button
-                type="button"
-                className={draft.runtimeKind === "external" ? "choice-card active" : "choice-card"}
-                onClick={() => {
-                  const firstExternal = providerOptions.find((item) => item.key !== "ollama" && item.serverConfigured)
-                    ?? providerOptions.find((item) => item.key !== "ollama");
+                  const firstExternal = providerOptions.find((item) => !isLocalProviderKey(item.key) && item.serverConfigured)
+                    ?? providerOptions.find((item) => !isLocalProviderKey(item.key));
                   onDraftChange((current) => ({
                     ...current,
                     runtimeKind: "external",
@@ -226,7 +385,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                       onDraftChange((current) => ({
                         ...current,
                         provider: option.key,
-                        model: draft.runtimeKind === "local"
+                        model: effectiveRuntimeKind === "local"
                           ? option.defaultSpeedModel
                           : option.defaultBalancedModel || option.defaultSpeedModel,
                       }));
@@ -245,7 +404,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                   <span className="rail-label">{providerAccessLabel(providerMeta)}</span>
                   <strong>{providerMeta?.label || "Runtime"}</strong>
                 </div>
-                <p>{draft.runtimeKind === "local" ? "Private by default." : "Best for public demos."}</p>
+                <p>{effectiveRuntimeKind === "local" ? "Private by default." : "Best for public demos."}</p>
               </div>
               <div className="runtime-preset-row">
                 <button
@@ -265,6 +424,21 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                   <strong>{modelPresetLabel(providerMeta, "balanced")}</strong>
                 </button>
               </div>
+              {providerMeta?.modelPresets?.length ? (
+                <div className="model-preset-grid" onKeyDown={handleArrowSelection}>
+                  {providerMeta.modelPresets.map((preset) => (
+                    <button
+                      key={`${providerMeta.key}-${preset.value}`}
+                      type="button"
+                      className={resolvedModel === preset.value ? "model-preset-chip active" : "model-preset-chip"}
+                      onClick={() => onDraftChange((current) => ({ ...current, model: preset.value }))}
+                    >
+                      <span>{preset.label}</span>
+                      {preset.note ? <small>{preset.note}</small> : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div className="field-grid">
                 <label className="identity-field">
                   <span className="rail-label">Model</span>
@@ -274,7 +448,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                     placeholder={resolvedProvider === "cerebras" ? "Example: gpt-oss-120b" : "Type the model id"}
                   />
                 </label>
-                {draft.runtimeKind === "external" ? (
+                {effectiveRuntimeKind === "external" ? (
                   <label className="identity-field">
                     <span className="rail-label">{providerMeta?.serverConfigured ? "Session API key override" : "API key"}</span>
                     <input
@@ -289,7 +463,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                   <div className="starter-preview">
                     <span className="rail-label">Runtime</span>
                     <strong>Key-free</strong>
-                    <small>Ollama</small>
+                    <small>{providerMeta?.label || "Local"}</small>
                   </div>
                 )}
               </div>
@@ -384,6 +558,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                       onChange={(event) => onDraftChange((current) => ({ ...current, websiteUrl: event.target.value }))}
                       placeholder="https://yourproduct.com"
                     />
+                    <small className="muted-copy">Website review uses the first readable HTML page as context in this beta.</small>
                   </label>
                   <label className="identity-field field-span">
                     <span className="rail-label">Anything important?</span>
@@ -394,6 +569,23 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
                       rows={5}
                     />
                   </label>
+                  <div className="sample-starter-row field-span">
+                    {sampleContexts.map((sample) => (
+                      <button
+                        key={sample.label}
+                        type="button"
+                        className="ghost-button compact"
+                        onClick={() => onDraftChange((current) => ({
+                          ...current,
+                          setupContext: sample.context,
+                          sector: sample.sector,
+                          stage: sample.stage,
+                        }))}
+                      >
+                        {sample.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <p className="muted-copy">You can skip this and add detail later inside the session.</p>
@@ -454,36 +646,29 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
           </button>
 
           {step < 2 ? (
-            <button
-              type="button"
-              className="solid-button"
-              onClick={() => onStepChange(step + 1)}
-            >
-              Continue
-            </button>
+            <>
+              <button
+                type="button"
+                className="ghost-button"
+                disabled={!canStartFromCurrentStep}
+                onClick={() => void startWithCurrentDraft()}
+              >
+                Start now
+              </button>
+              <button
+                type="button"
+                className="solid-button"
+                onClick={() => onStepChange(step + 1)}
+              >
+                Continue
+              </button>
+            </>
           ) : (
             <button
               type="button"
               className="solid-button"
               disabled={loading || !canStart || !canAdvanceRuntime}
-              onClick={() =>
-                void onStart({
-                  sessionType: draft.sessionType,
-                  evaluatorMode: draft.evaluatorMode,
-                  founderType: draft.founderType,
-                  sector: draft.sector,
-                  stage: draft.stage,
-                  geography: draft.geography,
-                  mode: draft.mode,
-                  provider: resolvedProvider as Provider,
-                  model: resolvedModel,
-                  apiKey: draft.runtimeKind === "external" ? draft.apiKey.trim() : "",
-                  websiteUrl: draft.websiteUrl,
-                  setupContext: draft.setupContext,
-                  helpMode: draft.helpMode,
-                  liveWebEnabled: draft.sessionType === "expert" ? true : draft.liveWebEnabled,
-                })
-              }
+              onClick={() => void startWithCurrentDraft()}
             >
               {loading ? "Starting..." : "Start session"}
             </button>
@@ -491,7 +676,7 @@ export function SetupWizard({ providerOptions, loading, error, canStart, step, d
         </div>
 
         {step === 2 && !canStart ? (
-          <small className="setup-inline-hint">Name missing. Click back and enter your name on the first screen.</small>
+          <small className="setup-inline-hint">Workspace key missing. Switch key to enter your identity first.</small>
         ) : null}
       </div>
     </section>

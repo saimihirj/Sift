@@ -16,11 +16,11 @@ from zipfile import ZipFile
 import requests
 from bs4 import BeautifulSoup
 
-import rag
-from state import ConversationState
+from backend.core import rag
+from backend.core.state import ConversationState
 
 
-VC_INPUT_DIR = Path("knowledge_inbox")
+VC_INPUT_DIR = Path("knowledge_base") / "inbox"
 INVESTOR_SHEET = VC_INPUT_DIR / "Investor.xlsx"
 PORTFOLIO_SHEET = VC_INPUT_DIR / "Investor Firm.xlsx"
 VC_DATA_DIR = Path("data") / "vc_firms"
@@ -28,7 +28,7 @@ VC_CACHE_DIR = VC_DATA_DIR / "cache"
 VC_MANIFEST = VC_DATA_DIR / "manifest.json"
 
 XLSX_NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
-USER_AGENT = "SignalX/0.2 VC Knowledge Builder"
+USER_AGENT = "Sift/0.2 VC Knowledge Builder"
 
 DISCOVERY_KEYWORDS = (
     "about",

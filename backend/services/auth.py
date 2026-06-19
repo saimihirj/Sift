@@ -1,4 +1,4 @@
-"""OAuth provider helpers for Vishwakarma."""
+"""OAuth provider helpers for Sift."""
 
 from __future__ import annotations
 
@@ -31,6 +31,28 @@ PROVIDER_DEFS: dict[str, dict[str, Any]] = {
             "client_kwargs": {"scope": "name email"},
         },
     },
+    "linkedin": {
+        "label": "LinkedIn",
+        "client_id_env": "LINKEDIN_OAUTH_CLIENT_ID",
+        "client_secret_env": "LINKEDIN_OAUTH_CLIENT_SECRET",
+        "register": {
+            "server_metadata_url": "https://www.linkedin.com/oauth/.well-known/openid-configuration",
+            "client_kwargs": {"scope": "openid profile email"},
+        },
+    },
+    "x": {
+        "label": "X",
+        "client_id_env": "X_OAUTH_CLIENT_ID",
+        "client_id_env_aliases": ("X_OAUTH_CONSUMER_KEY", "TWITTER_OAUTH_CONSUMER_KEY"),
+        "client_secret_env": "X_OAUTH_CLIENT_SECRET",
+        "client_secret_env_aliases": ("X_OAUTH_CONSUMER_SECRET", "TWITTER_OAUTH_CONSUMER_SECRET"),
+        "register": {
+            "api_base_url": "https://api.twitter.com/1.1/",
+            "request_token_url": "https://api.twitter.com/oauth/request_token",
+            "access_token_url": "https://api.twitter.com/oauth/access_token",
+            "authorize_url": "https://api.twitter.com/oauth/authenticate",
+        },
+    },
 }
 
 
@@ -42,6 +64,20 @@ def _env(name: str) -> str:
     return os.environ.get(name, "").strip()
 
 
+def _first_env(*names: str) -> str:
+    for name in names:
+        value = _env(name)
+        if value:
+            return value
+    return ""
+
+
+def _provider_credentials(config: dict[str, Any]) -> tuple[str, str]:
+    client_id = _first_env(config["client_id_env"], *config.get("client_id_env_aliases", ()))
+    client_secret = _first_env(config["client_secret_env"], *config.get("client_secret_env_aliases", ()))
+    return client_id, client_secret
+
+
 def _ensure_registered() -> None:
     global _REGISTERED
     if _REGISTERED:
@@ -51,8 +87,7 @@ def _ensure_registered() -> None:
         return
 
     for key, config in PROVIDER_DEFS.items():
-        client_id = _env(config["client_id_env"])
-        client_secret = _env(config["client_secret_env"])
+        client_id, client_secret = _provider_credentials(config)
         if not client_id or not client_secret:
             continue
         oauth.register(
@@ -86,6 +121,11 @@ def get_oauth_client(provider: str):
     return oauth.create_client((provider or "").strip().lower())
 
 
+def oauth_provider_label(provider: str) -> str:
+    key = (provider or "").strip().lower()
+    return str(PROVIDER_DEFS.get(key, {}).get("label") or key.title() or "OAuth")
+
+
 def sanitize_next_path(value: str | None) -> str:
     if not value:
         return "/"
@@ -95,7 +135,32 @@ def sanitize_next_path(value: str | None) -> str:
     return candidate
 
 
-async def extract_user_info(request, client, token: dict[str, Any]) -> dict[str, Any]:
+async def _extract_x_user_info(client, token: dict[str, Any]) -> dict[str, Any]:
+    try:
+        response = await client.get("account/verify_credentials.json?include_email=true&skip_status=true", token=token)
+        if response.status_code >= 400:
+            return {}
+        profile = response.json()
+    except Exception:
+        return {}
+    if not isinstance(profile, dict):
+        return {}
+    return {
+        "sub": profile.get("id_str") or profile.get("id"),
+        "id": profile.get("id_str") or profile.get("id"),
+        "email": profile.get("email") or "",
+        "name": profile.get("name") or profile.get("screen_name") or "",
+        "preferred_username": profile.get("screen_name") or "",
+        "picture": profile.get("profile_image_url_https") or profile.get("profile_image_url") or "",
+    }
+
+
+async def extract_user_info(provider: str, request, client, token: dict[str, Any]) -> dict[str, Any]:
+    if (provider or "").strip().lower() == "x":
+        profile = await _extract_x_user_info(client, token)
+        if profile:
+            return profile
+
     claims = token.get("userinfo")
     if isinstance(claims, dict) and claims:
         return claims
@@ -121,7 +186,7 @@ async def extract_user_info(request, client, token: dict[str, Any]) -> dict[str,
         pass
 
     fallback = {}
-    for key in ("sub", "email", "name", "picture"):
+    for key in ("sub", "email", "name", "picture", "id", "id_str", "screen_name", "preferred_username"):
         value = token.get(key)
         if value:
             fallback[key] = value
@@ -129,16 +194,25 @@ async def extract_user_info(request, client, token: dict[str, Any]) -> dict[str,
 
 
 def build_auth_user(provider: str, claims: dict[str, Any]) -> dict[str, str]:
-    user_id = str(claims.get("sub") or claims.get("email") or claims.get("id") or "").strip()
+    user_id = str(claims.get("sub") or claims.get("email") or claims.get("id_str") or claims.get("id") or "").strip()
     email = str(claims.get("email") or "").strip()
     display_name = str(
         claims.get("name")
+        or " ".join(
+            bit
+            for bit in [
+                str(claims.get("localizedFirstName") or "").strip(),
+                str(claims.get("localizedLastName") or "").strip(),
+            ]
+            if bit
+        )
         or claims.get("given_name")
         or claims.get("preferred_username")
+        or claims.get("screen_name")
         or email.split("@")[0]
         or "Founder"
     ).strip()
-    avatar_url = str(claims.get("picture") or "").strip()
+    avatar_url = str(claims.get("picture") or claims.get("profilePicture") or "").strip()
     return {
         "provider": provider,
         "userId": user_id,

@@ -18,10 +18,6 @@ const API_BASE = (() => {
   if (explicit) {
     return explicit;
   }
-  const { protocol, hostname, port } = window.location;
-  if (port.startsWith("517")) {
-    return `${protocol}//${hostname}:8000`;
-  }
   return "";
 })();
 
@@ -44,17 +40,20 @@ async function readApiError(response: Response, fallback: string): Promise<strin
   return fallback;
 }
 
+async function fetchOrExplain(input: RequestInfo | URL, init: RequestInit | undefined, fallback: string): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new Error(`${fallback}. Check that the Sift backend is running and reachable.`);
+  }
+}
+
 type StreamHandlers = {
   onMeta?: (data: Record<string, unknown>) => void;
   onDelta?: (delta: string) => void;
   onDone?: (data: Record<string, unknown>) => void;
   onError?: (error: string) => void;
 };
-
-export function authLoginUrl(provider: "google" | "apple", nextPath = "/"): string {
-  const next = nextPath.startsWith("/") ? nextPath : "/";
-  return `${API_BASE}/api/auth/login/${provider}?next=${encodeURIComponent(next)}`;
-}
 
 export async function getAuthSession(): Promise<AuthSessionPayload> {
   const response = await fetch(`${API_BASE}/api/auth/session`, {
@@ -66,23 +65,13 @@ export async function getAuthSession(): Promise<AuthSessionPayload> {
   return response.json();
 }
 
-export async function logoutAuth(): Promise<void> {
-  const response = await fetch(`${API_BASE}/api/auth/logout`, {
-    method: "POST",
-    credentials: "include",
-  });
-  if (!response.ok) {
-    throw new Error("Failed to sign out");
-  }
-}
-
 export async function startSession(payload: Record<string, unknown>): Promise<StartSessionPayload> {
-  const response = await fetch(`${API_BASE}/api/session/start`, {
+  const response = await fetchOrExplain(`${API_BASE}/api/session/start`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, "Failed to start session");
   if (!response.ok) {
     throw new Error(await readApiError(response, "Failed to start session"));
   }
@@ -90,8 +79,9 @@ export async function startSession(payload: Record<string, unknown>): Promise<St
 }
 
 export async function listSessions(clientId: string): Promise<SessionListPayload> {
-  const response = await fetch(`${API_BASE}/api/session?clientId=${encodeURIComponent(clientId)}`, {
+  const response = await fetch(`${API_BASE}/api/session`, {
     credentials: "include",
+    headers: { "x-sift-client-id": clientId },
   });
   if (!response.ok) {
     throw new Error("Failed to load session list");
@@ -99,18 +89,20 @@ export async function listSessions(clientId: string): Promise<SessionListPayload
   return response.json();
 }
 
-export async function getSession(sessionId: string): Promise<SessionPayload> {
+export async function getSession(sessionId: string, clientId: string): Promise<SessionPayload> {
   const response = await fetch(`${API_BASE}/api/session/${sessionId}`, {
     credentials: "include",
+    headers: { "x-sift-client-id": clientId },
   });
   if (!response.ok) {
-    throw new Error("Failed to load session");
+    throw new Error(await readApiError(response, "Failed to load session"));
   }
   return response.json();
 }
 
 export async function updateSessionRuntime(args: {
   sessionId: string;
+  clientId: string;
   provider: string;
   model: string;
 }): Promise<SessionRuntimePayload> {
@@ -118,10 +110,10 @@ export async function updateSessionRuntime(args: {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider: args.provider, model: args.model }),
+    body: JSON.stringify({ provider: args.provider, model: args.model, clientId: args.clientId }),
   });
   if (!response.ok) {
-    throw new Error("Failed to update session runtime");
+    throw new Error(await readApiError(response, "Failed to update session runtime"));
   }
   return response.json();
 }
@@ -140,9 +132,9 @@ export async function clearSessionHistory(clientId: string): Promise<{ ok: boole
 }
 
 export async function listProviders(): Promise<ProviderCatalogPayload> {
-  const response = await fetch(`${API_BASE}/api/session/providers`, {
+  const response = await fetchOrExplain(`${API_BASE}/api/session/providers`, {
     credentials: "include",
-  });
+  }, "Failed to load provider catalog");
   if (!response.ok) {
     throw new Error("Failed to load provider catalog");
   }
@@ -174,21 +166,22 @@ export async function postAnalyticsEvent(payload: {
   });
 }
 
-export async function getOutline(sessionId: string): Promise<OutlinePayload> {
+export async function getOutline(sessionId: string, clientId: string): Promise<OutlinePayload> {
   const response = await fetch(`${API_BASE}/api/outline`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sessionId }),
+    body: JSON.stringify({ sessionId, clientId }),
   });
   if (!response.ok) {
-    throw new Error("Failed to load outline");
+    throw new Error(await readApiError(response, "Failed to load outline"));
   }
   return response.json();
 }
 
 export async function answerEvaluator(args: {
   sessionId: string;
+  clientId: string;
   answer: string;
   evaluatorMode?: string;
   provider?: string;
@@ -198,6 +191,7 @@ export async function answerEvaluator(args: {
 }): Promise<EvaluatorAnswerPayload> {
   const form = new FormData();
   form.set("sessionId", args.sessionId);
+  form.set("clientId", args.clientId);
   form.set("answer", args.answer);
   if (args.evaluatorMode) {
     form.set("evaluatorMode", args.evaluatorMode);
@@ -215,31 +209,33 @@ export async function answerEvaluator(args: {
     form.set("file", args.file);
   }
 
-  const response = await fetch(`${API_BASE}/api/evaluator/answer`, {
+  const response = await fetchOrExplain(`${API_BASE}/api/evaluator/answer`, {
     method: "POST",
     credentials: "include",
     body: form,
-  });
+  }, "Failed to submit evaluator answer");
   if (!response.ok) {
     throw new Error(await readApiError(response, "Failed to submit evaluator answer"));
   }
   return response.json();
 }
 
-export async function getEvaluatorReport(sessionId: string): Promise<EvaluatorReportPayload> {
+export async function getEvaluatorReport(sessionId: string, clientId: string): Promise<EvaluatorReportPayload> {
   const response = await fetch(`${API_BASE}/api/evaluator/${sessionId}/report`, {
     credentials: "include",
+    headers: { "x-sift-client-id": clientId },
   });
   if (!response.ok) {
-    throw new Error("Failed to load evaluator report");
+    throw new Error(await readApiError(response, "Failed to load evaluator report"));
   }
   return response.json();
 }
 
-export async function continueEvaluator(sessionId: string): Promise<EvaluatorAnswerPayload> {
+export async function continueEvaluator(sessionId: string, clientId: string): Promise<EvaluatorAnswerPayload> {
   const response = await fetch(`${API_BASE}/api/evaluator/${sessionId}/deeper`, {
     method: "POST",
     credentials: "include",
+    headers: { "x-sift-client-id": clientId },
   });
   if (!response.ok) {
     throw new Error(await readApiError(response, "Failed to continue evaluator"));
@@ -267,6 +263,7 @@ function parseEventBlock(block: string): { event: string; data: string } | null 
 
 export async function streamChat(args: {
   sessionId: string;
+  clientId: string;
   message: string;
   responseProfile: ResponseProfile;
   provider?: string;
@@ -279,6 +276,7 @@ export async function streamChat(args: {
 }): Promise<void> {
   const form = new FormData();
   form.set("sessionId", args.sessionId);
+  form.set("clientId", args.clientId);
   form.set("message", args.message);
   form.set("responseProfile", args.responseProfile);
   if (args.provider) {
@@ -300,13 +298,13 @@ export async function streamChat(args: {
     form.set("file", args.file);
   }
 
-  const response = await fetch(`${API_BASE}/api/chat`, {
+  const response = await fetchOrExplain(`${API_BASE}/api/chat`, {
     method: "POST",
     credentials: "include",
     body: form,
-  });
+  }, "Failed to stream chat response");
   if (!response.ok || !response.body) {
-    throw new Error("Failed to stream chat response");
+    throw new Error(await readApiError(response, "Failed to stream chat response"));
   }
 
   const reader = response.body.getReader();

@@ -1,0 +1,20 @@
+# Sift brain / custom LLM layer dependencies
+# Install for knowledge graph updates, fine-tuning, and local model serving
+# pip install -r requirements-brain.txt
+
+# Fine-tuning
+peft>=0.10.0
+trl>=0.8.0
+transformers>=4.41.0
+accelerate>=0.30.0
+bitsandbytes>=0.43.0
+datasets>=2.19.0
+
+# Hyperparameter tuning
+optuna>=3.6.0
+
+# Serving
+uvicorn[standard]>=0.30.0
+
+# Knowledge graph
+schedule>=1.2.2

@@ -11,8 +11,8 @@ import httpx
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-import memory
-from state import ConversationState
+from backend.core import memory
+from backend.core.state import ConversationState
 
 from backend.services.expert_agent import (
     build_analysis_snapshot,
@@ -37,6 +37,7 @@ from backend.services.prompting import (
 )
 from backend.services.refinement import empty_answer_record, refine_founder_input, update_answer_record
 from backend.services.retrieval import build_retrieval_context
+from backend.services.session_access import require_session_owner
 from backend.services.state_engine import coverage_items, next_gap, update_state_from_turn
 from backend.services.uploads import ingest_upload, list_active_uploads
 
@@ -178,6 +179,7 @@ def _stream_limits(session_type: str, *, has_upload: bool = False) -> tuple[int,
 @router.post("")
 async def chat(
     sessionId: str = Form(...),
+    clientId: str = Form(""),
     message: str = Form(""),
     responseProfile: str = Form(DEFAULT_RESPONSE_PROFILE),
     provider: str = Form(""),
@@ -190,6 +192,7 @@ async def chat(
     session_row = memory.get_session(sessionId)
     if session_row is None:
         raise HTTPException(status_code=404, detail="Session not found")
+    require_session_owner(session_row, clientId)
 
     if not (message or "").strip() and file is None:
         raise HTTPException(status_code=400, detail="Message or file is required")
@@ -217,7 +220,11 @@ async def chat(
         upload_entry = None
         try:
             if file is not None:
-                upload_entry = await ingest_upload(sessionId, file)
+                try:
+                    upload_entry = await ingest_upload(sessionId, file)
+                except ValueError as exc:
+                    yield _sse("error", {"message": str(exc)})
+                    return
 
             user_message = (message or "").strip()
             display_message = user_message
@@ -426,6 +433,7 @@ async def chat(
 
             assistant_chunks: list[str] = []
             completion_payload = None
+            ttft_ms: float | None = None
             max_output_tokens, output_timeout = _stream_limits(session_type, has_upload=upload_entry is not None)
             async for event, payload in stream_chat_completion(
                 system=system_prompt,
@@ -456,6 +464,8 @@ async def chat(
                     payload["analysisSnapshot"] = session_metadata.get("activeAnalysis", _empty_analysis_snapshot())
                     yield _sse("meta", payload)
                 elif event == "delta":
+                    if ttft_ms is None:
+                        ttft_ms = round((time.perf_counter() - started_at) * 1000, 1)
                     assistant_chunks.append(payload["delta"])
                     yield _sse("delta", payload)
                 elif event == "complete":
@@ -584,6 +594,12 @@ async def chat(
                 },
             )
 
+            completion_tokens = assistant_metadata["usage"].get("completionTokens", 0) or len(" ".join(assistant_chunks).split()) // 1
+            total_seconds = round(time.perf_counter() - started_at, 3)
+            tps: float | None = None
+            if completion_tokens and total_seconds > 0:
+                tps = round(completion_tokens / total_seconds, 1)
+
             yield _sse(
                 "done",
                 {
@@ -615,6 +631,9 @@ async def chat(
                     "helpMode": session_metadata.get("helpMode", "coach_me"),
                     "liveWebEnabled": session_metadata.get("liveWebEnabled", False),
                     "analysisSnapshot": session_metadata.get("activeAnalysis", _empty_analysis_snapshot()),
+                    # ── Performance metrics ────────────────────────────────────
+                    "ttftMs": ttft_ms,
+                    "tps": tps,
                 },
             )
         except httpx.ReadTimeout:
@@ -626,10 +645,10 @@ async def chat(
             yield _sse(
                 "error",
                 {
-                    "message": "The local model took too long to respond. SignalX will use the simpler stable workflow on the next turn.",
+                    "message": "The local model took too long to respond. Sift will use the simpler stable workflow on the next turn.",
                 },
             )
         except Exception as exc:
-            yield _sse("error", {"message": repr(exc)})
+            yield _sse("error", {"message": str(exc) or "Something went wrong while processing this turn."})
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

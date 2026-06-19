@@ -1,4 +1,4 @@
-"""OAuth routes for Vishwakarma."""
+"""OAuth routes for Sift."""
 
 from __future__ import annotations
 
@@ -7,9 +7,16 @@ import os
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-import memory
+from backend.core import memory
 
-from backend.services.auth import auth_provider_catalog, build_auth_user, extract_user_info, get_oauth_client, sanitize_next_path
+from backend.services.auth import (
+    auth_provider_catalog,
+    build_auth_user,
+    extract_user_info,
+    get_oauth_client,
+    oauth_provider_label,
+    sanitize_next_path,
+)
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -20,6 +27,20 @@ def _session_store(request: Request) -> dict | None:
         return request.session
     except Exception:
         return None
+
+
+def _frontend_redirect(path: str) -> str:
+    frontend_url = os.environ.get("SIFT_FRONTEND_URL", "").strip().rstrip("/")
+    if not frontend_url:
+        return path
+    return f"{frontend_url}{path}"
+
+
+def _oauth_callback_url(request: Request, provider: str) -> str:
+    frontend_url = os.environ.get("SIFT_FRONTEND_URL", "").strip().rstrip("/")
+    if frontend_url:
+        return f"{frontend_url}/api/auth/callback/{provider}"
+    return str(request.url_for("auth_callback", provider=provider))
 
 
 @router.get("/providers")
@@ -36,12 +57,13 @@ async def auth_session(request: Request) -> dict:
         "user": user,
         "providers": auth_provider_catalog(),
         "error": error,
-        "adminMode": os.environ.get("VK_ADMIN_MODE", "false").strip().lower() == "true",
+        "adminMode": os.environ.get("SIFT_ADMIN_MODE", "false").strip().lower() == "true",
     }
 
 
 @router.get("/login/{provider}")
 async def auth_login(request: Request, provider: str, next: str = Query(default="/")):
+    provider = (provider or "").strip().lower()
     client = get_oauth_client(provider)
     session = _session_store(request)
     if session is None:
@@ -50,7 +72,7 @@ async def auth_login(request: Request, provider: str, next: str = Query(default=
         raise HTTPException(status_code=404, detail="OAuth provider is not configured")
 
     session["auth_next"] = sanitize_next_path(next)
-    redirect_uri = str(request.url_for("auth_callback", provider=provider))
+    redirect_uri = _oauth_callback_url(request, provider)
     authorize_kwargs = {}
     if provider == "google":
         authorize_kwargs["prompt"] = "select_account"
@@ -61,6 +83,7 @@ async def auth_login(request: Request, provider: str, next: str = Query(default=
 
 @router.api_route("/callback/{provider}", methods=["GET", "POST"])
 async def auth_callback(request: Request, provider: str):
+    provider = (provider or "").strip().lower()
     client = get_oauth_client(provider)
     session = _session_store(request)
     if session is None:
@@ -71,11 +94,11 @@ async def auth_callback(request: Request, provider: str):
     next_path = sanitize_next_path(session.pop("auth_next", "/"))
     try:
         token = await client.authorize_access_token(request)
-        claims = await extract_user_info(request, client, token)
+        claims = await extract_user_info(provider, request, client, token)
         user = build_auth_user(provider, claims)
     except Exception:
-        session["auth_error"] = f"{provider.title()} sign-in failed. Check OAuth credentials and redirect setup."
-        return RedirectResponse(next_path, status_code=302)
+        session["auth_error"] = f"{oauth_provider_label(provider)} sign-in failed. Check OAuth credentials and redirect setup."
+        return RedirectResponse(_frontend_redirect(next_path), status_code=302)
 
     session["auth_user"] = user
     session["auth_token"] = {
@@ -92,7 +115,7 @@ async def auth_callback(request: Request, provider: str):
             "email": user["email"],
         },
     )
-    return RedirectResponse(next_path, status_code=302)
+    return RedirectResponse(_frontend_redirect(next_path), status_code=302)
 
 
 @router.post("/logout")

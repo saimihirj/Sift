@@ -1,6 +1,6 @@
 # Execution Guide
 
-This document is the accurate runbook for the current SignalX app.
+This document is the accurate runbook for the current Sift app.
 
 It covers:
 - local setup
@@ -13,14 +13,15 @@ It covers:
 - runtime behavior
 - troubleshooting
 
-SignalX supports two normal local paths:
+Sift supports three normal runtime paths:
 - open-source local runtime through `Ollama`
+- open-source local/runtime GPU endpoints through an OpenAI-compatible server such as `vLLM`, Hugging Face `TGI`, LM Studio, or llama.cpp
 - API-key runtime through providers like `Groq`, `Cerebras`, `OpenAI`, `OpenRouter`, `Anthropic`, and `Gemini`
 
 If you want open-source-only with no paid services, use the local and LAN modes below and keep:
 
 ```env
-VK_MODEL_PROVIDER=ollama
+SIFT_MODEL_PROVIDER=ollama
 ```
 
 ## 1. Prerequisites
@@ -32,12 +33,17 @@ Required:
 
 Optional:
 - [Ollama](https://ollama.com) for fully local open-source runtime
+- an OpenAI-compatible local server if you want to run Hugging Face models with vLLM, TGI, LM Studio, or llama.cpp
 
 Recommended local models:
 
 ```bash
-ollama pull llama3.2
+# fast default
 ollama pull qwen3:8b
+# sharper reasoning
+ollama pull qwen3:30b
+# optional — deck page image review
+ollama pull qwen2.5vl:7b
 ```
 
 The local launcher auto-starts Ollama if it is needed and not already running.
@@ -62,18 +68,51 @@ Default runtime values live in `.env.example`.
 Current keys:
 
 ```env
-SIGNALX_EXPERT_DATA_DIR=knowledge_base/expert
+SIFT_EXPERT_DATA_DIR=knowledge_base/expert
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL_SPEED=llama3.2:latest
 OLLAMA_MODEL_BALANCED=qwen3:8b
+OLLAMA_KEEP_ALIVE=10m
+OLLAMA_TIMEOUT_SPEED=24
+OLLAMA_TIMEOUT_BALANCED=42
+OLLAMA_NUM_CTX_SPEED=4096
+OLLAMA_NUM_CTX_BALANCED=6144
+OLLAMA_MAX_TOKENS_SPEED=180
+OLLAMA_MAX_TOKENS_BALANCED=360
+LOCAL_OPENAI_BASE_URL=http://127.0.0.1:8000/v1
+LOCAL_OPENAI_MODEL_SPEED=Qwen/Qwen3-8B
+LOCAL_OPENAI_MODEL_BALANCED=openai/gpt-oss-20b
 ```
 
 Notes:
 - `speed` is the default chat profile
 - `balanced` is optional and falls back to `speed` if it errors
+- `OLLAMA_KEEP_ALIVE=10m` keeps the local model warm between turns
+- lower local context and output caps keep Ollama responsive on laptops
+- `local_openai` uses the standard `/v1/chat/completions` shape, so the same UI works with vLLM, TGI, LM Studio, llama.cpp, or a private GPU endpoint
 - the bundled Expert corpus lives under `knowledge_base/expert`
 - the rebuilt app uses Ollama over HTTP
 - legacy Gradio config in `.env.example` is for the old prototype only
+
+## 3.1 Workspace Keys
+
+Generated beta keys now use a compact `SF` prefix plus random base32 characters, for example `SF8K2M7P4Q9T6R`. For those new keys, the app no longer stores `email-or-handle:key` as the session owner. It derives a short hashed workspace id in the browser and sends that compact id to the backend, which keeps Firestore, BigQuery, and local analytics rows lighter. Existing `SIFT-...` keys still resolve to the legacy workspace id so older sessions remain accessible.
+
+## 3.2 Reset Runtime Data
+
+To make Sift behave like a fresh app with no previous sessions, uploads, generated local indexes, or analytics:
+
+```bash
+python3 tools/reset_runtime_data.py --local --yes
+```
+
+For the Google Cloud deployment, run this from a terminal that has Google Cloud credentials and production requirements installed:
+
+```bash
+python3 tools/reset_runtime_data.py --gcp --project=sift-495116 --yes
+```
+
+The reset keeps source code, deployment config, Firestore database, Cloud Storage bucket, and BigQuery table schema intact. It deletes only generated runtime records and uploaded artifacts.
 
 ## 4. Run Modes
 
@@ -98,7 +137,7 @@ For API-key mode without Ollama.
 Best default for normal use.
 
 ```bash
-python3 signalx_app.py --build
+python3 tools/sift_app.py --build
 ```
 
 Shortcut:
@@ -122,9 +161,9 @@ http://127.0.0.1:7860
 Useful flags:
 
 ```bash
-python3 signalx_app.py --build --port 7870
-python3 signalx_app.py --build --no-open
-python3 signalx_app.py --build --idle-timeout 90
+python3 tools/sift_app.py --build --port 7870
+python3 tools/sift_app.py --build --no-open
+python3 tools/sift_app.py --build --idle-timeout 90
 ```
 
 ### B. LAN Test Mode
@@ -132,7 +171,7 @@ python3 signalx_app.py --build --idle-timeout 90
 Use this to let another person test on the same Wi-Fi network.
 
 ```bash
-python3 signalx_app.py --host 0.0.0.0 --port 7860 --build
+python3 tools/sift_app.py --host 0.0.0.0 --port 7860 --build
 ```
 
 Shortcut:
@@ -181,6 +220,28 @@ Supported external providers:
 - `anthropic`
 - `gemini`
 
+### C2. Local OpenAI-Compatible Mode
+
+Use this when you want open-source models from Hugging Face, but you want faster serving than basic laptop Ollama or you have a local/private GPU server.
+
+Set:
+
+```env
+SIFT_MODEL_PROVIDER=local_openai
+SIFT_ENABLE_LOCAL_OPENAI=true
+LOCAL_OPENAI_BASE_URL=http://127.0.0.1:8000/v1
+LOCAL_OPENAI_MODEL_SPEED=Qwen/Qwen3-8B
+LOCAL_OPENAI_MODEL_BALANCED=openai/gpt-oss-20b
+```
+
+Then start your model server with one of:
+- vLLM OpenAI-compatible server
+- Hugging Face TGI Messages API
+- LM Studio local server
+- llama.cpp OpenAI-compatible server
+
+In the setup screen, choose `Local`, then `Local OpenAI-compatible`, then pick one of the model presets or type the exact served model name.
+
 ### D. Development Mode
 
 Use this when you are editing code.
@@ -212,8 +273,8 @@ Important:
 For container-style deployment:
 
 ```bash
-docker build -t signalx .
-docker run -p 8000:8000 signalx
+docker build -t sift .
+docker run -p 8000:8000 sift
 ```
 
 App URL:
@@ -235,13 +296,13 @@ Recommended deploy path:
 1. Create a new Render service from the repo
 2. Use the included `render.yaml`
 3. Set `GROQ_API_KEY`
-4. Set `VK_SESSION_SECRET`
-5. Set `VK_ADMIN_TOKEN`
+4. Set `SIFT_SESSION_SECRET`
+5. Set `SIFT_ADMIN_TOKEN`
 6. Deploy
 
 Important:
 - the current blueprint uses a persistent disk
-- app data is written under `/var/data/signalx`
+- app data is written under `/var/data/sift`
 - the bundled Expert corpus is read from `/app/knowledge_base/expert`
 - admin monitoring is available at `/admin`
 
@@ -249,11 +310,11 @@ If you want zero paid dependencies, skip this section and stay on local / LAN mo
 
 ## 5. VC Firm Knowledge Cluster
 
-SignalX can build a dedicated `vc_firms` retrieval cluster from:
+Sift can build a dedicated `vc_firms` retrieval cluster from:
 
 ```text
-knowledge_inbox/Investor.xlsx
-knowledge_inbox/Investor Firm.xlsx
+knowledge_base/inbox/Investor.xlsx
+knowledge_base/inbox/Investor Firm.xlsx
 ```
 
 Default build command:
@@ -315,7 +376,7 @@ And backend routes:
 /api/admin/events
 ```
 
-If `VK_ADMIN_TOKEN` is set, the admin API requires the `x-admin-token` header.
+If `SIFT_ADMIN_TOKEN` is set, the admin API requires the `x-admin-token` header.
 
 ### Uploads
 
@@ -354,7 +415,7 @@ Typical local flow:
 
 ### Ollama is not reachable
 
-SignalX normally starts Ollama for you. If it still cannot reach Ollama, check:
+Sift normally starts Ollama for you. If it still cannot reach Ollama, check:
 
 Check:
 - `OLLAMA_BASE_URL`
@@ -375,7 +436,7 @@ If it is still unavailable, the app should fall back to `speed`.
 That auto-stop behavior only applies to:
 
 ```bash
-python3 signalx_app.py
+python3 tools/sift_app.py
 ```
 
 It does not apply to:
@@ -408,7 +469,7 @@ npm --prefix frontend run build
 Then restart:
 
 ```bash
-python3 signalx_app.py --build
+python3 tools/sift_app.py --build
 ```
 
 ## 8. Key Commands
@@ -426,13 +487,13 @@ npm --prefix frontend install
 Run local app:
 
 ```bash
-python3 signalx_app.py --build
+python3 tools/sift_app.py --build
 ```
 
 Run LAN share:
 
 ```bash
-python3 signalx_app.py --host 0.0.0.0 --port 7860 --build
+python3 tools/sift_app.py --host 0.0.0.0 --port 7860 --build
 ```
 
 Run dev:
@@ -450,6 +511,6 @@ npm --prefix frontend run build
 Run Docker:
 
 ```bash
-docker build -t signalx .
-docker run -p 8000:8000 signalx
+docker build -t sift .
+docker run -p 8000:8000 sift
 ```

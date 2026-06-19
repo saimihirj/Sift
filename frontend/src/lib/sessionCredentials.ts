@@ -5,7 +5,7 @@ type SessionCredential = {
 };
 
 function storageKey(sessionId: string) {
-  return `vishwakarma-session-key:${sessionId}`;
+  return `sift-session-key:${sessionId}`;
 }
 
 export function loadSessionCredential(sessionId: string): SessionCredential | null {

@@ -1,6 +1,6 @@
-# SignalX Platform Overview
+# Sift Platform Overview
 
-This is the single handoff document for the current SignalX platform.
+This is the single handoff document for the current Sift platform.
 
 It explains:
 - what the product is
@@ -13,9 +13,9 @@ It explains:
 
 This document is written for product, technical, and operator review.
 
-## 1. What SignalX Is
+## 1. What Sift Is
 
-SignalX is a startup and finance workbench with three workflows:
+Sift is a startup and finance workbench with three workflows:
 - `Ideate` for open-ended, two-way idea shaping
 - `Evaluate` for sharper, evidence-driven assessment
 - `Expert` for domain discussion, concept learning, pre-screening, and deck analysis
@@ -86,14 +86,15 @@ It does not yet include:
 - `OpenRouter`
 - `Anthropic`
 - `Gemini`
-- default local speed model: `llama3.2:latest`
-- optional local balanced model: `qwen3:8b`
-- hosted public default: `Groq` with `openai/gpt-oss-20b` for fast turns and `openai/gpt-oss-120b` for sharper turns
-- frontier OpenAI lane: `gpt-5.4-mini` for fast turns and `gpt-5.5` for sharper turns
+- `Sift Brain` (local fine-tuned adapter on port 8001)
+- default local speed model: `qwen3:8b` (Ollama)
+- optional local balanced model: `qwen3:30b` (Ollama)
+- hosted public default: `Groq` with `llama-4-scout-17b-16e-instruct` for fast turns and `llama-4-maverick-17b-128e-instruct` for sharper turns
+- frontier OpenAI lane: `gpt-4.1-mini` for fast turns and `gpt-4.1` for sharper turns
 
 ### Persistence
 
-- `SQLite` via `memory.py`
+- `SQLite` via `backend/core/memory.py`
 - uploads stored under `data/session_uploads/`
 
 ## 4. Product Use Cases
@@ -163,7 +164,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    B["Browser"] --> APP["signalx_app.py single-port app"]
+    B["Browser"] --> APP["tools/sift_app.py single-port app"]
     APP --> FAST["FastAPI"]
     FAST --> DIST["Built React frontend"]
     FAST --> MODEL["Ollama or API Provider"]
@@ -406,7 +407,7 @@ sequenceDiagram
 
 ### Persistence modules
 
-- `memory.py`
+- `backend/core/memory.py`
   - session storage
   - turn storage
   - analytics event storage
@@ -514,25 +515,25 @@ Examples:
 Use this in `.env` for fully local open-source mode:
 
 ```env
-VK_MODEL_PROVIDER=ollama
-VK_DATA_DIR=data
+SIFT_MODEL_PROVIDER=ollama
+SIFT_DATA_DIR=data
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL_SPEED=llama3.2:latest
-OLLAMA_MODEL_BALANCED=qwen3:8b
-VK_ADMIN_TOKEN=
+OLLAMA_MODEL_SPEED=qwen3:8b
+OLLAMA_MODEL_BALANCED=qwen3:30b
+SIFT_ADMIN_TOKEN=
 ```
 
 For API-key mode, use:
 
 ```env
-VK_MODEL_PROVIDER=groq
-SIGNALX_EXPERT_DATA_DIR=knowledge_base/expert
+SIFT_MODEL_PROVIDER=groq
+SIFT_EXPERT_DATA_DIR=knowledge_base/expert
 ```
 
 If you want admin protected locally or on LAN, set:
 
 ```env
-VK_ADMIN_TOKEN=your_secret_token
+SIFT_ADMIN_TOKEN=your_secret_token
 ```
 
 ## 14. One-Time Setup Commands
@@ -540,10 +541,13 @@ VK_ADMIN_TOKEN=your_secret_token
 Run from the project root:
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
+git clone git@github.com:saimihirj/Sift.git
+cd Sift
+
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+
 npm install
 npm --prefix frontend install
 cp .env.example .env
@@ -554,8 +558,10 @@ The local launcher auto-starts Ollama when needed.
 If using open-source local mode, pull the local models:
 
 ```bash
-ollama pull llama3.2
 ollama pull qwen3:8b
+ollama pull qwen3:30b
+# optional — deck vision
+ollama pull qwen2.5vl:7b
 ```
 
 ## 15. Final Run Commands
@@ -563,7 +569,7 @@ ollama pull qwen3:8b
 ### Normal MVP app
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
+cd sift
 source .venv/bin/activate
 npm run mvp
 ```
@@ -577,7 +583,7 @@ http://127.0.0.1:7860
 ### Admin directly
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
+cd sift
 source .venv/bin/activate
 npm run admin
 ```
@@ -591,7 +597,7 @@ http://127.0.0.1:7860/admin
 ### LAN share
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
+cd sift
 source .venv/bin/activate
 npm run mvp:lan
 ```
@@ -607,7 +613,7 @@ http://YOUR-LAN-IP:7860/admin
 ### Dev mode
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
+cd sift
 source .venv/bin/activate
 npm run dev
 ```
@@ -621,9 +627,9 @@ http://127.0.0.1:5173
 ### Docker
 
 ```bash
-cd /Users/saimihirj/Desktop/Ideas/signalx
-docker build -t signalx .
-docker run -p 8000:8000 --env-file .env signalx
+cd sift
+docker build -t sift .
+docker run -p 8000:8000 --env-file .env sift
 ```
 
 Open:

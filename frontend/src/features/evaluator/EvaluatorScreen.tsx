@@ -5,6 +5,8 @@ import type { EvaluatorMode, ProviderOption, ResponseProfile, SessionPayload, Se
 import { ThemePicker } from "../../app/ThemePicker";
 import { answerEvaluator, updateSessionRuntime } from "../../lib/api/client";
 import { loadSessionCredential, saveSessionCredential } from "../../lib/sessionCredentials";
+import { ALL_UPLOAD_EXTENSIONS, DECK_UPLOAD_EXTENSIONS, uploadAccept, uploadHint, validateUploadFile } from "../../lib/uploadValidation";
+import { DeckUploadZone } from "./DeckUploadZone";
 import { RuntimeSidebar } from "../session/RuntimeSidebar";
 import { SessionSidebar } from "../session/SessionSidebar";
 import { ChatMessageList } from "../chat/ChatMessageList";
@@ -22,6 +24,7 @@ type Props = {
   providerOptions: ProviderOption[];
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
+  clientId: string;
 };
 
 function defaultModelForProvider(providerOptions: ProviderOption[], provider: string, profile: ResponseProfile): string {
@@ -53,6 +56,7 @@ export function EvaluatorScreen({
   providerOptions,
   theme,
   onThemeChange,
+  clientId,
 }: Props) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -104,6 +108,8 @@ export function EvaluatorScreen({
 
   const selectedFileIsPdf = selectedFile?.name.toLowerCase().endsWith(".pdf") ?? false;
   const selectedFileIsPptx = selectedFile?.name.toLowerCase().endsWith(".pptx") ?? false;
+  const allowedUploadExtensions = evaluatorMode === "deck_review" ? DECK_UPLOAD_EXTENSIONS : ALL_UPLOAD_EXTENSIONS;
+  const currentUploadHint = uploadHint(allowedUploadExtensions);
   const deckReviewCapability = useMemo(() => {
     if (evaluatorMode !== "deck_review") {
       return null;
@@ -180,6 +186,7 @@ export function EvaluatorScreen({
     try {
       const response = await updateSessionRuntime({
         sessionId: session.sessionId,
+        clientId,
         provider: runtimeProvider,
         model: effectiveModel,
       });
@@ -207,6 +214,21 @@ export function EvaluatorScreen({
     } finally {
       setApplyingRuntime(false);
     }
+  };
+
+  const handleFileSelected = (file: File | null) => {
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+    const error = validateUploadFile(file, allowedUploadExtensions);
+    if (error) {
+      setSelectedFile(null);
+      setStatusLine(error);
+      return;
+    }
+    setSelectedFile(file);
+    setStatusLine(`${file.name} ready · ${currentUploadHint}`);
   };
 
   const submit = async () => {
@@ -241,11 +263,16 @@ export function EvaluatorScreen({
     setDraft("");
     setSelectedFile(null);
     setPending(true);
-    setStatusLine("Scoring your answer...");
+    setStatusLine(
+      evaluatorMode === "deck_review"
+        ? (submittedFile ? "Uploading and reviewing the deck..." : "Reviewing the active deck...")
+        : (submittedFile ? "Uploading context and scoring..." : "Scoring your answer..."),
+    );
 
     try {
       const response = await answerEvaluator({
         sessionId: session.sessionId,
+        clientId,
         answer: submittedDraft,
         evaluatorMode,
         provider: runtimeProvider,
@@ -389,30 +416,45 @@ export function EvaluatorScreen({
                   <p>{deckReviewCapability.note}</p>
                 </div>
               ) : null}
-              <div className="attachment-row">
-                <div className="attachment-meta">
-                  <span className="rail-label">Context</span>
-                  <small>{evaluatorMode === "deck_review" ? "Upload the deck you want reviewed" : "Optional deck, notes, or PDF"}</small>
-                </div>
-                <div className="attachment-actions">
-                  <button type="button" className="ghost-button compact" onClick={() => inputRef.current?.click()}>
-                    {selectedFile ? "Change file" : "Upload file"}
-                  </button>
-                  {selectedFile ? <span className="attachment-pill">{selectedFile.name}</span> : null}
-                  {selectedFile ? (
-                    <button type="button" className="ghost-button compact" onClick={() => setSelectedFile(null)}>
-                      Remove
-                    </button>
-                  ) : null}
-                </div>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  hidden
-                  accept=".pdf,.pptx,.docx,.txt"
-                  onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+              {evaluatorMode === "deck_review" ? (
+                /* ── Deck review: rich drag-drop zone with vision badge ── */
+                <DeckUploadZone
+                  visionSupported={runtimeSupportsVision}
+                  selectedFile={selectedFile}
+                  onFileSelect={(file) => handleFileSelected(file)}
+                  onFileClear={() => handleFileSelected(null)}
+                  uploading={pending && Boolean(selectedFile)}
                 />
-              </div>
+              ) : (
+                /* ── Other modes: compact attachment row ── */
+                <div className="attachment-row">
+                  <div className="attachment-meta">
+                    <span className="rail-label">Context</span>
+                    <small>{`Optional context · ${currentUploadHint}`}</small>
+                  </div>
+                  <div className="attachment-actions">
+                    <button type="button" className="ghost-button compact" onClick={() => inputRef.current?.click()}>
+                      {selectedFile ? "Change file" : "Upload file"}
+                    </button>
+                    {selectedFile ? <span className="attachment-pill">{selectedFile.name}</span> : null}
+                    {selectedFile ? (
+                      <button type="button" className="ghost-button compact" onClick={() => handleFileSelected(null)}>
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    hidden
+                    accept={uploadAccept(allowedUploadExtensions)}
+                    onChange={(event) => {
+                      handleFileSelected(event.target.files?.[0] ?? null);
+                      event.currentTarget.value = "";
+                    }}
+                  />
+                </div>
+              )}
               <div className="composer-row">
                 <textarea
                   value={draft}

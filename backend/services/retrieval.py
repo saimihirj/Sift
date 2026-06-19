@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from state import ConversationState
+from backend.core.state import ConversationState
 
 from backend.services.external_sources import retrieve_external_research_context
 from backend.services.prompting import get_sector_prompt_snippet

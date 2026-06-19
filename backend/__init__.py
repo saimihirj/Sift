@@ -1,4 +1,4 @@
-"""SignalX backend package."""
+"""Sift backend package."""
 
 from __future__ import annotations
 

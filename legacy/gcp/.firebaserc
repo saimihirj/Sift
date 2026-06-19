@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "sift-495116"
+  },
+  "targets": {
+    "sift-495116": {
+      "hosting": {
+        "sift-clean": [
+          "sift-vc"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
