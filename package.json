@@ -1,7 +1,7 @@
 {
   "name": "sift",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "scripts": {
     "mvp": "python3 tools/sift_app.py --build",
     "mvp:api": "python3 tools/sift_app.py --build --no-ollama",
@@ -12,9 +12,9 @@
     "dev:frontend": "npm --prefix frontend run dev -- --host 127.0.0.1 --port 5173 --strictPort",
     "build": "npm --prefix frontend run build",
     "knowledge:vc": "./.venv/bin/python scripts/build_vc_firm_cluster.py",
-    "run:sift": "python3 tools/sift_app.py",
-    "run:sift:api": "python3 tools/sift_app.py --no-ollama",
-    "run:sift:lan": "python3 tools/sift_app.py --host 0.0.0.0"
+    "brain:update": "./.venv/bin/python scripts/update_knowledge_graph.py",
+    "brain:train": "./.venv/bin/python scripts/train_sift_brain.py",
+    "brain:serve": "./.venv/bin/python scripts/serve_sift_brain.py"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

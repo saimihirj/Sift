@@ -39,9 +39,13 @@ def enabled() -> bool:
     return _truthy(os.environ.get("SIFT_BIGQUERY_ENABLED")) or bool(_table_id())
 
 
+
 @lru_cache(maxsize=1)
 def _client():
-    from google.cloud import bigquery  # type: ignore
+    try:
+        from google.cloud import bigquery  # type: ignore
+    except ImportError:
+        return None
 
     project = _project_id() or None
     return bigquery.Client(project=project)
@@ -78,11 +82,15 @@ def append_event(
         "created_at": created_at,
     }
     try:
-        errors = _client().insert_rows_json(table_id, [row])
+        client = _client()
+        if client is None:
+            return
+        errors = client.insert_rows_json(table_id, [row])
         if errors:
             print(f"BigQuery analytics insert failed: {errors}")
     except Exception as exc:
         print(f"BigQuery analytics export skipped: {exc}")
+
 
 
 def status() -> dict[str, str | bool]:

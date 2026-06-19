@@ -4,12 +4,6 @@ Sift is an AI workbench for startup ideation, pitch deck review, and investor-st
 
 It gives founders, operators, students, and analysts one focused workspace to turn rough startup material into clearer thinking: a sharper pitch, a structured evaluation, and a practical next-actions report.
 
-Public app:
-
-```text
-https://sift-vc.web.app
-```
-
 ## What Sift Does
 
 Sift is organized around three workflows.
@@ -20,53 +14,43 @@ Sift is organized around three workflows.
 
 `Expert` answers startup, market, and venture-style questions with a bundled expert corpus and retrieved context. It is useful for concept breakdowns, risk mapping, deck pre-screening, and investor memo-style thinking.
 
-## Current Production Stack
+## Current Stack
 
-The current shareable deployment runs on Google Cloud:
+Sift runs **localhost-first**. No cloud services required.
 
-- Firebase Hosting provides the clean public `web.app` link.
-- Cloud Run serves the FastAPI backend and built React frontend.
-- Firestore stores sessions and turns.
-- Cloud Storage stores uploads and deck artifacts.
-- BigQuery stores analytics events.
-- Vertex AI Gemini is the default server-side model path.
-- Firebase Hosting rewrites `/api/**` to Cloud Run so users only need one public URL.
+| Layer | Technology |
+|---|---|
+| Frontend | React + TypeScript (Vite) |
+| Backend | FastAPI + Uvicorn |
+| Persistence | SQLite (`data/sessions.db`) |
+| File storage | Local disk (`data/session_uploads/`) |
+| Knowledge base | Bundled expert corpus + dynamic knowledge graph |
+| Model inference | Ollama (local) or any API-key provider |
 
-The production URL is:
-
-```text
-https://sift-vc.web.app
-```
-
-Useful live checks:
-
-```bash
-curl -fsS https://sift-vc.web.app/api/health
-curl -fsS https://sift-vc.web.app/api/session/providers
-curl -fsS https://sift-vc.web.app/api/auth/providers
-```
+For shared access, the recommended production path is **Render** with a persistent disk (SQLite + uploads intact, no cloud DB migration needed).
 
 ## Model Options
 
-Sift supports both hosted and local/open-source model paths.
+Sift supports both local and hosted model paths.
 
-Hosted providers:
+**Local open-source (default):**
 
-- Vertex AI Gemini
-- Gemini API
-- Groq
-- Cerebras
-- OpenAI
-- OpenRouter
-- Anthropic
+- Ollama — `qwen3:8b` (speed) · `qwen3:30b` (balanced) · `qwen2.5vl:7b` (deck review)
+- Local OpenAI-compatible server — vLLM, Hugging Face TGI, LM Studio, llama.cpp
+- Sift Brain — custom fine-tuned decision layer (see below)
 
-Local or private open-source providers:
+**Hosted providers:**
 
-- Ollama
-- OpenAI-compatible local servers such as vLLM, Hugging Face TGI, LM Studio, and llama.cpp server
-- Private OpenAI-compatible GPU endpoints
+- Groq — `llama-4-scout` (fast) · `llama-4-maverick` (balanced)
+- Cerebras — `qwen-3-8b` (fast) · `qwen-3-32b` (balanced)
+- OpenAI — `gpt-4.1-mini` / `gpt-4.1`
+- Anthropic — `claude-haiku-4-5` / `claude-sonnet-4-5`
+- OpenRouter — any open-weight or frontier model
+- Gemini API — `gemini-2.0-flash` / `gemini-2.5-flash`
 
-For public Google Cloud deployment, Vertex AI is the default because it uses Google Cloud IAM and project billing. Users can still bring their own API key for supported providers when enabled in the UI.
+**Archived (optional GCP path):**
+
+- Vertex AI Gemini — available via `requirements-gcp.txt` and `legacy/gcp/`
 
 ## Deck Review
 
@@ -81,7 +65,44 @@ It can:
 - identify strengths, risks, missing proof, and unclear claims
 - produce an investor-style report without pretending missing evidence exists
 
-PDF review can use page images when the selected model supports vision. PPTX review relies mostly on extracted slide text unless a richer visual extraction path is configured.
+PDF review can use page images when the selected model supports vision. PPTX review relies mostly on extracted slide text.
+
+## Sift Brain — Knowledge Graph & Custom LLM
+
+Sift includes a `sift_brain/` intelligence layer with two parts.
+
+### Dynamic Knowledge Graph
+
+The knowledge graph continuously updates the expert corpus across all targeted domains:
+
+- SaaS, D2C, Fintech, India VC, PE/Growth, Macro, Regulation, Market Sizing, Unit Economics, PMF
+
+Run a domain update:
+
+```bash
+npm run brain:update
+# or: python3 scripts/update_knowledge_graph.py [--domain all|saas|fintech|...]
+```
+
+This runs an async scraper → ChromaDB embedder pipeline that adds new knowledge cards incrementally to `knowledge_base/expert/` and `data/chroma/`.
+
+### Custom LLM — Fine-tuning & Serving
+
+Build and serve a Sift-specific decision layer on top of the best open-source base models:
+
+```bash
+# Build a fine-tuned adapter (LoRA/QLoRA)
+npm run brain:train
+# or: python3 scripts/train_sift_brain.py --base qwen3-8b --epochs 3 --lora-rank 16
+
+# Serve it locally (OpenAI-compatible on port 8001)
+npm run brain:serve
+# or: python3 scripts/serve_sift_brain.py --adapter latest
+```
+
+The serving server exposes an OpenAI-compatible `/v1/chat/completions` endpoint. Point `LOCAL_OPENAI_BASE_URL=http://127.0.0.1:8001/v1` in `.env` to use it, or set `SIFT_MODEL_PROVIDER=sift_brain`.
+
+Fine-tuning config is YAML-based and supports hyperparameter sweeps via Optuna.
 
 ## OAuth
 
@@ -92,37 +113,20 @@ The app has OAuth routes for:
 - LinkedIn
 - X
 
-OAuth providers only appear as active when their client ID and secret are attached to Cloud Run through Secret Manager.
+OAuth providers only appear when their client ID and secret are set in the environment.
 
-Production callback URLs:
+Local callback URLs:
 
 ```text
-https://sift-vc.web.app/api/auth/callback/google
-https://sift-vc.web.app/api/auth/callback/apple
-https://sift-vc.web.app/api/auth/callback/linkedin
-https://sift-vc.web.app/api/auth/callback/x
+http://127.0.0.1:7860/api/auth/callback/google
+http://127.0.0.1:7860/api/auth/callback/apple
+http://127.0.0.1:7860/api/auth/callback/linkedin
+http://127.0.0.1:7860/api/auth/callback/x
 ```
 
-After creating provider apps, export the issued values locally and run:
-
-```bash
-export GOOGLE_OAUTH_CLIENT_ID='...'
-export GOOGLE_OAUTH_CLIENT_SECRET='...'
-export APPLE_OAUTH_CLIENT_ID='...'
-export APPLE_OAUTH_CLIENT_SECRET='...'
-export LINKEDIN_OAUTH_CLIENT_ID='...'
-export LINKEDIN_OAUTH_CLIENT_SECRET='...'
-export X_OAUTH_CLIENT_ID='...'
-export X_OAUTH_CLIENT_SECRET='...'
-
-bash tools/configure_oauth_cloud_run.sh
-```
-
-Do not commit OAuth secrets. Apple uses a generated client-secret JWT, not a normal static password. X currently uses the OAuth 1.0a API key and API secret flow.
+Dev split-stack callback URLs use port `8000` for the backend.
 
 ## Local Setup
-
-Install Python and Node dependencies:
 
 ```bash
 git clone git@github.com:saimihirj/Sift.git
@@ -137,17 +141,17 @@ npm --prefix frontend install
 cp .env.example .env
 ```
 
-Run with hosted/API-key providers:
+Run with local Ollama (default):
+
+```bash
+ollama pull qwen3:8b
+npm run mvp
+```
+
+Run with API-key providers only:
 
 ```bash
 npm run mvp:api
-```
-
-Run with local Ollama:
-
-```bash
-ollama pull llama3.2
-npm run mvp
 ```
 
 Open:
@@ -162,28 +166,21 @@ Development split stack:
 npm run dev
 ```
 
-Frontend:
-
-```text
-http://127.0.0.1:5173
-```
-
-Backend:
-
-```text
-http://127.0.0.1:8000
-```
+Frontend: `http://127.0.0.1:5173` · Backend: `http://127.0.0.1:8000`
 
 ## Common Commands
 
 ```bash
-npm run mvp        # single-port local app with Ollama support
-npm run mvp:api    # single-port local app for API-key providers
-npm run mvp:lan    # share on the local network
-npm run admin      # launch with admin mode
-npm run dev        # run backend and frontend separately
-npm run build      # build the frontend
-python3 -m pytest  # run backend tests
+npm run mvp            # single-port local app with Ollama
+npm run mvp:api        # single-port local app for API-key providers
+npm run mvp:lan        # share on the local network
+npm run admin          # launch with admin mode
+npm run dev            # run backend and frontend separately
+npm run build          # build the frontend only
+npm run brain:update   # update the knowledge graph
+npm run brain:train    # fine-tune the Sift Brain model
+npm run brain:serve    # serve the Sift Brain local model
+python3 -m pytest      # run backend tests
 ```
 
 ## Fresh Data Reset
@@ -193,39 +190,6 @@ Reset local runtime data:
 ```bash
 python3 tools/reset_runtime_data.py --local --yes
 ```
-
-Reset production Google Cloud runtime data:
-
-```bash
-python3 tools/reset_runtime_data.py --gcp --project=sift-495116 --yes
-```
-
-The reset keeps source code, deployment config, Firestore database, Cloud Storage bucket, and BigQuery schema intact. It deletes generated sessions, turns, analytics events, uploads, and generated local runtime indexes.
-
-## Deploy To Google Cloud
-
-The project includes a Cloud Build and Firebase Hosting deployment path for project `sift-495116`.
-
-Deploy Cloud Run:
-
-```bash
-gcloud builds submit --project=sift-495116 --region=us-central1 --config=cloudbuild.yaml .
-```
-
-Deploy the clean public Firebase Hosting link:
-
-```bash
-bash tools/deploy_clean_webapp_link.sh sift-vc
-```
-
-Verify:
-
-```bash
-curl -fsS https://sift-vc.web.app/api/health
-curl -fsS https://sift-vc.web.app/api/session/providers
-```
-
-Full deployment details are in [docs/GCP_SERVERLESS_DEPLOYMENT.md](docs/GCP_SERVERLESS_DEPLOYMENT.md).
 
 ## Project Structure
 
@@ -240,14 +204,30 @@ frontend/
   index.html    Vite entrypoint
 
 knowledge_base/
-  expert/       bundled Expert knowledge corpus
+  expert/       bundled Expert knowledge corpus (static + dynamic shards)
   inbox/        source files for offline knowledge builds
 
-tools/          launch, reset, deployment, and operator scripts
-docs/           architecture, execution, and deployment notes
+sift_brain/
+  knowledge_graph/   dynamic domain updater, ChromaDB embedder, entity graph, retriever
+  decision_layer/    intelligent query router and context builder
+  training/          dataset builder, LoRA/QLoRA fine-tuner, hypertuner, evaluator
+  serving/           OpenAI-compatible local model server and adapter registry
+
+scripts/        knowledge graph update, training, and serving launchers
+tools/          local app launcher and reset scripts
+docs/           architecture, execution, and platform notes
 tests/          backend tests
-data/           local runtime state, ignored by git
+data/           local runtime state (SQLite, uploads, chroma, model adapters) — not in git
+legacy/gcp/     archived Google Cloud / Firebase deployment files
 ```
+
+## Optional: Google Cloud Deployment
+
+The Firebase/GCP deployment path is archived in `legacy/gcp/`. To restore it:
+
+1. `pip install -r requirements-gcp.txt`
+2. Copy files from `legacy/gcp/` back to project root and `tools/` and `docs/`
+3. Set GCP environment variables in `.env`
 
 ## Verification Status
 
@@ -264,17 +244,16 @@ passed
 ## Notes For Operators
 
 - Keep `.env`, local caches, `frontend/dist`, and `data/` out of git.
-- Keep OAuth and model provider secrets in Secret Manager or local environment variables.
-- For public usage, prefer the clean Firebase Hosting URL over the raw Cloud Run URL.
-- For lowest public latency on Google Cloud, keep `min-instances` above zero and use Vertex/Gemini or another hosted low-latency provider.
-- For open-source model experiments, point `OPEN_SOURCE_BASE_URL` or `LOCAL_OPENAI_BASE_URL` at a vLLM/TGI/OpenAI-compatible endpoint.
+- Keep OAuth and model provider secrets in environment variables or a secrets manager.
+- For the best public demo experience, deploy to **Render** with a persistent disk.
+- For open-source inference, point `LOCAL_OPENAI_BASE_URL` at a vLLM/TGI/llama.cpp endpoint, or use Ollama locally.
+- For the Sift Brain custom model, start `scripts/serve_sift_brain.py` before the main app.
 
 ## Documentation
 
-- [Google Cloud Serverless Deployment](docs/GCP_SERVERLESS_DEPLOYMENT.md)
-- [Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)
-- [Execution Guide](docs/EXECUTION.md)
-- [Platform Overview](docs/PLATFORM_OVERVIEW.md)
 - [Architecture](docs/ARCHITECTURE.md)
-- [Beta Readiness Checklist](docs/BETA_READINESS.md)
+- [Platform Overview](docs/PLATFORM_OVERVIEW.md)
+- [Execution Guide](docs/EXECUTION.md)
+- [Beta Readiness](docs/BETA_READINESS.md)
 - [Changelog](CHANGELOG.md)
+- [GCP Deployment (archived)](legacy/gcp/README.md)

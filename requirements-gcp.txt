@@ -1,0 +1,8 @@
+# Google Cloud optional dependencies for Sift
+# Install only if you are deploying to Google Cloud Run / Firestore / BigQuery
+# pip install -r requirements-gcp.txt
+
+google-cloud-storage>=2.18.0
+google-cloud-firestore>=2.19.0
+google-cloud-bigquery>=3.27.0
+google-auth>=2.35.0

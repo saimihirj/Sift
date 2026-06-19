@@ -23,7 +23,8 @@ For the best current MVP deployment:
 - `Database`: SQLite on persistent disk
 - `File storage`: persistent disk
 - `Auth`: optional OAuth later
-- `Model inference`: Groq GPT-OSS or another server-configured API provider in production, Ollama locally
+- `Model inference`: Groq Llama-4 Scout/Maverick or another server-configured API provider in production, Ollama locally
+- `Intelligence layer`: Sift Brain — dynamic knowledge graph + custom fine-tuned LLM (optional, local)
 - `Monitoring`: Render metrics + logs, in-app usage tracking
 
 ## 1. Current Local Architecture
@@ -38,12 +39,16 @@ flowchart LR
     A --> S["SQLite sessions.db"]
     A --> UPL["Local uploads folder"]
     A --> KB["Expert corpus"]
+    A --> SB["Sift Brain (optional)"]
+    SB --> KG["Knowledge Graph"]
+    SB --> LLM["Fine-tuned Adapter"]
     A --> O["Refined pitch / expert analysis"]
 
     subgraph Local Ports
       F
       A
       M
+      SB
     end
 ```
 
@@ -85,7 +90,7 @@ This is the architecture recommended for sharing the current app with early test
 flowchart LR
     B["User Browser"] --> R["Render Web Service\nReact build + FastAPI API"]
     R --> DB["Persistent Disk\nSQLite + uploads"]
-    R --> G["Groq Model API"]
+    R --> G["Groq / Cerebras\nLlama-4 Scout / Maverick"]
 
     R --> LG["Render Logs / Metrics"]
 ```
@@ -96,7 +101,9 @@ flowchart LR
 - Render fits the current Dockerized FastAPI app well
 - persistent disk keeps the current SQLite and upload model intact
 - a server-configured Groq key removes the need for visitors to paste their own API keys
-- GPT-OSS hosted on Groq or Cerebras gives the MVP a fast open-weight path before paying for frontier models
+- Llama-4 Scout/Maverick on Groq gives fast open-weight inference at very low latency
+
+> **GCP / Firebase**: the Cloud Run + Firestore + BigQuery deployment is archived in `legacy/gcp/`. See [legacy/gcp/README.md](legacy/gcp/README.md) to restore it.
 
 ## 3. Request Workflow
 
@@ -399,14 +406,16 @@ Suggested sections:
 Today:
 - local-first app
 - React + FastAPI
-- Ollama or API providers
+- Ollama or API providers (Groq Llama-4 as hosted default)
 - SQLite
 - local upload storage
+- dynamic knowledge graph + ChromaDB (`sift_brain/`)
+- custom LLM fine-tuning + serving pipeline (`sift_brain/training/`, `sift_brain/serving/`)
 
 Best MVP deployment:
 - Render web service
 - persistent disk for SQLite and uploads
-- Groq inference
+- Groq Llama-4 inference
 - internal product analytics
 
 Main technical reason:

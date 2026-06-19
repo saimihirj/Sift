@@ -57,11 +57,12 @@ RECOMMENDED_DECK_MODELS = {
     "open_source": os.environ.get("OPEN_SOURCE_DECK_MODEL", "Qwen/Qwen2.5-VL-7B-Instruct"),
     "groq": "",
     "cerebras": "",
-    "openai": "gpt-5.5",
-    "openrouter": "openai/gpt-5.5",
-    "anthropic": "claude-3-7-sonnet-latest",
+    "openai": "gpt-4.1",
+    "openrouter": "meta-llama/llama-4-maverick",
+    "anthropic": "claude-sonnet-4-5",
     "gemini": "gemini-2.5-flash",
     "vertex": "gemini-2.5-flash",
+    "sift_brain": "sift-brain",
 }
 
 
@@ -248,8 +249,8 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="ollama",
         base_url=OLLAMA_BASE_URL,
         env_api_key_var=None,
-        default_speed_model=os.environ.get("OLLAMA_MODEL_SPEED", "llama3.2:latest"),
-        default_balanced_model=os.environ.get("OLLAMA_MODEL_BALANCED", "qwen3:8b"),
+        default_speed_model=os.environ.get("OLLAMA_MODEL_SPEED", "qwen3:8b"),
+        default_balanced_model=os.environ.get("OLLAMA_MODEL_BALANCED", "qwen3:30b"),
         requires_api_key=False,
     ),
     "local_openai": ProviderConfig(
@@ -259,7 +260,7 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         base_url=os.environ.get("LOCAL_OPENAI_BASE_URL", "http://127.0.0.1:8000/v1").rstrip("/"),
         env_api_key_var="LOCAL_OPENAI_API_KEY",
         default_speed_model=os.environ.get("LOCAL_OPENAI_MODEL_SPEED", "Qwen/Qwen3-8B"),
-        default_balanced_model=os.environ.get("LOCAL_OPENAI_MODEL_BALANCED", "openai/gpt-oss-20b"),
+        default_balanced_model=os.environ.get("LOCAL_OPENAI_MODEL_BALANCED", "Qwen/Qwen3-30B-A3B"),
         requires_api_key=False,
     ),
     "open_source": ProviderConfig(
@@ -268,8 +269,8 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="openai",
         base_url=os.environ.get("OPEN_SOURCE_BASE_URL", "").strip().rstrip("/"),
         env_api_key_var="OPEN_SOURCE_API_KEY",
-        default_speed_model=os.environ.get("OPEN_SOURCE_MODEL_SPEED", "Qwen/Qwen2.5-VL-7B-Instruct"),
-        default_balanced_model=os.environ.get("OPEN_SOURCE_MODEL_BALANCED", "Qwen/Qwen2.5-VL-7B-Instruct"),
+        default_speed_model=os.environ.get("OPEN_SOURCE_MODEL_SPEED", "Qwen/Qwen3-8B"),
+        default_balanced_model=os.environ.get("OPEN_SOURCE_MODEL_BALANCED", "Qwen/Qwen3-30B-A3B"),
         requires_api_key=os.environ.get("OPEN_SOURCE_REQUIRES_API_KEY", "true").strip().lower() not in {"0", "false", "no", "off"},
     ),
     "groq": ProviderConfig(
@@ -278,8 +279,8 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="openai",
         base_url=os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
         env_api_key_var="GROQ_API_KEY",
-        default_speed_model=os.environ.get("GROQ_MODEL_SPEED", "openai/gpt-oss-20b"),
-        default_balanced_model=os.environ.get("GROQ_MODEL_BALANCED", "openai/gpt-oss-120b"),
+        default_speed_model=os.environ.get("GROQ_MODEL_SPEED", "meta-llama/llama-4-scout-17b-16e-instruct"),
+        default_balanced_model=os.environ.get("GROQ_MODEL_BALANCED", "meta-llama/llama-4-maverick-17b-128e-instruct"),
         requires_api_key=True,
     ),
     "cerebras": ProviderConfig(
@@ -288,8 +289,8 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="openai",
         base_url=os.environ.get("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1"),
         env_api_key_var="CEREBRAS_API_KEY",
-        default_speed_model=os.environ.get("CEREBRAS_MODEL_SPEED", "gpt-oss-120b"),
-        default_balanced_model=os.environ.get("CEREBRAS_MODEL_BALANCED", "gpt-oss-120b"),
+        default_speed_model=os.environ.get("CEREBRAS_MODEL_SPEED", "qwen-3-8b"),
+        default_balanced_model=os.environ.get("CEREBRAS_MODEL_BALANCED", "qwen-3-32b"),
         requires_api_key=True,
     ),
     "openai": ProviderConfig(
@@ -298,8 +299,8 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="openai",
         base_url=os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1"),
         env_api_key_var="OPENAI_API_KEY",
-        default_speed_model=os.environ.get("OPENAI_MODEL_SPEED", "gpt-5.4-mini"),
-        default_balanced_model=os.environ.get("OPENAI_MODEL_BALANCED", "gpt-5.5"),
+        default_speed_model=os.environ.get("OPENAI_MODEL_SPEED", "gpt-4.1-mini"),
+        default_balanced_model=os.environ.get("OPENAI_MODEL_BALANCED", "gpt-4.1"),
         requires_api_key=True,
     ),
     "openrouter": ProviderConfig(
@@ -308,8 +309,8 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="openai",
         base_url=os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
         env_api_key_var="OPENROUTER_API_KEY",
-        default_speed_model=os.environ.get("OPENROUTER_MODEL_SPEED", "openai/gpt-oss-20b"),
-        default_balanced_model=os.environ.get("OPENROUTER_MODEL_BALANCED", "openai/gpt-oss-120b"),
+        default_speed_model=os.environ.get("OPENROUTER_MODEL_SPEED", "meta-llama/llama-4-scout"),
+        default_balanced_model=os.environ.get("OPENROUTER_MODEL_BALANCED", "meta-llama/llama-4-maverick"),
         requires_api_key=True,
     ),
     "anthropic": ProviderConfig(
@@ -318,8 +319,8 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         api_style="anthropic",
         base_url=os.environ.get("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1"),
         env_api_key_var="ANTHROPIC_API_KEY",
-        default_speed_model=os.environ.get("ANTHROPIC_MODEL_SPEED", "claude-3-5-haiku-latest"),
-        default_balanced_model=os.environ.get("ANTHROPIC_MODEL_BALANCED", "claude-3-7-sonnet-latest"),
+        default_speed_model=os.environ.get("ANTHROPIC_MODEL_SPEED", "claude-haiku-4-5"),
+        default_balanced_model=os.environ.get("ANTHROPIC_MODEL_BALANCED", "claude-sonnet-4-5"),
         requires_api_key=True,
     ),
     "gemini": ProviderConfig(
@@ -340,6 +341,18 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         env_api_key_var=None,
         default_speed_model=os.environ.get("VERTEX_MODEL_SPEED", os.environ.get("GEMINI_MODEL_SPEED", "gemini-2.5-flash")),
         default_balanced_model=os.environ.get("VERTEX_MODEL_BALANCED", os.environ.get("GEMINI_MODEL_BALANCED", "gemini-2.5-pro")),
+        requires_api_key=False,
+    ),
+    # Sift Brain — custom fine-tuned decision layer
+    # Started separately via: python3 scripts/serve_sift_brain.py
+    "sift_brain": ProviderConfig(
+        key="sift_brain",
+        label="Sift Brain (custom LLM)",
+        api_style="openai",
+        base_url=os.environ.get("SIFT_BRAIN_BASE_URL", "http://127.0.0.1:8001/v1"),
+        env_api_key_var=None,
+        default_speed_model=os.environ.get("SIFT_BRAIN_MODEL", "sift-brain"),
+        default_balanced_model=os.environ.get("SIFT_BRAIN_MODEL", "sift-brain"),
         requires_api_key=False,
     ),
 }
