@@ -4374,3 +4374,139 @@ a:focus-visible,
 
 .runtime-ttft-value.warn { color: var(--latency-warn); }
 .runtime-ttft-value.slow { color: var(--latency-slow); }
+
+/* ── Tuning Interface ─────────────────────────────────────────────── */
+
+.brain-tuning-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+  font-size: 0.8rem;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.brain-tuning-mode-toggle input {
+  accent-color: var(--brain-accent);
+}
+
+.brain-tuning-panel {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--panel-muted);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tuning-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tuning-field label {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  justify-content: space-between;
+}
+
+.tuning-field select,
+.tuning-field input {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 200ms ease;
+}
+
+.tuning-field select:focus,
+.tuning-field input:focus {
+  border-color: var(--brain-accent);
+}
+
+.tuning-field input[type="range"] {
+  padding: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
+.tuning-field input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--brain-accent);
+  cursor: pointer;
+}
+
+.tuning-start-btn {
+  background: transparent;
+  color: var(--brain-accent);
+  border: 1px solid var(--brain-accent);
+  padding: 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 200ms ease;
+  margin-top: 4px;
+}
+
+.tuning-start-btn:hover:not(:disabled) {
+  background: var(--brain-accent-weak);
+  box-shadow: var(--brain-glow);
+}
+
+.tuning-start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: var(--line-strong);
+  color: var(--ink-soft);
+}
+
+.tuning-status {
+  font-size: 0.75rem;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  text-align: center;
+  font-family: var(--font-mono);
+}
+
+.tuning-status.running {
+  color: var(--latency-warn);
+  border-color: var(--latency-warn);
+}
+
+.tuning-status.success {
+  color: var(--latency-ok);
+  border-color: var(--latency-ok);
+}
+
+.tuning-status.error {
+  color: var(--latency-slow);
+  border-color: var(--latency-slow);
+}

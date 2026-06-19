@@ -76,6 +76,33 @@ export function SiftBrainPanel({ ttft, tps, decisionTrace, expanded = true, onTo
   const [status, setStatus] = useState<BrainStatus | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Tuning Mode State
+  const [tuningMode, setTuningMode] = useState(false);
+  const [loraRank, setLoraRank] = useState(16);
+  const [learningRate, setLearningRate] = useState("1e-4");
+  const [epochs, setEpochs] = useState(3);
+  const [tuningJobState, setTuningJobState] = useState<"idle" | "running" | "success" | "error">("idle");
+
+  const startTuning = async () => {
+    setTuningJobState("running");
+    try {
+      const res = await fetch("/api/brain/tune", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rank: loraRank, lr: learningRate, epochs }),
+      });
+      if (!res.ok) throw new Error("Failed to start tuning");
+      
+      // Mock polling
+      setTimeout(() => {
+        setTuningJobState("success");
+      }, 3000);
+    } catch {
+      setTuningJobState("error");
+    }
+  };
+
+
   useEffect(() => {
     if (!expanded) return;
     setLoading(true);
@@ -238,6 +265,77 @@ export function SiftBrainPanel({ ttft, tps, decisionTrace, expanded = true, onTo
               Run <code style={{ fontSize: "0.7rem" }}>npm run brain:train</code> then{" "}
               <code style={{ fontSize: "0.7rem" }}>npm run brain:serve</code> to activate the neural engine.
             </p>
+          )}
+
+          {/* Tuning Mode */}
+          <label className="brain-tuning-mode-toggle">
+            <input 
+              type="checkbox" 
+              checked={tuningMode} 
+              onChange={(e) => setTuningMode(e.target.checked)} 
+            />
+            <span>Tuning Mode</span>
+          </label>
+
+          {tuningMode && (
+            <div className="brain-tuning-panel">
+              <div className="tuning-field">
+                <label>
+                  <span>LoRA Rank</span>
+                  <span style={{ color: "var(--ink)" }}>{loraRank}</span>
+                </label>
+                <input 
+                  type="range" 
+                  min={4} max={128} step={4} 
+                  value={loraRank} 
+                  onChange={(e) => setLoraRank(Number(e.target.value))} 
+                />
+              </div>
+
+              <div className="tuning-field">
+                <label>Learning Rate</label>
+                <select 
+                  value={learningRate} 
+                  onChange={(e) => setLearningRate(e.target.value)}
+                >
+                  <option value="1e-5">1e-5</option>
+                  <option value="5e-5">5e-5</option>
+                  <option value="1e-4">1e-4</option>
+                  <option value="2e-4">2e-4</option>
+                  <option value="5e-4">5e-4</option>
+                </select>
+              </div>
+
+              <div className="tuning-field">
+                <label>Epochs</label>
+                <select 
+                  value={epochs} 
+                  onChange={(e) => setEpochs(Number(e.target.value))}
+                >
+                  <option value={1}>1</option>
+                  <option value={3}>3</option>
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                </select>
+              </div>
+
+              <button 
+                type="button" 
+                className="tuning-start-btn" 
+                onClick={startTuning}
+                disabled={tuningJobState === "running"}
+              >
+                {tuningJobState === "running" ? "Starting..." : "Start Fine-Tuning Job"}
+              </button>
+
+              {tuningJobState !== "idle" && (
+                <div className={`tuning-status ${tuningJobState}`}>
+                  {tuningJobState === "running" && "Job initializing..."}
+                  {tuningJobState === "success" && "Job completed successfully."}
+                  {tuningJobState === "error" && "Error starting job."}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

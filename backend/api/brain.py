@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import asyncio
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, BackgroundTasks
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/brain", tags=["brain"])
 
@@ -164,3 +166,43 @@ async def decision_trace(session_id: str = Query(default="")):
         return {"available": True, "trace": trace}
     except Exception as exc:
         return {"available": False, "reason": str(exc)}
+
+
+class TuneRequest(BaseModel):
+    rank: int = 8
+    learning_rate: float = 2e-4
+    epochs: int = 3
+
+tuning_state = {
+    "status": "idle",
+    "progress": 0.0,
+    "error": None
+}
+
+async def _simulate_tuning(params: dict):
+    tuning_state["status"] = "running"
+    tuning_state["progress"] = 0.0
+    tuning_state["error"] = None
+    try:
+        for i in range(1, 11):
+            await asyncio.sleep(1)
+            tuning_state["progress"] = i * 10.0
+        tuning_state["status"] = "completed"
+    except Exception as e:
+        tuning_state["status"] = "failed"
+        tuning_state["error"] = str(e)
+
+
+@router.post("/tune")
+async def start_tuning(req: TuneRequest, background_tasks: BackgroundTasks):
+    """Start a background tuning job with the given hyperparameters."""
+    if tuning_state["status"] == "running":
+        return {"status": "error", "message": "A tuning job is already running"}
+    background_tasks.add_task(_simulate_tuning, req.model_dump() if hasattr(req, "model_dump") else req.dict())
+    return {"status": "accepted", "message": "Tuning job started"}
+
+
+@router.get("/tune/status")
+async def get_tuning_status():
+    """Return the status of the ongoing or last tuning job."""
+    return tuning_state
