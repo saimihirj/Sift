@@ -24,7 +24,8 @@ from typing import Any
 from backend.core import bigquery_analytics
 
 
-DATA_DIR = Path(os.environ.get("SIFT_DATA_DIR", "data"))
+ROOT_DIR = Path(__file__).resolve().parents[2]
+DATA_DIR = Path(os.environ.get("SIFT_DATA_DIR", str(ROOT_DIR / "data")))
 DB_PATH = DATA_DIR / "sessions.db"
 EXPORTS_DIR = DATA_DIR / "exports"
 PERSISTENCE_BACKEND = os.environ.get("SIFT_PERSISTENCE_BACKEND", os.environ.get("SIFT_DB_BACKEND", "sqlite")).strip().lower()
@@ -399,6 +400,19 @@ def get_session(session_id: str) -> dict | None:
             (session_id,),
         ).fetchone()
     return dict(row) if row is not None else None
+
+
+def delete_session(session_id: str) -> None:
+    """Delete a session entirely."""
+    if not session_id:
+        return
+    if _use_firestore():
+        _firestore_sessions().document(session_id).delete()
+        return
+
+    with _conn() as con:
+        con.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+        con.commit()
 
 
 def update_session(session_id: str, state) -> None:

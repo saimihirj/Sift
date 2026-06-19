@@ -60,7 +60,28 @@ export function SessionSidebar({ isOpen, sessions, currentSessionId, clearing, o
             Close
           </button>
         </div>
-        {sessions.length === 0 ? <p className="muted-copy">Your recent sessions will appear here after the first run.</p> : null}
+        <div className="profile-overview" style={{ padding: "0 16px 16px", borderBottom: "1px solid var(--border)", marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+            <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--bg-primary)", fontWeight: "bold" }}>
+              ME
+            </div>
+            <div>
+              <strong style={{ display: "block" }}>My Account</strong>
+              <span className="muted-copy" style={{ fontSize: "12px" }}>Sift Pro Member</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "16px" }}>
+            <div>
+              <strong style={{ fontSize: "18px" }}>{sessions.length}</strong>
+              <span className="rail-label" style={{ display: "block" }}>Total Sessions</span>
+            </div>
+            <div>
+              <strong style={{ fontSize: "18px" }}>{sessions.reduce((acc, s) => acc + (s.turnCount || 0), 0)}</strong>
+              <span className="rail-label" style={{ display: "block" }}>Interactions</span>
+            </div>
+          </div>
+        </div>
+        {sessions.length === 0 ? <p className="muted-copy" style={{ padding: "0 16px" }}>Your recent sessions will appear here after the first run.</p> : null}
         {sessions.length > 0 ? (
           <>
             <div className="session-list floating-list">

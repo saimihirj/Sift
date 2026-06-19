@@ -10,7 +10,10 @@ import type {
   ThemeMode,
 } from "./types";
 import { clearSessionHistory, getAuthSession, getSession, listProviders, listSessions, postAnalyticsEvent, sendHeartbeat, startSession } from "../lib/api/client";
-import { AdminScreen } from "../features/admin/AdminScreen";
+import { AdminLayout } from "../features/admin/AdminLayout";
+import { AdminObservability } from "../features/admin/AdminObservability";
+import { AdminNeuralEngine } from "../features/admin/AdminNeuralEngine";
+import { VersionControlScreen } from "../features/admin/VersionControlScreen";
 import { ChatScreen } from "../features/chat/ChatScreen";
 import { EvaluatorReportScreen } from "../features/evaluator/EvaluatorReportScreen";
 import { EvaluatorScreen } from "../features/evaluator/EvaluatorScreen";
@@ -18,11 +21,12 @@ import { ExpertScreen } from "../features/expert/ExpertScreen";
 import { LandingScreen } from "../features/onboarding/LandingScreen";
 import { SetupWizard } from "../features/onboarding/SetupWizard";
 import { OutlineScreen } from "../features/outline/OutlineScreen";
-import { DashboardScreen } from "../features/dashboard/DashboardScreen";
 import { saveSessionCredential } from "../lib/sessionCredentials";
 import { createWorkspaceIdentity, generateAccessKey, type WorkspaceIdentity } from "../lib/workspaceIdentity";
 
 declare const __APP_BUILD__: string;
+
+const appMode = import.meta.env.VITE_APP_MODE || "mvp";
 
 const SESSION_STORAGE_KEY = "sift-session-id";
 const IDENTITY_STORAGE_KEY = "sift-beta-identity";
@@ -738,6 +742,19 @@ function AppBody() {
     );
   }
 
+  if (appMode === "admin") {
+    return (
+      <Routes>
+        <Route path="/*" element={<AdminLayout theme={theme} onThemeChange={setTheme} />}>
+          <Route path="observability" element={<AdminObservability />} />
+          <Route path="neural" element={<AdminNeuralEngine />} />
+          <Route path="version-control" element={<VersionControlScreen />} />
+          <Route index element={<Navigate to="neural" replace />} />
+        </Route>
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
       <Route
@@ -858,11 +875,7 @@ function AppBody() {
           />
         }
       />
-      <Route path="/dashboard" element={<DashboardScreen />} />
-      <Route
-        path="/admin"
-        element={adminEnabled ? <AdminScreen theme={theme} onThemeChange={setTheme} /> : <Navigate to="/" replace />}
-      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

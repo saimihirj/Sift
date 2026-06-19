@@ -416,3 +416,15 @@ class AdminEvent(BaseModel):
 class AdminEventsResponse(BaseModel):
     events: list[AdminEvent] = Field(default_factory=list)
     sessions: list[SessionSummary] = Field(default_factory=list)
+
+
+class MessageFeedbackRequest(BaseModel):
+    clientId: str = ""
+    sessionId: str = ""
+    rating: Literal["up", "down"]
+    reason: str = ""
+    messageIndex: int = -1
+
+
+class MessageFeedbackResponse(BaseModel):
+    ok: bool = True

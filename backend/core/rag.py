@@ -17,9 +17,10 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = Path("data")
+ROOT_DIR = Path(__file__).resolve().parents[2]
+DATA_DIR = ROOT_DIR / "data"
 CHROMA_DIR = DATA_DIR / "chroma"
-INBOX_DIR = Path("knowledge_base") / "inbox"
+INBOX_DIR = ROOT_DIR / "knowledge_base" / "inbox"
 INDEXED_LOG = DATA_DIR / ".indexed_files"
 
 CHUNK_SIZE = 500

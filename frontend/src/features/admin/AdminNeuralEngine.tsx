@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import ForceGraph2D from "react-force-graph-2d";
-import { Link } from "react-router-dom";
 import { API_BASE } from "../../lib/api/client";
 
 // --- Types ---
@@ -41,7 +40,7 @@ const COLORS: Record<string, string> = {
   general: "#64748b", // Slate
 };
 
-export function DashboardScreen() {
+export function AdminNeuralEngine() {
   const [data, setData] = useState<GraphData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
@@ -77,10 +76,11 @@ export function DashboardScreen() {
   // Force Directed Tuning
   useEffect(() => {
     if (fgRef.current) {
-      // Tune the d3 forces to spread things out beautifully without overlapping
-      fgRef.current.d3Force("charge").strength(-120);
-      fgRef.current.d3Force("link").distance(40);
-      fgRef.current.d3Force("collide", null); // we can add a collision force if needed later
+      // Tune the d3 forces for a 300+ node fluid cluster
+      fgRef.current.d3Force("charge").strength(-400);
+      fgRef.current.d3Force("link").distance(80);
+      // Give it a subtle centering force to keep the hub anchored
+      fgRef.current.d3Force("center").x(0).y(0).strength(0.05);
     }
   }, [data]);
 
@@ -106,12 +106,13 @@ export function DashboardScreen() {
     const size = node.val;
     const color = node.color || "#fff";
 
-    // Glow effect
+    // Glow effect - more intense on active/hover
+    const isCore = node.group === "hub" || node.group === "domain";
     ctx.beginPath();
-    ctx.arc(node.x!, node.y!, size * (isActive ? 1.5 : 1), 0, 2 * Math.PI, false);
+    ctx.arc(node.x!, node.y!, size * (isActive ? 1.8 : isHovered ? 1.4 : 1), 0, 2 * Math.PI, false);
     ctx.fillStyle = color;
     ctx.shadowColor = color;
-    ctx.shadowBlur = isHovered || isActive ? 15 : 5;
+    ctx.shadowBlur = isActive ? 25 : isHovered ? 15 : isCore ? 8 : 2;
     ctx.fill();
     ctx.shadowBlur = 0; // reset
 
@@ -127,17 +128,14 @@ export function DashboardScreen() {
   };
 
   return (
-    <div style={{ position: "relative", width: "100vw", height: "100vh", backgroundColor: "#0a0a0a", overflow: "hidden", color: "#fff", fontFamily: "Inter, sans-serif" }}>
+    <div style={{ position: "relative", width: "100%", height: "100%", backgroundColor: "#0a0a0a", overflow: "hidden", color: "#fff", fontFamily: "Inter, sans-serif" }}>
       
       {/* Top Navbar */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "1.5rem 2rem", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10 }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "1.5rem 2rem", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10, pointerEvents: "none" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 10px #10b981" }} />
           <h1 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase" }}>Neural Engine Cluster</h1>
         </div>
-        <Link to="/" style={{ color: "#a1a1aa", textDecoration: "none", fontSize: "0.9rem", border: "1px solid #3f3f46", padding: "0.5rem 1rem", borderRadius: "4px", transition: "all 0.2s" }}>
-          Exit View
-        </Link>
       </div>
 
       {/* Force Graph Canvas */}
@@ -164,9 +162,9 @@ export function DashboardScreen() {
           onNodeHover={(node: any) => setHoverNode(node || null)}
           onNodeClick={(node: any) => handleNodeClick(node)}
           onBackgroundClick={handleBackgroundClick}
-          backgroundColor="#0a0a0a"
-          d3AlphaDecay={0.05} // Keep it floating longer
-          d3VelocityDecay={0.2}
+          backgroundColor="#000000" // Deep black for better contrast with glows
+          d3AlphaDecay={0.02} // Keep it floating even longer (more fluid)
+          d3VelocityDecay={0.3} // Slightly more friction so it settles beautifully
         />
       )}
 
@@ -190,15 +188,16 @@ export function DashboardScreen() {
             bottom: "2rem", 
             right: "2rem", 
             width: "350px",
-            background: "rgba(24, 24, 27, 0.7)", 
-            backdropFilter: "blur(12px)", 
-            WebkitBackdropFilter: "blur(12px)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            borderRadius: "12px",
-            padding: "1.5rem",
+            background: "rgba(10, 10, 10, 0.65)", 
+            backdropFilter: "blur(24px) saturate(150%)", 
+            WebkitBackdropFilter: "blur(24px) saturate(150%)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderTop: "1px solid rgba(255, 255, 255, 0.15)",
+            borderRadius: "16px",
+            padding: "1.75rem",
             zIndex: 20,
-            boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
-            animation: "fadeIn 0.3s ease-out forwards"
+            boxShadow: "0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)",
+            animation: "fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards"
           }}
         >
           <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.1em", color: activeNode.color || "#a1a1aa", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>

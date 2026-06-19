@@ -1,16 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 
-import type { AdminEvent, AdminOverview, SessionSummary, ThemeMode } from "../../app/types";
-import { ThemePicker } from "../../app/ThemePicker";
-import { getAdminEvents, getAdminOverview } from "../../lib/api/client";
+import type { AdminEvent, AdminOverview, SessionSummary } from "../../app/types";
+import { getAdminEvents, getAdminOverview, deleteSession, getSessionTranscript } from "../../lib/api/client";
 
-const ADMIN_TOKEN_STORAGE_KEY = "sift-admin-token";
-
-type Props = {
-  theme: ThemeMode;
-  onThemeChange: (theme: ThemeMode) => void;
-};
+export function AdminObservability() {
+  const { adminToken } = useOutletContext<{ adminToken: string }>();
 
 type MetricCard = {
   label: string;
@@ -33,41 +28,53 @@ function metricCards(overview: AdminOverview | null): MetricCard[] {
   ];
 }
 
-export function AdminScreen({ theme, onThemeChange }: Props) {
-  const [token, setToken] = useState(() => localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) ?? "");
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [status, setStatus] = useState("Loading admin data...");
-  const [themeOpen, setThemeOpen] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
-  }, [token]);
+  const [transcriptData, setTranscriptData] = useState<{role: string, content: string}[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setStatus("Loading admin data...");
-    Promise.all([getAdminOverview(token), getAdminEvents(token)])
+    Promise.all([getAdminOverview(adminToken), getAdminEvents(adminToken)])
       .then(([overviewResponse, eventsResponse]) => {
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
         setOverview(overviewResponse);
         setEvents(eventsResponse.events.slice(0, 18));
         setSessions(eventsResponse.sessions);
         setStatus("Admin mode");
       })
       .catch((error) => {
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
         setStatus(error instanceof Error ? error.message : "Failed to load admin data");
       });
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [adminToken]);
+
+  const handleDeleteSession = async (sessionId: string) => {
+    if (!window.confirm("Are you sure you want to delete this session entirely?")) return;
+    try {
+      await deleteSession(sessionId, adminToken);
+      setStatus("Session deleted");
+      setSessions(s => s.filter(x => x.sessionId !== sessionId));
+    } catch (e: any) {
+      setStatus("Failed to delete session: " + e.message);
+    }
+  };
+
+  const handleViewTranscript = async (sessionId: string) => {
+    try {
+      setStatus("Loading transcript...");
+      const t = await getSessionTranscript(sessionId, adminToken);
+      setTranscriptData(t);
+      setStatus("Transcript loaded");
+    } catch (e: any) {
+      setStatus("Failed to load transcript: " + e.message);
+    }
+  };
 
   const cards = useMemo(() => metricCards(overview), [overview]);
   const eventBreakdown = useMemo(
@@ -82,37 +89,11 @@ export function AdminScreen({ theme, onThemeChange }: Props) {
   );
 
   return (
-    <div className="outline-shell admin-shell">
-      <aside className="left-rail outline-rail">
-        <div className="workspace-title-stack">
-          <span className="eyebrow">Workspace</span>
-          <strong>Admin</strong>
-        </div>
-
-        <div className="rail-card">
-          <span className="rail-label">Admin mode</span>
-          <p className="muted-copy">{status}</p>
-        </div>
-
-        <label className="identity-field">
-          <span className="rail-label">Admin token</span>
-          <input type="password" value={token} onChange={(event) => setToken(event.target.value)} placeholder="Optional locally, recommended in deploy" />
-        </label>
-
-        <div className="rail-footer">
-          <Link to="/" className="ghost-button">
-            Back to app
-          </Link>
-          <button type="button" className="ghost-button" onClick={() => setThemeOpen(true)}>
-            Themes
-          </button>
-        </div>
-      </aside>
-
-      <main className="outline-main admin-main">
+    <div style={{ height: "100%", overflowY: "auto" }}>
+      <div className="admin-main" style={{ padding: "1.5rem" }}>
         <section className="admin-grid">
           {cards.map((card) => (
-            <article key={card.label} className="drawer-card admin-metric">
+            <article key={card.label} className="admin-metric">
               <span className="rail-label">{card.label}</span>
               <strong>{card.value}</strong>
             </article>
@@ -149,14 +130,18 @@ export function AdminScreen({ theme, onThemeChange }: Props) {
               </div>
               <div className="admin-list">
                 {sessions.map((session) => (
-                  <div key={session.sessionId} className="admin-row">
-                    <div>
+                  <div key={session.sessionId} className="admin-row" style={{ alignItems: "center" }}>
+                    <div style={{ flex: 1 }}>
                       <strong>{session.title}</strong>
                       <p>{session.subtitle}</p>
                     </div>
-                    <div className="admin-row-meta">
+                    <div className="admin-row-meta" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
                       <span>{session.turnCount} turns</span>
                       <small>{session.lastActive ? new Date(session.lastActive).toLocaleString() : "-"}</small>
+                      <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                        <button type="button" onClick={() => handleViewTranscript(session.sessionId)} style={{ cursor: "pointer", background: "none", border: "1px solid var(--accent)", color: "var(--accent)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>View</button>
+                        <button type="button" onClick={() => handleDeleteSession(session.sessionId)} style={{ cursor: "pointer", background: "none", border: "1px solid var(--destructive)", color: "var(--destructive)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>Delete</button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -192,31 +177,60 @@ export function AdminScreen({ theme, onThemeChange }: Props) {
                 ))}
               </div>
             </article>
+
+            <article className="outline-card admin-card">
+              <div className="admin-card-head">
+                <strong>Observability & Control</strong>
+                <span className="rail-label">External APM Tools</span>
+              </div>
+              <div className="admin-list" style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                <a href="https://smith.langchain.com" target="_blank" rel="noreferrer" className="ghost-button" style={{ justifyContent: "center" }}>
+                  Open LangSmith (LLM Tracing)
+                </a>
+                <a href="https://app.posthog.com" target="_blank" rel="noreferrer" className="ghost-button" style={{ justifyContent: "center" }}>
+                  Open PostHog (Analytics)
+                </a>
+              </div>
+            </article>
           </div>
         </section>
-      </main>
-
-      <div className={themeOpen ? "floating-panel is-open align-right" : "floating-panel align-right"} aria-hidden={!themeOpen}>
-        <button type="button" className={themeOpen ? "floating-backdrop is-open" : "floating-backdrop"} onClick={() => setThemeOpen(false)} aria-label="Close themes" />
-        <aside className={themeOpen ? "floating-card is-open theme-card" : "floating-card theme-card"}>
-          <div className="floating-head">
-            <div>
-              <span className="rail-label">Themes</span>
-              <strong>Display</strong>
-            </div>
-            <button type="button" className="ghost-button compact" onClick={() => setThemeOpen(false)}>
-              Close
-            </button>
-          </div>
-          <ThemePicker
-            theme={theme}
-            onChange={(nextTheme) => {
-              onThemeChange(nextTheme);
-              setThemeOpen(false);
-            }}
-          />
-        </aside>
       </div>
+
+      {transcriptData && (
+        <div className="floating-panel is-open align-right" style={{ zIndex: 9999 }}>
+          <button type="button" className="floating-backdrop is-open" onClick={() => setTranscriptData(null)} aria-label="Close transcript" />
+          <aside className="floating-card is-open" style={{ width: "600px", maxWidth: "90vw", display: "flex", flexDirection: "column" }}>
+            <div className="floating-head" style={{ borderBottom: "1px solid var(--border)", paddingBottom: "16px", marginBottom: "16px" }}>
+              <div>
+                <span className="rail-label">Transcript View</span>
+                <strong>Raw LLM Conversation</strong>
+              </div>
+              <button type="button" className="ghost-button compact" onClick={() => setTranscriptData(null)}>
+                Close
+              </button>
+            </div>
+            <div style={{ overflowY: "auto", flex: 1, paddingRight: "8px", display: "flex", flexDirection: "column", gap: "16px" }}>
+              {transcriptData.map((t, idx) => (
+                <div key={idx} style={{ 
+                  padding: "12px", 
+                  background: t.role === "user" ? "var(--surface-sunken)" : "var(--surface-raised)", 
+                  borderRadius: "8px",
+                  border: t.role === "user" ? "1px solid var(--border)" : "1px solid var(--accent)",
+                  whiteSpace: "pre-wrap",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "13px"
+                }}>
+                  <strong style={{ display: "block", marginBottom: "8px", color: t.role === "user" ? "var(--fg-muted)" : "var(--accent)" }}>
+                    {t.role.toUpperCase()}
+                  </strong>
+                  {t.content}
+                </div>
+              ))}
+              {transcriptData.length === 0 && <p className="muted-copy">No messages in transcript.</p>}
+            </div>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

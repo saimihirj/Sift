@@ -4,7 +4,10 @@
   "version": "0.4.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run dev:mvp",
+    "dev:mvp": "VITE_APP_MODE=mvp vite",
+    "dev:admin": "VITE_APP_MODE=admin vite --port 5174",
+    "dev:sne": "VITE_APP_MODE=admin vite --port 5175 --open /admin/neural",
     "build": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && vite build",
     "preview": "vite preview"
   },

@@ -20,10 +20,11 @@ from backend.core import rag
 from backend.core.state import ConversationState
 
 
-VC_INPUT_DIR = Path("knowledge_base") / "inbox"
+ROOT_DIR = Path(__file__).resolve().parents[2]
+VC_INPUT_DIR = ROOT_DIR / "knowledge_base" / "inbox"
 INVESTOR_SHEET = VC_INPUT_DIR / "Investor.xlsx"
 PORTFOLIO_SHEET = VC_INPUT_DIR / "Investor Firm.xlsx"
-VC_DATA_DIR = Path("data") / "vc_firms"
+VC_DATA_DIR = ROOT_DIR / "data" / "vc_firms"
 VC_CACHE_DIR = VC_DATA_DIR / "cache"
 VC_MANIFEST = VC_DATA_DIR / "manifest.json"
 

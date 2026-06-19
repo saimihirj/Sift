@@ -204,7 +204,7 @@ def expert_data_dir() -> Path:
     for candidate in candidates:
         if candidate.exists():
             return candidate
-    return candidates[0] if candidates else Path("data")
+    return candidates[0] if candidates else (repo_root / "data")
 
 
 def _normalize_phrase(value: str) -> str:

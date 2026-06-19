@@ -15,7 +15,8 @@ from pathlib import Path
 from fastapi import UploadFile
 
 
-DATA_DIR = Path(os.environ.get("SIFT_DATA_DIR", "data"))
+ROOT_DIR = Path(__file__).resolve().parents[2]
+DATA_DIR = Path(os.environ.get("SIFT_DATA_DIR", str(ROOT_DIR / "data")))
 UPLOAD_BACKEND = os.environ.get("SIFT_UPLOAD_BACKEND", "local").strip().lower()
 _UPLOAD_TMP_VALUE = os.environ.get("SIFT_UPLOAD_TMP_DIR", "").strip()
 UPLOAD_TMP_DIR = Path(_UPLOAD_TMP_VALUE or ("/tmp/sift_uploads" if UPLOAD_BACKEND == "gcs" else str(DATA_DIR / "session_uploads")))

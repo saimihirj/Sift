@@ -202,13 +202,6 @@ export function LandingScreen({
 
         </div>
 
-        {/* Neural Engine Dashboard Direct Link */}
-        <div style={{ position: "absolute", bottom: "1.5rem", right: "2rem" }}>
-          <Link to="/dashboard" style={{ textDecoration: "none", color: "var(--text-muted)", fontSize: "0.8rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "color 0.2s" }}>
-            SNE (Sift Neural Engine)
-          </Link>
-        </div>
-
       </section>
     </div>
   );

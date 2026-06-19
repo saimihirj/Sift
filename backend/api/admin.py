@@ -61,3 +61,23 @@ async def get_admin_events(
         events=memory.list_recent_events(limit=limit, current_build_only=True, useful_only=True),
         sessions=[_session_summary(item) for item in memory.list_sessions(limit=20)],
     )
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: str,
+    x_admin_token: str | None = Header(default=None),
+) -> dict[str, str]:
+    _require_admin_token(x_admin_token)
+    memory.delete_session(session_id)
+    return {"status": "deleted"}
+
+
+@router.get("/sessions/{session_id}/transcript")
+async def get_session_transcript(
+    session_id: str,
+    x_admin_token: str | None = Header(default=None),
+) -> list[dict]:
+    _require_admin_token(x_admin_token)
+    turns = memory.get_session_turns(session_id)
+    return [{"role": t.get("role"), "content": t.get("content")} for t in turns]

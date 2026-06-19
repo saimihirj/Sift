@@ -652,3 +652,24 @@ async def chat(
             yield _sse("error", {"message": str(exc) or "Something went wrong while processing this turn."})
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+from backend.schemas import MessageFeedbackRequest, MessageFeedbackResponse
+
+@router.post("/feedback", response_model=MessageFeedbackResponse)
+async def submit_feedback(payload: MessageFeedbackRequest) -> MessageFeedbackResponse:
+    # We pipe the explicit thumbs up/down into the analytics event system
+    # so we can track RLHF data.
+    memory.track_event(
+        event_type="message_feedback",
+        client_id=payload.clientId,
+        session_id=payload.sessionId,
+        display_name="",
+        pathname="/chat",
+        metadata={
+            "rating": payload.rating,
+            "reason": payload.reason,
+            "messageIndex": payload.messageIndex
+        }
+    )
+    return MessageFeedbackResponse()

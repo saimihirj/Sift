@@ -12,6 +12,15 @@ from typing import Any, AsyncIterator
 
 import httpx
 
+try:
+    from langsmith import traceable
+except ImportError:
+    def traceable(*args, **kwargs):
+        def decorator(func):
+            return func
+        if len(args) == 1 and callable(args[0]):
+            return args[0]
+        return decorator
 
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 MODEL_PROVIDER = os.environ.get("SIFT_MODEL_PROVIDER", "auto").lower()
@@ -1196,6 +1205,7 @@ async def _stream_from_profile(
     }
 
 
+@traceable(run_type="llm")
 async def stream_chat_completion(
     system: str,
     messages: list[dict[str, Any]],
@@ -1517,6 +1527,7 @@ async def _complete_vertex_gemini(
     }
 
 
+@traceable(run_type="llm")
 async def generate_provider_text(
     *,
     provider: str,

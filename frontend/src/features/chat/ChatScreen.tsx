@@ -18,6 +18,7 @@ import { RuntimeSidebar } from "../session/RuntimeSidebar";
 import { SessionSidebar } from "../session/SessionSidebar";
 import { ChatMessageList } from "./ChatMessageList";
 import { Composer } from "./Composer";
+import { TelemetryLoader } from "./TelemetryLoader";
 
 type Props = {
   session: SessionPayload;
@@ -542,6 +543,12 @@ export function ChatScreen({
               assistantLabel="Ideate"
               sessionId={session.sessionId}
             />
+
+            {pending && !streamingAssistant && (
+              <div style={{ padding: "0 16px 16px" }}>
+                <TelemetryLoader />
+              </div>
+            )}
 
             <Composer
               value={draft}

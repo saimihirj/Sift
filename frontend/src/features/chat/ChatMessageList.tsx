@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { API_BASE } from "../../lib/api/client";
 
 import type { ChatTurn } from "../../app/types";
 
@@ -149,6 +150,21 @@ export function ChatMessageList({
     setShowFullHistory(false);
   }, [sessionId]);
 
+  const handleFeedback = async (messageIndex: number, rating: "up" | "down") => {
+    if (!sessionId) return;
+    try {
+      await fetch(`${API_BASE}/api/chat/feedback`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, messageIndex, rating, reason: "" })
+      });
+      // Optionally show a toast or change icon color here
+    } catch (e) {
+      console.error("Failed to submit feedback", e);
+    }
+  };
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [history, streamingAssistant]);
@@ -170,6 +186,12 @@ export function ChatMessageList({
         <article key={`${turn.role}-${index}-${turn.content.slice(0, 16)}`} className={`message ${turn.role}`}>
           <span className="message-role">{turn.role === "assistant" ? assistantLabel : "You"}</span>
           <MessageContent content={turn.content} />
+          {turn.role === "assistant" && sessionId && (
+            <div className="message-feedback" style={{ display: "flex", gap: "8px", marginTop: "8px", opacity: 0.6 }}>
+              <button type="button" className="ghost-button compact" onClick={() => handleFeedback(index, "up")} title="Helpful response" style={{ fontSize: "12px", padding: "2px 6px" }}>👍</button>
+              <button type="button" className="ghost-button compact" onClick={() => handleFeedback(index, "down")} title="Unhelpful or hallucinated" style={{ fontSize: "12px", padding: "2px 6px" }}>👎</button>
+            </div>
+          )}
         </article>
       ))}
       {streamingAssistant && (

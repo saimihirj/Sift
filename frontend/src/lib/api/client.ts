@@ -365,3 +365,25 @@ export async function getAdminEvents(token: string): Promise<AdminEventsPayload>
   }
   return response.json();
 }
+
+export async function deleteSession(sessionId: string, token: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/admin/sessions/${sessionId}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: token ? { "x-admin-token": token } : {},
+  });
+  if (!response.ok) {
+    throw new Error("Failed to delete session");
+  }
+}
+
+export async function getSessionTranscript(sessionId: string, token: string): Promise<{role: string, content: string}[]> {
+  const response = await fetch(`${API_BASE}/api/admin/sessions/${sessionId}/transcript`, {
+    credentials: "include",
+    headers: token ? { "x-admin-token": token } : {},
+  });
+  if (!response.ok) {
+    throw new Error("Failed to load transcript");
+  }
+  return response.json();
+}
