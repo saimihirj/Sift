@@ -38,8 +38,12 @@ Optional:
 Recommended local models:
 
 ```bash
-ollama pull llama3.2
+# fast default
 ollama pull qwen3:8b
+# sharper reasoning
+ollama pull qwen3:30b
+# optional — deck page image review
+ollama pull qwen2.5vl:7b
 ```
 
 The local launcher auto-starts Ollama if it is needed and not already running.

@@ -21,9 +21,9 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL_SPEED
-        value: openai/gpt-oss-20b
+        value: meta-llama/llama-4-scout-17b-16e-instruct
       - key: GROQ_MODEL_BALANCED
-        value: openai/gpt-oss-120b
+        value: meta-llama/llama-4-maverick-17b-128e-instruct
       - key: SIFT_ADMIN_TOKEN
         sync: false
       - key: SIFT_DATABASE_URL

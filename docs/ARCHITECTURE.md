@@ -207,6 +207,11 @@ Responsibilities:
 - `backend/api/chat.py`
 - `backend/api/outline.py`
 - `backend/api/client.py`
+- `backend/api/brain.py`
+- `backend/api/evaluator.py`
+- `backend/api/analytics.py`
+- `backend/api/admin.py`
+- `backend/api/auth.py`
 
 Responsibilities:
 - session start and load
@@ -253,17 +258,24 @@ Recommended production storage:
 | `8000` | FastAPI backend | API health and backend debugging |
 | `5173` | Vite frontend | frontend dev only |
 | `11434` | Ollama | local model runtime |
+| `8001` | Sift Brain server | fine-tuned adapter (optional) |
 
 ### Local endpoints
 
 | Endpoint | Purpose |
 |---|---|
-| `/api/health` | health check |
-| `/api/session/start` | session creation |
-| `/api/session` | list user sessions |
-| `/api/chat` | streamed chat |
-| `/api/outline` | outline generation |
-| `/api/client/heartbeat` | local app browser heartbeat |
+| `GET /api/health` | health check |
+| `POST /api/session/start` | session creation |
+| `GET /api/session` | list user sessions |
+| `POST /api/chat` | streamed chat (SSE) |
+| `POST /api/outline` | outline generation |
+| `POST /api/evaluator/answer` | evaluator turn |
+| `POST /api/client/heartbeat` | local app browser heartbeat |
+| `GET /api/brain/status` | Sift Brain KB status |
+| `GET /api/brain/index-status` | ChromaDB index health |
+| `GET /api/brain/decision-trace` | last session routing trace |
+| `GET /api/admin/overview` | admin metrics |
+| `GET /api/admin/events` | recent events |
 
 ### Production ports
 

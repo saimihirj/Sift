@@ -37,15 +37,44 @@
 - `docs/ARCHITECTURE.md` — Sift Brain added to component diagrams, Render as primary production target.
 - `docs/PLATFORM_OVERVIEW.md` — updated stack section, Sift Brain in architecture overview.
 
-## Unreleased
+## v0.4.0 — 2026-06-19
 
-### Upgraded
+### Design System
 
-- Runtime catalog now marks server-configured provider keys so public users can run hosted providers without pasting their own API key.
-- Fast hosted open-weight defaults now prioritize GPT-OSS on Groq/Cerebras.
-- Local Ollama defaults now start on `qwen3:8b`, with `qwen3:30b` as the sharper local option.
-- OpenAI defaults now expose `gpt-5.4-mini` for fast mode and `gpt-5.5` for sharper frontier mode.
-- Setup and runtime panels now show provider readiness, latency intent, model presets, and end-to-end response timing.
+- Premium loading screen: `SIFT.` wordmark with accent dot + animated sweep bar.
+- New CSS token set: `--brain-accent`, `--brain-glow`, `--surface-glass` across all four themes (light / dark / dusk / neon).
+- New keyframes: `sift-fade-up`, `sift-brain-pulse`, `sift-stream-cursor`, `sift-deck-border`.
+- Full style blocks for `DeckUploadZone`, `DeckVisionBadge`, `SiftBrainPanel`, abort button, and streaming stats.
+
+### Frontend
+
+- **DeckUploadZone** [new component]: drag-and-drop zone with animated border, file preview, page count estimate, `DeckVisionBadge` (Vision ON / Text mode), upload progress, and validation.
+- **EvaluatorScreen**: `DeckUploadZone` replaces the old inline attachment row for `deck_review` mode.
+- **SiftBrainPanel** [new component]: live neural engine status badge, knowledge-graph domain cards with freshness, decision trace, TTFT/TPS metrics, and adapter registry.
+- **RuntimeSidebar**: abort/stop button during streaming, TTFT + tokens/sec stats row, collapsible Sift Brain section.
+- **LandingScreen**: conviction headline copy and neural pulse ticker that cycles through Sift Brain capabilities.
+- **App.tsx** provider model presets updated to current open-source models:
+  - Ollama: `qwen3:8b` (speed) / `qwen3:30b` (balanced)
+  - Groq: `llama-4-scout-17b-16e-instruct` / `llama-4-maverick-17b-128e-instruct`
+  - Cerebras: `qwen-3-8b` / `qwen-3-32b`
+  - OpenAI: `gpt-4.1-mini` / `gpt-4.1`
+  - Anthropic: `claude-haiku-4-5` / `claude-sonnet-4-5`
+- `sift_brain` added as a first-class provider option pointing to port 8001.
+- `sift_brain` added to `Provider` union type.
+- Groq and Cerebras `supportsVisionModels` corrected to `false`.
+
+### Backend
+
+- **`backend/api/brain.py`** [new]: three endpoints — `/api/brain/status` (KB card counts, engine status, adapter info), `/api/brain/index-status` (ChromaDB), `/api/brain/decision-trace` (per-session trace).
+- **`backend/main.py`**: registered `brain_router`; bumped API version to `0.4.0`.
+- **`backend/api/chat.py`**: `ttft_ms` tracked on first delta; `ttftMs` and `tps` emitted in `done` SSE event.
+
+### Repo
+
+- Git remote corrected from `SignalX.git` → `Sift.git`.
+- `render.yaml`: Groq model names updated to `llama-4-scout-17b-16e-instruct` / `llama-4-maverick-17b-128e-instruct`.
+- `package.json` root + frontend bumped to `0.4.0`.
+- `PLATFORM_OVERVIEW.md`: model defaults, local paths, and Open-Source config updated.
 
 ## v0.2.0 - 2026-03-06
 
