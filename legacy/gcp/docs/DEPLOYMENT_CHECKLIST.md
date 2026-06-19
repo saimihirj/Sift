@@ -87,8 +87,8 @@ SIFT_SESSION_SECRET=<strong-random-secret>
 SIFT_COOKIE_SECURE=true
 SIFT_COOKIE_SAMESITE=lax
 GROQ_API_KEY=<your-key>
-GROQ_MODEL_SPEED=openai/gpt-oss-20b
-GROQ_MODEL_BALANCED=openai/gpt-oss-120b
+GROQ_MODEL_SPEED=meta-llama/llama-4-scout-17b-16e-instruct
+GROQ_MODEL_BALANCED=meta-llama/llama-4-maverick-17b-128e-instruct
 SIFT_ADMIN_TOKEN=<optional-admin-token>
 ```
 
@@ -176,7 +176,7 @@ Example:
 
 ```bash
 export GROQ_API_KEY=...
-export GROQ_MODEL_SPEED=openai/gpt-oss-20b
-export GROQ_MODEL_BALANCED=openai/gpt-oss-120b
+export GROQ_MODEL_SPEED=meta-llama/llama-4-scout-17b-16e-instruct
+export GROQ_MODEL_BALANCED=meta-llama/llama-4-maverick-17b-128e-instruct
 npm run mvp:api
 ```

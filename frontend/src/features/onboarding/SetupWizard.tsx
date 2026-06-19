@@ -445,7 +445,7 @@ export function SetupWizard({
                   <input
                     value={resolvedModel}
                     onChange={(event) => onDraftChange((current) => ({ ...current, model: event.target.value }))}
-                    placeholder={resolvedProvider === "cerebras" ? "Example: gpt-oss-120b" : "Type the model id"}
+                    placeholder={resolvedProvider === "cerebras" ? "Example: qwen-3-32b" : "Type the model id"}
                   />
                 </label>
                 {effectiveRuntimeKind === "external" ? (

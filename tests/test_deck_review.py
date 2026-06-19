@@ -46,9 +46,9 @@ class DeckReviewTests(unittest.TestCase):
     def test_model_supports_vision_heuristics(self) -> None:
         self.assertTrue(model_supports_vision("ollama", "qwen2.5vl:7b"))
         self.assertTrue(model_supports_vision("openai", "gpt-4o"))
-        self.assertTrue(model_supports_vision("openai", "gpt-5.5"))
+        self.assertTrue(model_supports_vision("openai", "gpt-4.1"))
         self.assertFalse(model_supports_vision("ollama", "qwen3:8b"))
-        self.assertFalse(model_supports_vision("cerebras", "gpt-oss-120b"))
+        self.assertFalse(model_supports_vision("cerebras", "qwen-3-32b"))
 
     def test_provider_catalog_marks_server_configured_keys(self) -> None:
         with patch.dict("os.environ", {"GROQ_API_KEY": "test-key"}, clear=False):
