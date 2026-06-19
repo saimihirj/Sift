@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 
 import type { SessionSummary } from "../../app/types";
 
@@ -57,9 +56,6 @@ export function SessionSidebar({ isOpen, sessions, currentSessionId, clearing, o
             <span className="rail-label">Sessions</span>
             <strong>Resume without clutter</strong>
           </div>
-          <Link to="/dashboard" className="ghost-button compact" style={{ textDecoration: "none", color: "#10b981", marginRight: "0.5rem" }}>
-            Graph
-          </Link>
           <button type="button" className="ghost-button compact" onClick={onClose}>
             Close
           </button>

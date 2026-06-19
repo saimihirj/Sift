@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 import type { ThemeMode } from "../../app/types";
 
@@ -199,6 +200,13 @@ export function LandingScreen({
             Continue
           </button>
 
+        </div>
+
+        {/* Neural Engine Dashboard Direct Link */}
+        <div style={{ position: "absolute", bottom: "1.5rem", right: "2rem" }}>
+          <Link to="/dashboard" style={{ textDecoration: "none", color: "var(--text-muted)", fontSize: "0.8rem", letterSpacing: "0.1em", textTransform: "uppercase", transition: "color 0.2s" }}>
+            SNE (Sift Neural Engine)
+          </Link>
         </div>
 
       </section>
