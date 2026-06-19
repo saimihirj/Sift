@@ -57,45 +57,11 @@ function ExpertGlyph() {
 
 // ─── Static Data ──────────────────────────────────────────────────────────────
 
-const THEME_SWATCHES: Array<{ key: ThemeMode; bg: string; label: string }> = [
-  { key: "light",  bg: "#164e63", label: "Light" },
-  { key: "dark",   bg: "#8bd3dd", label: "Graphite" },
-  { key: "dusk",   bg: "#d9b56f", label: "Dusk" },
-  { key: "neon",   bg: "#e2e2e2", label: "Focus" },
-];
-
 const MODE_CARDS = [
   { idx: "01", key: "ideate",   label: "Ideate",   hint: "Pitch draft",    Glyph: IdeateGlyph },
   { idx: "02", key: "evaluate", label: "Evaluate", hint: "Score + report", Glyph: EvaluateGlyph },
   { idx: "03", key: "expert",   label: "Expert",   hint: "Sourced answer", Glyph: ExpertGlyph },
 ] as const;
-
-const TICKER_MESSAGES = [
-  "12 knowledge domains indexed",
-  "Vision models read your deck slide-by-slide",
-  "Streaming · sub-200 ms first token",
-  "Runs on Qwen3, Llama-4, or your fine-tuned adapter",
-  "Neural engine routes each query by complexity",
-  "Private · local-first · no data leaves your machine",
-];
-
-function NeuralPulseTicker() {
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setIndex((current) => (current + 1) % TICKER_MESSAGES.length);
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  return (
-    <div className="landing-neural-pulse">
-      <span className="landing-neural-dot" aria-hidden="true" />
-      <span key={index} className="landing-pro-ticker-text">{TICKER_MESSAGES[index]}</span>
-    </div>
-  );
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -128,17 +94,6 @@ export function LandingScreen({
     onContinue();
   };
 
-  const copyFeedbackPrompt = async () => {
-    const note = "Sift beta feedback:\n\nWhat I tried:\nWhat worked:\nWhere I got stuck:\nWhat I expected instead:";
-    try {
-      await navigator.clipboard.writeText(note);
-      setFeedbackCopied(true);
-      window.setTimeout(() => setFeedbackCopied(false), 1800);
-    } catch {
-      setFeedbackCopied(false);
-    }
-  };
-
   const copyAccessKey = async () => {
     if (!accessKey.trim()) {
       return;
@@ -165,18 +120,6 @@ export function LandingScreen({
           </div>
         </header>
 
-        {/* Conviction copy — product lens */}
-        <div className="landing-conviction">
-          <h1 className="landing-conviction-headline">
-            An intelligent verdict machine<br />
-            for <em>startup decisions</em>.
-          </h1>
-          <p className="landing-conviction-sub">
-            Not a chat wrapper. Sift routes every query through a knowledge graph,
-            a fine-tuned decision layer, and the right model — then returns a structured verdict.
-          </p>
-        </div>
-
         {/* Mode cards — functional, not decorative */}
         <nav className="landing-pro-modes" aria-label="Choose a workflow">
           {MODE_CARDS.map((mode, index) => (
@@ -200,27 +143,10 @@ export function LandingScreen({
           ))}
         </nav>
 
-        {/* Neural pulse — AI engineer lens */}
-        <NeuralPulseTicker />
       </section>
 
       {/* ── Right: entry ─────────────────────────────────────────────────── */}
       <section className="landing-pro-right">
-
-        {/* Theme dots */}
-        <div className="theme-swatch-row" role="group" aria-label="Select theme">
-          {THEME_SWATCHES.map((swatch) => (
-            <button
-              key={swatch.key}
-              type="button"
-              className={`theme-swatch${theme === swatch.key ? " active" : ""}`}
-              style={{ "--sw-bg": swatch.bg } as React.CSSProperties}
-              onClick={() => onThemeChange(swatch.key)}
-              aria-label={swatch.label}
-              aria-pressed={theme === swatch.key}
-            />
-          ))}
-        </div>
 
         {/* Entry form */}
         <div className="landing-pro-entry">
@@ -311,7 +237,7 @@ export function LandingScreen({
             </button>
           </div>
 
-          <small className="muted-copy entry-auth-note">Use the same email or handle and Sift key to see your previous sessions.</small>
+
           {error ? <div className="setup-alert" role="alert">{error}</div> : null}
 
           <button
@@ -323,9 +249,6 @@ export function LandingScreen({
             Continue
           </button>
 
-          <button type="button" className="ghost-button compact beta-feedback-button" onClick={() => void copyFeedbackPrompt()}>
-            {feedbackCopied ? "Feedback note copied" : "Copy beta feedback note"}
-          </button>
         </div>
 
       </section>

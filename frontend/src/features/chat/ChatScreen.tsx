@@ -542,14 +542,7 @@ export function ChatScreen({
               assistantLabel="Ideate"
               sessionId={session.sessionId}
             />
-            {starterHelper && session.history.length <= 3 ? <div className="prompt-helper">{starterHelper}</div> : null}
-            <div className="chip-row">
-              {visibleChips.map((chip) => (
-                <button key={chip} type="button" className="chip-button" onClick={() => void submit(chip)} disabled={pending}>
-                  {chip}
-                </button>
-              ))}
-            </div>
+
             <Composer
               value={draft}
               onChange={setDraft}

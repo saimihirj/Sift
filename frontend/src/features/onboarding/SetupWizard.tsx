@@ -84,21 +84,6 @@ const geographyOptions: Array<{ value: string; label: string }> = [
   { value: "global", label: "Global" },
 ];
 
-const sampleContexts = [
-  {
-    label: "Sample SaaS",
-    context: "We are building a workflow intelligence platform for finance teams that catches reconciliation errors before month-end close. The first wedge is mid-market companies using spreadsheets and ERP exports. We have spoken with 9 finance managers and found that close delays usually come from duplicate manual checks.",
-    sector: "saas",
-    stage: "pre-revenue",
-  },
-  {
-    label: "Sample marketplace",
-    context: "We are testing a curated marketplace that helps boutique hotels find verified local experience operators. Hotels currently use informal WhatsApp networks and manual vendor checks. The first experiment is a concierge MVP with 5 hotels and 20 operators in one city.",
-    sector: "marketplace",
-    stage: "idea",
-  },
-] as const;
-
 const stepLabels = ["Workflow", "Context", "Runtime"];
 
 function formatSessionTime(raw?: string | null): string {
@@ -144,12 +129,6 @@ function stepTitle(step: number) {
   if (step === 0) return "What do you want to do?";
   if (step === 1) return "About you";
   return "AI engine";
-}
-
-function stepSubtitle(step: number) {
-  if (step === 0) return "Pick the output you need right now.";
-  if (step === 1) return "A little context improves the result.";
-  return "Use the hosted default, bring a provider key, or choose a local open-source runtime.";
 }
 
 function handleArrowSelection(event: ReactKeyboardEvent<HTMLElement>) {
@@ -295,15 +274,7 @@ export function SetupWizard({
           <ThemePicker theme={theme} onChange={onThemeChange} />
         </div>
 
-        <div className="onboarding-copy">
           <h1>{stepTitle(step)}</h1>
-          <p>{stepSubtitle(step)}</p>
-        </div>
-
-        <div className="beta-note-card">
-          <span className="rail-label">Beta</span>
-          <p>Sift is ready for controlled user testing. Keep sensitive decks private unless you trust the selected model provider.</p>
-        </div>
 
         {recentSessions.length > 0 ? (
           <div className="drawer-card">
@@ -404,7 +375,6 @@ export function SetupWizard({
                   <span className="rail-label">{providerAccessLabel(providerMeta)}</span>
                   <strong>{providerMeta?.label || "Runtime"}</strong>
                 </div>
-                <p>{effectiveRuntimeKind === "local" ? "Private by default." : "Best for public demos."}</p>
               </div>
               <div className="runtime-preset-row">
                 <button
@@ -569,23 +539,6 @@ export function SetupWizard({
                       rows={5}
                     />
                   </label>
-                  <div className="sample-starter-row field-span">
-                    {sampleContexts.map((sample) => (
-                      <button
-                        key={sample.label}
-                        type="button"
-                        className="ghost-button compact"
-                        onClick={() => onDraftChange((current) => ({
-                          ...current,
-                          setupContext: sample.context,
-                          sector: sample.sector,
-                          stage: sample.stage,
-                        }))}
-                      >
-                        {sample.label}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               ) : (
                 <p className="muted-copy">You can skip this and add detail later inside the session.</p>
