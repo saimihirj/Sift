@@ -230,13 +230,26 @@ export function AdminNeuralEngine() {
   return (
     <div style={cinematicBg}>
       
-      {/* Top Navbar */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "1.5rem 2rem", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10, pointerEvents: "none" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: theme === "amber" ? "#f59e0b" : "#10b981", boxShadow: `0 0 15px ${theme === "amber" ? "#f59e0b" : "#10b981"}, 0 0 30px ${theme === "amber" ? "#f59e0b" : "#10b981"}`, animation: "pulse 2s infinite" }} />
-          <h1 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 500, letterSpacing: "0.2em", textTransform: "uppercase", textShadow: `0 0 10px ${theme === "amber" ? "rgba(245,158,11,0.5)" : "rgba(16,185,129,0.5)"}` }}>Sift Neural Engine</h1>
+      {/* Overlay UI matching Main Platform Template */}
+      <header className="pane-header" style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 10, background: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%)", borderBottom: "none" }}>
+        <div>
+          <span className="eyebrow">Admin Portal</span>
+          <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: theme === "amber" ? "#f59e0b" : "#10b981", boxShadow: `0 0 10px ${theme === "amber" ? "#f59e0b" : "#10b981"}` }} />
+            Neural Engine
+          </h2>
         </div>
-      </div>
+        <div className="status-stack">
+          <div className="header-actions">
+            <button type="button" className={`ghost-button compact ${theme === "amber" ? "active" : ""}`} onClick={() => setTheme("amber")}>
+              Evolution
+            </button>
+            <button type="button" className={`ghost-button compact ${theme === "blue" ? "active" : ""}`} onClick={() => setTheme("blue")}>
+              Deep Blue
+            </button>
+          </div>
+        </div>
+      </header>
 
       {/* Force Graph 3D Canvas */}
       {data && (
@@ -268,31 +281,15 @@ export function AdminNeuralEngine() {
 
       {/* Loading / Error States */}
       {!data && !error && (
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#52525b", letterSpacing: "0.1em" }}>
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#52525b", letterSpacing: "0.1em", zIndex: 5 }}>
           INITIALIZING 3D TOPOLOGY...
         </div>
       )}
       {error && (
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#f43f5e" }}>
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#f43f5e", zIndex: 5 }}>
           {error}
         </div>
       )}
-
-      {/* Theme Toggle */}
-      <div style={{ position: "absolute", top: "2rem", right: "2rem", zIndex: 10, display: "flex", gap: "0.5rem" }}>
-        <button 
-          onClick={() => setTheme("amber")}
-          style={{ padding: "0.5rem 1rem", borderRadius: "20px", background: theme === "amber" ? "rgba(245, 158, 11, 0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${theme === "amber" ? "#f59e0b" : "transparent"}`, color: theme === "amber" ? "#fcd34d" : "#a1a1aa", cursor: "pointer", transition: "all 0.2s" }}
-        >
-          Evolution
-        </button>
-        <button 
-          onClick={() => setTheme("blue")}
-          style={{ padding: "0.5rem 1rem", borderRadius: "20px", background: theme === "blue" ? "rgba(59, 130, 246, 0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${theme === "blue" ? "#3b82f6" : "transparent"}`, color: theme === "blue" ? "#93c5fd" : "#a1a1aa", cursor: "pointer", transition: "all 0.2s" }}
-        >
-          Deep Blue
-        </button>
-      </div>
 
       {/* Glassmorphic Active Node Inspector */}
       {activeNode && (

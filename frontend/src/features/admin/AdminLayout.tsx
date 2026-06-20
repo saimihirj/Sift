@@ -49,7 +49,7 @@ export function AdminLayout({ theme, onThemeChange }: Props) {
                 autoFocus
               />
             </label>
-            <button type="submit" className="solid-button pro-continue-btn">
+            <button type="submit" className="solid-button">
               Authenticate
             </button>
           </form>
