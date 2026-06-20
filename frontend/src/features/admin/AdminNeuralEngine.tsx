@@ -71,20 +71,21 @@ export function AdminNeuralEngine() {
     void loadGraph();
   }, [theme]);
 
-  // Force Directed Tuning (3D)
+  // Force Directed Tuning (3D) - Dense Circular Organic Brain
   useEffect(() => {
-    if (fgRef.current) {
-      // Tune the d3 forces for a dense 3D cluster
+    if (fgRef.current && data) {
+      // Pull nodes tightly together into a dense sphere
       fgRef.current.d3Force("charge").strength((node: any) => {
-        if (node.group === "hub") return -2000;
-        if (node.group === "domain") return -400;
-        if (node.group === "subdomain") return -100;
-        return -30;
+        if (node.group === "hub") return -800;
+        if (node.group === "domain") return -150;
+        if (node.group === "subdomain") return -40;
+        return -15; // cards pack very tight
       });
+      // Shorten links to remove stringy appearance
       fgRef.current.d3Force("link").distance((link: any) => {
-        if (link.value === 3) return 120; // hub to domain
-        if (link.value === 2) return 50;  // domain to subdomain
-        return 15; // subdomain to card
+        if (link.value === 3) return 40; // hub to domain
+        if (link.value === 2) return 20;  // domain to subdomain
+        return 8; // subdomain to card
       });
     }
   }, [data]);
@@ -92,9 +93,8 @@ export function AdminNeuralEngine() {
   const handleNodeClick = (node: GraphNode) => {
     setActiveNode(node);
     if (fgRef.current) {
-      // Calculate a position slightly offset from the node to look at it
-      const distance = node.group === "card" ? 60 : node.group === "subdomain" ? 120 : 250;
-      const distRatio = 1 + distance / Math.hypot(node.x || 0, node.y || 0, node.z || 0);
+      const distance = node.group === "card" ? 30 : node.group === "subdomain" ? 60 : 120;
+      const distRatio = 1 + distance / Math.max(Math.hypot(node.x || 0, node.y || 0, node.z || 0), 1);
 
       const newPos = {
         x: (node.x || 0) * distRatio,
@@ -102,7 +102,7 @@ export function AdminNeuralEngine() {
         z: (node.z || 0) * distRatio
       };
 
-      fgRef.current.cameraPosition(newPos, node, 2000); // 2000 ms transition
+      fgRef.current.cameraPosition(newPos, node, 1500); // 1.5s smooth transition
     }
   };
 
@@ -112,7 +112,7 @@ export function AdminNeuralEngine() {
       return;
     }
     
-    // Find parent node link
+    // Find parent node link for the "bounce-back" circular traversal
     const parentLink = data.links.find((l: any) => 
       (typeof l.target === "object" ? l.target.id === activeNode.id : l.target === activeNode.id)
     );
@@ -123,40 +123,43 @@ export function AdminNeuralEngine() {
       parentNode = data.nodes.find(n => n.id === sourceId) || null;
     }
     
-    if (parentNode) {
+    if (parentNode && parentNode.group !== "hub") {
+      // Zoom out to parent node elegantly
       handleNodeClick(parentNode);
     } else {
       setActiveNode(null);
-      // Zoom out to see whole cluster
-      fgRef.current.cameraPosition({ x: 0, y: 0, z: 800 }, { x: 0, y: 0, z: 0 }, 2000);
+      // Zoom back to a wide orbital view of the whole cluster
+      fgRef.current.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 2000);
     }
   };
 
   const handleBackgroundClick = () => {
     setActiveNode(null);
     if (fgRef.current) {
-      fgRef.current.cameraPosition({ x: 0, y: 0, z: 800 }, { x: 0, y: 0, z: 0 }, 2000);
+      fgRef.current.cameraPosition({ x: 0, y: 0, z: 300 }, { x: 0, y: 0, z: 0 }, 2000);
     }
   };
 
-  // Pre-create geometries and materials for performance
-  const sphereGeo = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
-  const torusGeo1 = useMemo(() => new THREE.TorusGeometry(3, 0.1, 16, 100), []);
-  const torusGeo2 = useMemo(() => new THREE.TorusGeometry(4.5, 0.05, 16, 100), []);
-  const torusGeo3 = useMemo(() => new THREE.TorusGeometry(6, 0.02, 16, 100), []);
+  // Pre-create geometries for performance
+  const sphereGeo = useMemo(() => new THREE.SphereGeometry(1, 24, 24), []);
+  const hubRingGeo = useMemo(() => new THREE.TorusGeometry(3.5, 0.05, 16, 100), []);
 
   const nodeThreeObject = (node: GraphNode) => {
     const group = new THREE.Group();
     const isHovered = node.id === hoverNode?.id;
     const isActive = node.id === activeNode?.id;
     
-    // Core glowing sphere
-    const material = new THREE.MeshLambertMaterial({ 
+    // Premium Glassmorphic / Physical Material
+    const material = new THREE.MeshPhysicalMaterial({ 
       color: node.color,
       emissive: node.color,
-      emissiveIntensity: isActive ? 1.5 : isHovered ? 1.0 : 0.6,
+      emissiveIntensity: isActive ? 1.5 : isHovered ? 0.8 : (node.group === "card" ? 0.3 : 0.6),
       transparent: true,
-      opacity: 0.9
+      opacity: node.group === "card" ? 0.8 : 0.95,
+      roughness: 0.1,
+      metalness: 0.5,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.1
     });
     
     const sphere = new THREE.Mesh(sphereGeo, material);
@@ -164,40 +167,44 @@ export function AdminNeuralEngine() {
     sphere.scale.set(size, size, size);
     group.add(sphere);
 
-    // Hub holographic rings
+    // Hub node gets a single sleek orbital ring instead of cluttered geometry
     if (node.group === "hub") {
       const ringMat = new THREE.MeshBasicMaterial({ 
         color: node.color, 
         transparent: true, 
-        opacity: theme === "amber" ? 0.6 : 0.4,
+        opacity: theme === "amber" ? 0.5 : 0.3,
         side: THREE.DoubleSide
       });
       
-      const r1 = new THREE.Mesh(torusGeo1, ringMat);
-      const r2 = new THREE.Mesh(torusGeo2, ringMat);
-      const r3 = new THREE.Mesh(torusGeo3, ringMat);
-      
-      // Animate rings using userData
-      r1.userData = { axis: new THREE.Vector3(1, 0, 0), speed: 0.02 };
-      r2.userData = { axis: new THREE.Vector3(0, 1, 0), speed: -0.015 };
-      r3.userData = { axis: new THREE.Vector3(0, 0, 1), speed: 0.01 };
-      
-      group.add(r1, r2, r3);
-      group.userData = { isHub: true, rings: [r1, r2, r3] };
+      const ring = new THREE.Mesh(hubRingGeo, ringMat);
+      ring.userData = { axis: new THREE.Vector3(0.5, 1, 0).normalize(), speed: 0.015 };
+      group.add(ring);
+      group.userData = { isHub: true, rings: [ring] };
     } 
-    // Add text label only for domains/subdomains (or active/hovered nodes)
+    // High-quality SpriteText labels for major domains
     else if (node.group === "domain" || node.group === "subdomain" || isActive || isHovered) {
-      const sprite = new SpriteText(node.name);
-      sprite.color = "rgba(255,255,255,0.8)";
-      sprite.textHeight = node.group === "domain" ? 4 : 2;
-      sprite.position.y = -(size + sprite.textHeight); // Position below the node
-      group.add(sprite);
+      // Hide card labels unless hovered/active to prevent clutter
+      if (node.group !== "card" || isActive || isHovered) {
+        const sprite = new SpriteText(node.name);
+        sprite.fontFace = "Inter, sans-serif";
+        sprite.fontWeight = "500";
+        sprite.color = "rgba(255,255,255,0.9)";
+        sprite.textHeight = node.group === "domain" ? 3 : node.group === "subdomain" ? 1.8 : 1.2;
+        
+        // Add a slight dark background to make text legible against bright nodes
+        sprite.backgroundColor = "rgba(0,0,0,0.4)";
+        sprite.padding = 1.5;
+        sprite.borderRadius = 2;
+        
+        sprite.position.y = -(size + sprite.textHeight);
+        group.add(sprite);
+      }
     }
 
     return group;
   };
 
-  // Animation loop for hub rings
+  // Animation loop for the hub ring
   useEffect(() => {
     let animationFrameId: number;
     const animate = () => {
@@ -217,25 +224,18 @@ export function AdminNeuralEngine() {
     return () => cancelAnimationFrame(animationFrameId);
   }, [data]);
 
-  const cinematicBg = {
-    position: "relative" as const,
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#000000",
-    overflow: "hidden",
-    color: "#fff",
-    fontFamily: "Inter, sans-serif"
-  };
-
   return (
-    <div style={cinematicBg}>
+    <div className="neural-engine-shell" style={{ position: "relative", width: "100%", height: "100%", background: "#020204", overflow: "hidden" }}>
       
-      {/* Overlay UI matching Main Platform Template */}
-      <header className="pane-header" style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 10, background: "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%)", borderBottom: "none" }}>
+      {/* Pane Header matching the Main Platform */}
+      <header className="pane-header" style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 10, background: "transparent", borderBottom: "none" }}>
         <div>
           <span className="eyebrow">Admin Portal</span>
           <h2 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: theme === "amber" ? "#f59e0b" : "#10b981", boxShadow: `0 0 10px ${theme === "amber" ? "#f59e0b" : "#10b981"}` }} />
+            <div className={`status-dot ${theme === "amber" ? "amber" : "green"}`} style={{ 
+              backgroundColor: theme === "amber" ? "var(--brain-accent)" : "#10b981", 
+              boxShadow: `0 0 10px ${theme === "amber" ? "var(--brain-glow)" : "rgba(16,185,129,0.5)"}` 
+            }} />
             Neural Engine
           </h2>
         </div>
@@ -259,12 +259,12 @@ export function AdminNeuralEngine() {
           nodeThreeObject={nodeThreeObject}
           linkColor={(link: any) => {
              const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
-             return s?.color ? `${s.color}${theme === "amber" ? "60" : "40"}` : "#222222";
+             return s?.color ? `${s.color}${theme === "amber" ? "40" : "30"}` : "#222222";
           }}
-          linkWidth={(link: any) => link.value === 3 ? 1.0 : 0.5}
-          linkDirectionalParticles={(link: any) => (link.value === 3 ? 5 : link.value === 2 ? 3 : 2)}
-          linkDirectionalParticleWidth={(link: any) => link.value === 3 ? 2 : 1}
-          linkDirectionalParticleSpeed={0.005}
+          linkWidth={(link: any) => link.value === 3 ? 0.8 : 0.3}
+          linkDirectionalParticles={(link: any) => (link.value === 3 ? 4 : link.value === 2 ? 2 : 0)}
+          linkDirectionalParticleWidth={1.5}
+          linkDirectionalParticleSpeed={0.008}
           linkDirectionalParticleColor={(link: any) => {
              const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
              return s?.color || "#ffffff";
@@ -273,75 +273,72 @@ export function AdminNeuralEngine() {
           onNodeClick={(node: any) => handleNodeClick(node)}
           onBackgroundClick={handleBackgroundClick}
           backgroundColor="#020204"
-          d3AlphaDecay={0.015}
-          d3VelocityDecay={0.25}
+          d3AlphaDecay={0.01}
+          d3VelocityDecay={0.3} // Higher friction for tighter grouping
           showNavInfo={false}
         />
       )}
 
       {/* Loading / Error States */}
       {!data && !error && (
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#52525b", letterSpacing: "0.1em", zIndex: 5 }}>
-          INITIALIZING 3D TOPOLOGY...
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "var(--text-muted)", letterSpacing: "0.1em", zIndex: 5, fontSize: "0.85rem", textTransform: "uppercase" }}>
+          Initializing Neural Cluster...
         </div>
       )}
       {error && (
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#f43f5e", zIndex: 5 }}>
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "var(--status-error)", zIndex: 5 }}>
           {error}
         </div>
       )}
 
-      {/* Glassmorphic Active Node Inspector */}
+      {/* Minimalist Inspector Panel matching platform aesthetics */}
       {activeNode && (
         <div 
           style={{ 
             position: "absolute", 
             bottom: "2rem", 
             right: "2rem", 
-            width: "350px",
-            background: "rgba(10, 10, 10, 0.65)", 
-            backdropFilter: "blur(24px) saturate(150%)", 
-            WebkitBackdropFilter: "blur(24px) saturate(150%)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            borderTop: "1px solid rgba(255, 255, 255, 0.15)",
-            borderRadius: "16px",
-            padding: "1.75rem",
+            width: "320px",
+            background: "var(--bg-panel)", 
+            border: "1px solid var(--border-color)",
+            borderRadius: "12px",
+            padding: "1.5rem",
             zIndex: 20,
-            boxShadow: "0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.1)",
-            animation: "fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+            boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+            animation: "fadeIn 0.3s ease-out forwards"
           }}
         >
-          <div style={{ fontSize: "0.7rem", textTransform: "uppercase", letterSpacing: "0.1em", color: activeNode.color || "#a1a1aa", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", backgroundColor: activeNode.color || "#fff", boxShadow: `0 0 8px ${activeNode.color}` }}></span>
+          <div style={{ fontSize: "0.65rem", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-muted)", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", backgroundColor: activeNode.color || "var(--text-primary)", boxShadow: `0 0 8px ${activeNode.color}` }}></span>
             {activeNode.group === "card" ? "Expert Card" : activeNode.group}
           </div>
-          <h2 style={{ margin: "0 0 0.5rem 0", fontSize: "1.25rem", fontWeight: 400, lineHeight: 1.3 }}>{activeNode.name}</h2>
+          
+          <h3 style={{ margin: "0 0 0.5rem 0", fontSize: "1.1rem", fontWeight: 500, color: "var(--text-primary)" }}>
+            {activeNode.name}
+          </h3>
           
           {activeNode.description && (
-            <p style={{ margin: "0 0 1rem 0", fontSize: "0.85rem", color: "#a1a1aa", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            <p style={{ margin: "0 0 1rem 0", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
               {activeNode.description}
             </p>
           )}
           
           {activeNode.group === "card" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem", borderTop: "1px solid rgba(255, 255, 255, 0.1)", paddingTop: "1rem" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem", borderTop: "1px solid var(--border-color)", paddingTop: "1rem" }}>
               <div>
-                <div style={{ fontSize: "0.65rem", color: "#71717a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.2rem" }}>Domain</div>
-                <div style={{ fontSize: "0.85rem", color: "#e4e4e7", textTransform: "capitalize" }}>{activeNode.domain}</div>
+                <div className="eyebrow">Domain</div>
+                <div style={{ fontSize: "0.85rem", color: "var(--text-primary)", textTransform: "capitalize", marginTop: "0.2rem" }}>{activeNode.domain}</div>
               </div>
               <div>
-                <div style={{ fontSize: "0.65rem", color: "#71717a", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.2rem" }}>Confidence</div>
-                <div style={{ fontSize: "0.85rem", color: "#e4e4e7", textTransform: "capitalize" }}>{activeNode.confidence}</div>
+                <div className="eyebrow">Confidence</div>
+                <div style={{ fontSize: "0.85rem", color: "var(--text-primary)", textTransform: "capitalize", marginTop: "0.2rem" }}>{activeNode.confidence}</div>
               </div>
             </div>
           )}
 
-          <div style={{ marginTop: "1.5rem", textAlign: "right" }}>
-            <button 
-              onClick={handleClosePanel}
-              style={{ background: "transparent", border: "none", color: "#a1a1aa", cursor: "pointer", fontSize: "0.8rem", padding: "0.25rem 0" }}
-            >
-              Close
+          <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "flex-end" }}>
+            <button className="ghost-button compact" onClick={handleClosePanel}>
+              Close Inspector
             </button>
           </div>
         </div>
@@ -352,11 +349,6 @@ export function AdminNeuralEngine() {
           @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
-          }
-          @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
           }
         `}
       </style>

@@ -89,8 +89,19 @@ function metricCards(overview: AdminOverview | null): MetricCard[] {
   );
 
   return (
-    <div style={{ height: "100%", overflowY: "auto" }}>
-      <div className="admin-main" style={{ padding: "1.5rem" }}>
+    <div className="observability-shell" style={{ height: "100%", overflowY: "auto", display: "flex", flexDirection: "column" }}>
+      <header className="pane-header">
+        <div>
+          <span className="eyebrow">Admin Portal</span>
+          <h2>Observability & Logs</h2>
+        </div>
+        <div className="status-stack">
+          <span className="status-dot green" />
+          <span className="eyebrow">System Active</span>
+        </div>
+      </header>
+
+      <div className="admin-main" style={{ padding: "1.5rem", flex: 1 }}>
         <section className="admin-grid">
           {cards.map((card) => (
             <article key={card.label} className="admin-metric">
@@ -139,8 +150,8 @@ function metricCards(overview: AdminOverview | null): MetricCard[] {
                       <span>{session.turnCount} turns</span>
                       <small>{session.lastActive ? new Date(session.lastActive).toLocaleString() : "-"}</small>
                       <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-                        <button type="button" onClick={() => handleViewTranscript(session.sessionId)} style={{ cursor: "pointer", background: "none", border: "1px solid var(--accent)", color: "var(--accent)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>View</button>
-                        <button type="button" onClick={() => handleDeleteSession(session.sessionId)} style={{ cursor: "pointer", background: "none", border: "1px solid var(--destructive)", color: "var(--destructive)", padding: "2px 6px", borderRadius: "4px", fontSize: "11px" }}>Delete</button>
+                        <button type="button" onClick={() => handleViewTranscript(session.sessionId)} className="ghost-button compact" style={{ fontSize: "11px", padding: "2px 8px" }}>View</button>
+                        <button type="button" onClick={() => handleDeleteSession(session.sessionId)} className="ghost-button compact" style={{ fontSize: "11px", padding: "2px 8px", color: "var(--status-error)" }}>Delete</button>
                       </div>
                     </div>
                   </div>
