@@ -7,6 +7,7 @@ import os
 from fastapi import APIRouter, Header, HTTPException, Query
 
 from backend.core import memory
+from backend.core.rag import purge_session_turns
 
 from backend.schemas import AdminEventsResponse, AdminOverviewResponse, SessionSummary
 
@@ -70,6 +71,8 @@ async def delete_session(
 ) -> dict[str, str]:
     _require_admin_token(x_admin_token)
     memory.delete_session(session_id)
+    # Purge conversation vectors so the HNSW index does not accumulate stale data.
+    purge_session_turns(session_id)
     return {"status": "deleted"}
 
 

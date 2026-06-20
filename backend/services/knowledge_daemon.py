@@ -5,6 +5,7 @@ import json
 import logging
 from typing import Any
 
+from backend.core.rag import prune_stale_conversations
 from sift_brain.knowledge_graph.embedder import rebuild_index
 from sift_brain.knowledge_graph.graph import KnowledgeGraph
 from sift_brain.knowledge_graph.updater import KB_DIR, run_domain_update
@@ -36,6 +37,14 @@ async def knowledge_daemon_task() -> None:
             break
         except Exception as e:
             logger.error("Error in knowledge daemon: %s", e)
+
+        # Prune stale conversation vectors once per cycle (no-op when nothing to purge).
+        try:
+            pruned = await asyncio.to_thread(prune_stale_conversations)
+            if pruned:
+                logger.info("Conversation TTL sweep: removed %d stale vector(s).", pruned)
+        except Exception as e:
+            logger.warning("Conversation TTL sweep failed (non-fatal): %s", e)
 
         await asyncio.sleep(UPDATE_INTERVAL_SECONDS)
 

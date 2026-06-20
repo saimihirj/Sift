@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from typing import AsyncIterator
@@ -44,9 +45,25 @@ from backend.services.uploads import ingest_upload, list_active_uploads
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
-MAX_HISTORY_MESSAGES = 4
-MAX_HISTORY_MESSAGE_CHARS = 320
-MAX_HISTORY_TOTAL_CHARS = 1100
+# ── History window ────────────────────────────────────────────────────────────
+# Token estimation: ~4 characters per token (conservative average across English
+# and mixed-case founder messages). All budget figures are in *estimated tokens*.
+#
+# HISTORY_TURNS_WINDOW   — how many past turns to consider (12 = 6 user + 6 asst)
+# HISTORY_TOKEN_BUDGET   — total token budget for all history messages combined
+# HISTORY_MIN_TOKENS_PER_TURN — protected floor per turn so recent turns are
+#                               never stripped to a single word.
+#
+# At qwen3:8b with num_ctx=8192:
+#   system prompt + retrieval ≈ 1,200-2,000 tokens
+#   12-turn history at 3,200 tokens ≈ 267 tokens/turn avg
+#   response headroom ≈ 480 tokens  →  total well within 8,192.
+HISTORY_TURNS_WINDOW = int(os.environ.get("SIFT_HISTORY_TURNS", "12"))
+HISTORY_TOKEN_BUDGET = int(os.environ.get("SIFT_HISTORY_TOKEN_BUDGET", "3200"))
+HISTORY_MIN_TOKENS_PER_TURN = int(os.environ.get("SIFT_HISTORY_MIN_TOKENS_TURN", "40"))
+CHARS_PER_TOKEN = 4  # conservative estimate
+
+# Legacy char-based stable-workflow thresholds (kept for the OOM guard).
 STABLE_WORKFLOW_TOTAL_CHARS = 4800
 STABLE_WORKFLOW_PROMPT_CHARS = 3800
 MARKDOWN_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s*", re.MULTILINE)
@@ -97,24 +114,52 @@ def _trim_text(text: str, max_chars: int) -> str:
     return value[: max_chars - 1].rstrip() + "..."
 
 
+def _tokens(text: str) -> int:
+    """Estimate token count from character length."""
+    return max(1, len(text) // CHARS_PER_TOKEN)
+
+
+def _trim_to_tokens(text: str, max_tokens: int) -> str:
+    """Trim text to fit within an estimated token budget."""
+    value = (text or "").strip()
+    max_chars = max_tokens * CHARS_PER_TOKEN
+    if len(value) <= max_chars:
+        return value
+    return value[: max_chars - 4].rstrip() + " ..."
+
+
 def _compact_history(turns: list[dict]) -> list[dict[str, str]]:
-    history = [
-        {"role": turn["role"], "content": _trim_text(turn["content"], MAX_HISTORY_MESSAGE_CHARS)}
+    """Return the most recent HISTORY_TURNS_WINDOW turns within the token budget.
+
+    Algorithm:
+      1. Take the last HISTORY_TURNS_WINDOW user/assistant turns.
+      2. If the total estimated token cost is within HISTORY_TOKEN_BUDGET, return as-is.
+      3. Otherwise distribute the remaining budget across turns (most-recent first),
+         applying a protected floor of HISTORY_MIN_TOKENS_PER_TURN per turn so that
+         the AI always has at least a sentence of context from every turn.
+    """
+    raw = [
+        {"role": turn["role"], "content": (turn["content"] or "").strip()}
         for turn in turns
         if turn["role"] in ("user", "assistant")
-    ][-MAX_HISTORY_MESSAGES:]
-    total = sum(len(item["content"]) for item in history)
-    if total <= MAX_HISTORY_TOTAL_CHARS:
-        return history
+    ][-HISTORY_TURNS_WINDOW:]
 
+    total_tokens = sum(_tokens(item["content"]) for item in raw)
+    if total_tokens <= HISTORY_TOKEN_BUDGET:
+        return raw
+
+    # Distribute budget across turns, processing newest-first so recent turns
+    # are trimmed last (they get the biggest slice of remaining budget).
+    remaining = HISTORY_TOKEN_BUDGET
     compacted: list[dict[str, str]] = []
-    remaining = MAX_HISTORY_TOTAL_CHARS
-    for item in reversed(history):
-        allowance = max(120, remaining // max(len(history) - len(compacted), 1))
-        text = _trim_text(item["content"], allowance)
-        compacted.append({"role": item["role"], "content": text})
-        remaining -= len(text)
-        if remaining <= 0:
+    for item in reversed(raw):
+        turns_left = len(raw) - len(compacted)
+        # Each turn gets at least the floor, and at most its fair share of what remains.
+        fair_share = max(HISTORY_MIN_TOKENS_PER_TURN, remaining // turns_left)
+        trimmed = _trim_to_tokens(item["content"], fair_share)
+        compacted.append({"role": item["role"], "content": trimmed})
+        remaining = max(0, remaining - _tokens(trimmed))
+        if remaining <= HISTORY_MIN_TOKENS_PER_TURN:
             break
     return list(reversed(compacted))
 

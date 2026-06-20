@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,13 @@ INDEXED_LOG = DATA_DIR / ".indexed_files"
 
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
+
+# ── Conversation collection TTL ─────────────────────────────────────────
+# Turns older than CONVERSATION_TTL_DAYS are purged during background sweeps.
+# Per-session vectors are purged immediately when the session is deleted or
+# closed via purge_session_turns().
+import os as _os
+CONVERSATION_TTL_DAYS = int(_os.environ.get("SIFT_CONVERSATION_TTL_DAYS", "30"))
 
 # ── Lazy initialisation ───────────────────────────────────────────────────────
 
@@ -395,6 +402,84 @@ def retrieve_conversations(
     except Exception as e:
         logger.error(f"retrieve_conversations failed: {e}")
         return []
+
+
+# ── Conversation purge helpers ────────────────────────────────────────────────
+
+def purge_session_turns(session_id: str) -> int:
+    """Delete all conversation vectors belonging to *session_id*.
+
+    Called whenever a chat session is explicitly deleted or closed so that
+    the HNSW index does not grow unboundedly from accumulated single-session
+    turns that are no longer needed for cross-session learning.
+
+    Returns the number of vectors deleted (0 if RAG is unavailable or the
+    session had no vectors).
+    """
+    if not _rag_available() or not session_id:
+        return 0
+    try:
+        _, conversations_col = get_collections()
+        if conversations_col.count() == 0:
+            return 0
+        result = conversations_col.get(
+            where={"session_id": session_id},
+            include=[],  # ids only — minimise data transfer
+        )
+        ids = result.get("ids", [])
+        if ids:
+            conversations_col.delete(ids=ids)
+            logger.info(
+                "purge_session_turns: removed %d vector(s) for session %s",
+                len(ids),
+                session_id,
+            )
+        return len(ids)
+    except Exception as exc:
+        logger.error("purge_session_turns failed for session %s: %s", session_id, exc)
+        return 0
+
+
+def prune_stale_conversations(ttl_days: int | None = None) -> int:
+    """Sweep the conversations collection and delete turns older than *ttl_days*.
+
+    Intended to be called periodically by the knowledge daemon (e.g. once per
+    day) to prevent the HNSW index from consuming unbounded RAM over time.
+    Turns that are still within the TTL window are preserved so that recent
+    cross-session learning signals are not lost.
+
+    Returns the number of vectors deleted.
+    """
+    if not _rag_available():
+        return 0
+    effective_ttl = ttl_days if ttl_days is not None else CONVERSATION_TTL_DAYS
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=effective_ttl)).isoformat()
+    try:
+        _, conversations_col = get_collections()
+        if conversations_col.count() == 0:
+            return 0
+        # Fetch all metadata to find stale entries.  ChromaDB only supports
+        # numeric $lt/$gt comparisons in `where` filters, but our timestamps are
+        # ISO strings, so we must do the comparison in Python.  This function is
+        # designed to run at most once per day from the background daemon, so a
+        # full collection scan here is acceptable.
+        result = conversations_col.get(include=["metadatas"])
+        stale_ids = [
+            doc_id
+            for doc_id, meta in zip(result.get("ids", []), result.get("metadatas", []))
+            if (meta or {}).get("timestamp", "9999") < cutoff
+        ]
+        if stale_ids:
+            conversations_col.delete(ids=stale_ids)
+            logger.info(
+                "prune_stale_conversations: purged %d vector(s) older than %d days",
+                len(stale_ids),
+                effective_ttl,
+            )
+        return len(stale_ids)
+    except Exception as exc:
+        logger.error("prune_stale_conversations failed: %s", exc)
+        return 0
 
 
 # ── Admin helpers ─────────────────────────────────────────────────────────────

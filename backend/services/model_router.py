@@ -259,7 +259,10 @@ PROVIDER_CONFIGS: dict[str, ProviderConfig] = {
         base_url=OLLAMA_BASE_URL,
         env_api_key_var=None,
         default_speed_model=os.environ.get("OLLAMA_MODEL_SPEED", "qwen3:8b"),
-        default_balanced_model=os.environ.get("OLLAMA_MODEL_BALANCED", "qwen3:30b"),
+        # qwen3:30b (~18-20 GB) will OOM a 16 GB machine. Default to the 8B model
+        # which runs safely in ~5 GB. Override via OLLAMA_MODEL_BALANCED env var
+        # (e.g. export OLLAMA_MODEL_BALANCED=qwen3:14b) on machines with more RAM.
+        default_balanced_model=os.environ.get("OLLAMA_MODEL_BALANCED", "qwen3:8b"),
         requires_api_key=False,
     ),
     "local_openai": ProviderConfig(
@@ -461,8 +464,9 @@ PROVIDER_PUBLIC_META: dict[str, dict[str, Any]] = {
 
 PROVIDER_MODEL_PRESETS: dict[str, list[dict[str, str]]] = {
     "ollama": [
-        {"label": "Qwen3 8B", "value": "qwen3:8b", "note": "Fast default."},
-        {"label": "Qwen3 30B", "value": "qwen3:30b", "note": "Deeper reasoning."},
+        {"label": "Qwen3 8B", "value": "qwen3:8b", "note": "Default · fits in 5 GB RAM."},
+        {"label": "Qwen3 14B", "value": "qwen3:14b", "note": "Balanced · needs ~9 GB RAM."},
+        {"label": "Qwen3 30B", "value": "qwen3:30b", "note": "Deep reasoning · needs 20 GB RAM."},
         {"label": "Qwen2.5 VL", "value": "qwen2.5vl:7b", "note": "Vision · deck image reading."},
         {"label": "Llama 3.2", "value": "llama3.2:latest", "note": "Lightweight CPU fallback."},
     ],
@@ -532,13 +536,15 @@ OLLAMA_MODEL_PROFILES = {
     "balanced": ModelProfileConfig(
         key="balanced",
         model=PROVIDER_CONFIGS["ollama"].default_balanced_model,
-        timeout_seconds=_env_float("OLLAMA_TIMEOUT_BALANCED", 42.0),
+        timeout_seconds=_env_float("OLLAMA_TIMEOUT_BALANCED", 48.0),
         options={
-            "num_ctx": _env_int("OLLAMA_NUM_CTX_BALANCED", 6144),
+            # 8192 tokens gives the 12-turn history window comfortable room
+            # while staying within the ~5 GB VRAM envelope of qwen3:8b.
+            "num_ctx": _env_int("OLLAMA_NUM_CTX_BALANCED", 8192),
             "temperature": 0.74,
             "top_p": 0.9,
             "repeat_penalty": 1.05,
-            "num_predict": _env_int("OLLAMA_MAX_TOKENS_BALANCED", 360),
+            "num_predict": _env_int("OLLAMA_MAX_TOKENS_BALANCED", 480),
         },
     ),
 }
