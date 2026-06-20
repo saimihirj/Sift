@@ -1372,19 +1372,21 @@ a:focus-visible,
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   padding: 10px;
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: var(--surface-glass);
+  border: 1px solid var(--surface-glass-border);
   border-radius: 20px;
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   transform: translateX(-22px);
   opacity: 0;
-  transition: transform 200ms var(--ease-fluid), opacity 200ms var(--ease-fluid);
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1), opacity 250ms ease;
 }
 
 .floating-card.is-open {
   transform: translateX(0);
   opacity: 1;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 0 0 30px var(--brain-accent-weak);
 }
 
 .completion-dialog {
@@ -1845,25 +1847,45 @@ a:focus-visible,
 }
 
 .message.user .message-body {
-  background: var(--accent);
-  color: var(--bg);
-  border-color: var(--accent);
+  background: var(--panel-muted);
+  color: var(--ink);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-soft);
 }
 
-.message.assistant.streaming .message-body {
+.message.assistant .message-body {
+  background: var(--surface-glass);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid var(--brain-accent-weak);
+  box-shadow: var(--shadow-soft), inset 0 0 15px rgba(0, 201, 107, 0.03);
   position: relative;
+  overflow: hidden;
+}
+
+.message.assistant .message-body::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 3px;
+  background: var(--brain-accent);
+  box-shadow: var(--brain-glow);
 }
 
 .message.assistant.streaming .message-body::after {
   content: "";
   display: inline-block;
-  width: 2px;
-  height: 1em;
-  margin-left: 4px;
-  border-radius: 1px;
-  background: var(--accent);
+  width: 6px;
+  height: 1.2em;
+  margin-left: 6px;
+  background: var(--brain-accent);
   vertical-align: text-bottom;
-  animation: blink-cursor 0.9s step-end infinite;
+  box-shadow: var(--brain-glow-strong);
+  animation: neural-blink 0.8s steps(2, start) infinite;
+}
+
+@keyframes neural-blink {
+  to { visibility: hidden; }
 }
 
 @keyframes pulse {
@@ -1980,12 +2002,21 @@ a:focus-visible,
 }
 
 .composer-row textarea:focus {
-  border-color: var(--line-strong);
-  box-shadow: var(--focus-ring);
+  border-color: var(--brain-accent);
+  box-shadow: var(--brain-glow), inset 0 0 10px var(--brain-accent-weak);
+  background: var(--brain-accent-weak);
 }
 
 .composer-send {
   min-width: 88px;
+  transition: all 250ms var(--ease-fluid);
+}
+
+.composer-send:not(:disabled):hover {
+  background: var(--brain-accent);
+  color: #000;
+  box-shadow: var(--brain-glow-strong);
+  transform: translateY(-2px);
 }
 
 .attachment-meta,
@@ -3111,9 +3142,9 @@ a:focus-visible,
 }
 
 .expert-chat-panel.starter-mode {
-  grid-template-rows: minmax(0, auto) auto;
-  align-content: start;
-  overflow: auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: stretch;
+  overflow: hidden;
 }
 
 .expert-conversation-stack {
@@ -3125,10 +3156,15 @@ a:focus-visible,
 
 .expert-chat-panel.starter-mode .expert-conversation-stack {
   grid-template-rows: auto;
+  align-content: center;
+  justify-content: center;
 }
 
 .expert-starter-card {
   gap: 10px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .expert-starter-grid {
@@ -3347,13 +3383,32 @@ a:focus-visible,
   animation: pro-ambient 10s ease-in-out infinite alternate;
 }
 
+.landing-pro-left::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+  animation: pan-grid 60s linear infinite;
+}
+
 @keyframes pro-ambient {
-  from { opacity: 0.6; }
-  to   { opacity: 1; }
+  0% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05) translate(2%, -2%); }
+  100% { opacity: 0.5; transform: scale(1) translate(-2%, 2%); }
+}
+
+@keyframes pan-grid {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-pro-left::before { animation: none; }
+  .landing-pro-left::before, .landing-pro-left::after { animation: none; }
 }
 
 /* Brand */
