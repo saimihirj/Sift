@@ -77,11 +77,20 @@ export function AdminNeuralEngine() {
   // Force Directed Tuning
   useEffect(() => {
     if (fgRef.current) {
-      // Tune the d3 forces for a 300+ node fluid cluster
-      fgRef.current.d3Force("charge").strength(-400);
-      fgRef.current.d3Force("link").distance(80);
+      // Tune the d3 forces for a dense, circular, growing cluster
+      fgRef.current.d3Force("charge").strength((node: any) => {
+        if (node.group === "hub") return -1000;
+        if (node.group === "domain") return -250;
+        if (node.group === "subdomain") return -100;
+        return -40;
+      });
+      fgRef.current.d3Force("link").distance((link: any) => {
+        if (link.value === 3) return 90; // hub to domain
+        if (link.value === 2) return 40; // domain to subdomain
+        return 15; // subdomain to card
+      });
       // Give it a subtle centering force to keep the hub anchored
-      fgRef.current.d3Force("center").x(0).y(0).strength(0.05);
+      fgRef.current.d3Force("center").x(0).y(0).strength(0.08);
     }
   }, [data]);
 
@@ -97,6 +106,31 @@ export function AdminNeuralEngine() {
 
       fgRef.current.centerAt(node.x, node.y, 1000);
       fgRef.current.zoom(targetZoom, 2000);
+    }
+  };
+
+  const handleClosePanel = () => {
+    if (!activeNode || !data || !fgRef.current) {
+      setActiveNode(null);
+      return;
+    }
+    
+    // Find parent node link
+    const parentLink = data.links.find((l: any) => 
+      (typeof l.target === "object" ? l.target.id === activeNode.id : l.target === activeNode.id)
+    );
+    
+    let parentNode: GraphNode | null = null;
+    if (parentLink) {
+      const sourceId = typeof parentLink.source === "object" ? parentLink.source.id : parentLink.source;
+      parentNode = data.nodes.find(n => n.id === sourceId) || null;
+    }
+    
+    if (parentNode) {
+      handleNodeClick(parentNode);
+    } else {
+      setActiveNode(null);
+      fgRef.current.zoomToFit(1000, 50);
     }
   };
 
@@ -266,7 +300,7 @@ export function AdminNeuralEngine() {
 
           <div style={{ marginTop: "1.5rem", textAlign: "right" }}>
             <button 
-              onClick={() => setActiveNode(null)}
+              onClick={handleClosePanel}
               style={{ background: "transparent", border: "none", color: "#a1a1aa", cursor: "pointer", fontSize: "0.8rem", padding: "0.25rem 0" }}
             >
               Close
