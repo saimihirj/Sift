@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import type {
@@ -12,7 +12,7 @@ import type {
   UploadSummary,
 } from "../../app/types";
 import { ThemePicker } from "../../app/ThemePicker";
-import { streamChat, updateSessionRuntime } from "../../lib/api/client";
+import { createChatAbortController, streamChat, updateSessionRuntime } from "../../lib/api/client";
 import { loadSessionCredential, saveSessionCredential } from "../../lib/sessionCredentials";
 import { RuntimeSidebar } from "../session/RuntimeSidebar";
 import { SessionSidebar } from "../session/SessionSidebar";
@@ -224,6 +224,17 @@ export function ChatScreen({
   const [runtimeModel, setRuntimeModel] = useState(session.model);
   const [runtimeApiKey, setRuntimeApiKey] = useState(() => loadSessionCredential(session.sessionId)?.apiKey ?? "");
 
+  // Holds the AbortController for the currently-streaming turn.
+  // Using a ref (not state) prevents re-renders when the controller changes.
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const interruptStream = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  };
+
   useEffect(() => {
     setRuntimeProvider(session.provider);
     setRuntimeModel(session.model);
@@ -313,7 +324,7 @@ export function ChatScreen({
 
   const submit = async (chipText?: string) => {
     const message = (chipText ?? draft).trim();
-    if ((!message && !selectedFile) || pending) {
+    if (!message && !selectedFile) {
       return;
     }
     if (requiresClientApiKey && !runtimeApiKey.trim()) {
@@ -321,6 +332,11 @@ export function ChatScreen({
       setRuntimeOpen(true);
       return;
     }
+
+    // Abort any in-flight stream before starting a new one.
+    interruptStream();
+    const controller = createChatAbortController();
+    abortControllerRef.current = controller;
 
     const displayMessage = message
       ? selectedFile
@@ -351,6 +367,7 @@ export function ChatScreen({
         model: effectiveModel,
         apiKey: runtimeApiKey.trim() || undefined,
         file: selectedFile,
+        signal: controller.signal,
         handlers: {
           onMeta: (data) => {
             const profile = (data.responseProfile as ResponseProfile) ?? session.responseProfile;
@@ -419,6 +436,15 @@ export function ChatScreen({
               history: priorHistory,
             }));
             setStreamingAssistant("");
+            abortControllerRef.current = null;
+          },
+          onAbort: () => {
+            // Stream was interrupted by the user — silently discard the
+            // partial response and reset to allow the next turn.
+            setStreamingAssistant("");
+            setSession((previous) => ({ ...previous, history: priorHistory }));
+            setPending(false);
+            abortControllerRef.current = null;
           },
         },
       });
@@ -554,6 +580,7 @@ export function ChatScreen({
               value={draft}
               onChange={setDraft}
               onSubmit={() => void submit()}
+              onInterrupt={interruptStream}
               pending={pending}
               selectedFile={selectedFile}
               onFileSelected={setSelectedFile}

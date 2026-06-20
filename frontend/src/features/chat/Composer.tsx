@@ -6,6 +6,7 @@ type Props = {
   value: string;
   onChange: (nextValue: string) => void;
   onSubmit: () => void;
+  onInterrupt?: () => void;
   pending: boolean;
   selectedFile: File | null;
   onFileSelected: (file: File | null) => void;
@@ -19,6 +20,7 @@ export function Composer({
   value,
   onChange,
   onSubmit,
+  onInterrupt,
   pending,
   selectedFile,
   onFileSelected,
@@ -43,6 +45,43 @@ export function Composer({
       return;
     }
     onFileSelected(file);
+  };
+
+  /**
+   * While streaming, typing in the textarea calls onInterrupt to abort the
+   * in-flight response and pivot to new context immediately.
+   */
+  const handleChange = (nextValue: string) => {
+    if (pending && nextValue !== value && onInterrupt) {
+      onInterrupt();
+    }
+    onChange(nextValue);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (pending && onInterrupt) {
+        // Enter while streaming: abort current response, submit the new message.
+        onInterrupt();
+        // Allow the abort to propagate synchronously before the next submit.
+        setTimeout(onSubmit, 0);
+      } else if (!pending) {
+        onSubmit();
+      }
+    }
+    if (event.key === "Escape" && pending && onInterrupt) {
+      event.preventDefault();
+      onInterrupt();
+    }
+  };
+
+  const handleActionButton = () => {
+    if (pending && onInterrupt) {
+      onInterrupt();
+    } else {
+      onSubmit();
+    }
   };
 
   return (
@@ -79,21 +118,21 @@ export function Composer({
         <textarea
           value={value}
           placeholder={placeholder}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey && !pending) {
-              event.preventDefault();
-              onSubmit();
-            }
-          }}
+          onChange={(event) => handleChange(event.target.value)}
+          onKeyDown={handleKeyDown}
           rows={3}
-          disabled={pending}
         />
-        <button type="button" className="solid-button composer-send" onClick={onSubmit} disabled={pending}>
-          {pending ? "Thinking..." : submitLabel}
+        <button
+          type="button"
+          className={pending ? "solid-button composer-send composer-stop" : "solid-button composer-send"}
+          onClick={handleActionButton}
+          title={pending ? "Stop generating (Esc)" : submitLabel}
+          aria-label={pending ? "Stop generating" : submitLabel}
+        >
+          {pending ? "Stop" : submitLabel}
         </button>
       </div>
-      <p className="composer-hint">Enter to send / Shift+Enter for new line</p>
+      <p className="composer-hint">Enter to send · Shift+Enter for new line · Esc to stop</p>
     </div>
   );
 }

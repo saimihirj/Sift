@@ -53,7 +53,18 @@ type StreamHandlers = {
   onDelta?: (delta: string) => void;
   onDone?: (data: Record<string, unknown>) => void;
   onError?: (error: string) => void;
+  onAbort?: () => void;
 };
+
+/**
+ * Create an AbortController bound to a single chat turn.
+ * Call .abort() to stop the stream mid-flight. The backend
+ * (Uvicorn / Starlette) detects the disconnected client and
+ * stops the local inference loop automatically.
+ */
+export function createChatAbortController(): AbortController {
+  return new AbortController();
+}
 
 export async function getAuthSession(): Promise<AuthSessionPayload> {
   const response = await fetch(`${API_BASE}/api/auth/session`, {
@@ -272,6 +283,7 @@ export async function streamChat(args: {
   helpMode?: string;
   liveWebEnabled?: boolean;
   file?: File | null;
+  signal?: AbortSignal;
   handlers: StreamHandlers;
 }): Promise<void> {
   const form = new FormData();
@@ -302,6 +314,7 @@ export async function streamChat(args: {
     method: "POST",
     credentials: "include",
     body: form,
+    signal: args.signal,
   }, "Failed to stream chat response");
   if (!response.ok || !response.body) {
     throw new Error(await readApiError(response, "Failed to stream chat response"));
@@ -311,36 +324,58 @@ export async function streamChat(args: {
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-    const blocks = buffer.split("\n\n");
-    buffer = blocks.pop() ?? "";
-
-    for (const block of blocks) {
-      const parsed = parseEventBlock(block.trim());
-      if (!parsed) {
-        continue;
+  try {
+    while (true) {
+      // Honour an abort signal even between chunk reads.
+      if (args.signal?.aborted) {
+        await reader.cancel();
+        args.handlers.onAbort?.();
+        return;
       }
 
-      const payload = JSON.parse(parsed.data) as Record<string, unknown>;
-      if (parsed.event === "meta") {
-        args.handlers.onMeta?.(payload);
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      const blocks = buffer.split("\n\n");
+      buffer = blocks.pop() ?? "";
+
+      for (const block of blocks) {
+        const parsed = parseEventBlock(block.trim());
+        if (!parsed) {
+          continue;
+        }
+
+        const payload = JSON.parse(parsed.data) as Record<string, unknown>;
+        if (parsed.event === "meta") {
+          args.handlers.onMeta?.(payload);
+        }
+        if (parsed.event === "delta") {
+          args.handlers.onDelta?.((payload.delta as string) ?? "");
+        }
+        if (parsed.event === "done") {
+          args.handlers.onDone?.(payload);
+        }
+        if (parsed.event === "error") {
+          args.handlers.onError?.((payload.message as string) ?? "Unknown stream error");
+        }
       }
-      if (parsed.event === "delta") {
-        args.handlers.onDelta?.((payload.delta as string) ?? "");
-      }
-      if (parsed.event === "done") {
-        args.handlers.onDone?.(payload);
-      }
-      if (parsed.event === "error") {
-        args.handlers.onError?.((payload.message as string) ?? "Unknown stream error");
+
+      if (done) {
+        break;
       }
     }
-
-    if (done) {
-      break;
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      (err.name === "AbortError" || args.signal?.aborted)
+    ) {
+      // Clean abort — not an error from the user's perspective.
+      args.handlers.onAbort?.();
+      return;
     }
+    throw err;
+  } finally {
+    // Release the lock regardless of how we exited.
+    try { reader.releaseLock(); } catch { /* ignore */ }
   }
 }
 

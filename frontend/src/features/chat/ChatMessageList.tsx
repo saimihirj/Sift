@@ -11,118 +11,240 @@ type Props = {
   maxVisibleTurns?: number;
 };
 
+type InlineSpan =
+  | { kind: "text"; text: string }
+  | { kind: "bold"; text: string }
+  | { kind: "code"; text: string };
+
 type MessageBlock =
-  | { kind: "paragraph"; text: string }
+  | { kind: "paragraph"; spans: InlineSpan[] }
   | { kind: "label"; text: string }
-  | { kind: "bullets"; items: string[] }
-  | { kind: "numbered"; items: string[] }
+  | { kind: "bullets"; items: InlineSpan[][] }
+  | { kind: "numbered"; items: InlineSpan[][] }
+  | { kind: "code_block"; language: string; code: string }
   | { kind: "table"; headers: string[]; rows: string[][] };
 
-function normalizeMessageText(text: string): string {
+// ── Inline parser ────────────────────────────────────────────────────────────
+// Converts `**bold**` and `` `code` `` into typed spans so we can render them
+// as <strong> and <code> tags without stripping markdown during streaming.
+function parseInline(text: string): InlineSpan[] {
+  const spans: InlineSpan[] = [];
+  // Pattern: **bold** or `code` — captured in order.
+  const RE = /(\*\*(.+?)\*\*|`([^`]+)`)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = RE.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      spans.push({ kind: "text", text: text.slice(lastIndex, match.index) });
+    }
+    if (match[0].startsWith("**")) {
+      spans.push({ kind: "bold", text: match[2] });
+    } else {
+      spans.push({ kind: "code", text: match[3] });
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    spans.push({ kind: "text", text: text.slice(lastIndex) });
+  }
+  return spans;
+}
+
+function renderInline(spans: InlineSpan[], keyPrefix: string): React.ReactNode[] {
+  return spans.map((span, i) => {
+    if (span.kind === "bold") {
+      return <strong key={`${keyPrefix}-b${i}`}>{span.text}</strong>;
+    }
+    if (span.kind === "code") {
+      return <code key={`${keyPrefix}-c${i}`} className="inline-code">{span.text}</code>;
+    }
+    return <span key={`${keyPrefix}-t${i}`}>{span.text}</span>;
+  });
+}
+
+// ── Block-level normalise ────────────────────────────────────────────────────
+function normalizeRaw(text: string): string {
   return (text || "")
     .replace(/\r\n/g, "\n")
-    .replace(/^\s{0,3}#{1,6}\s*/gm, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/__(.+?)__/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s*/gm, "")  // strip heading markers only
     .trim();
 }
 
 function splitTableCells(line: string): string[] {
-  const trimmed = line.trim();
-  const rawCells = trimmed
+  return line
+    .trim()
     .replace(/^\|/, "")
     .replace(/\|$/, "")
     .split("|")
     .map((cell) => cell.trim());
-  return rawCells;
 }
 
 function isMarkdownTable(lines: string[]): boolean {
-  if (lines.length < 2) {
-    return false;
-  }
+  if (lines.length < 2) return false;
   const [header, divider, ...rows] = lines;
-  if (!header.includes("|") || !divider.includes("|")) {
-    return false;
-  }
+  if (!header.includes("|") || !divider.includes("|")) return false;
   const dividerCells = splitTableCells(divider);
-  if (!dividerCells.length || !dividerCells.every((cell) => /^:?-{3,}:?$/.test(cell))) {
-    return false;
-  }
-  return rows.length > 0 && rows.every((line) => line.includes("|"));
+  if (!dividerCells.length || !dividerCells.every((c) => /^:?-{3,}:?$/.test(c))) return false;
+  return rows.length > 0 && rows.every((l) => l.includes("|"));
 }
 
 function parseMessageBlocks(text: string): MessageBlock[] {
-  const normalized = normalizeMessageText(text);
-  if (!normalized) {
-    return [];
+  const normalized = normalizeRaw(text);
+  if (!normalized) return [];
+
+  const blocks: MessageBlock[] = [];
+  // Split on blank lines but handle fenced code blocks as atomic units.
+  const lines = normalized.split("\n");
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Fenced code block
+    if (/^```/.test(line.trim())) {
+      const lang = line.trim().slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !/^```/.test(lines[i].trim())) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // consume closing ```
+      blocks.push({ kind: "code_block", language: lang, code: codeLines.join("\n") });
+      continue;
+    }
+
+    // Accumulate a paragraph-group (lines until next blank)
+    const group: string[] = [];
+    while (i < lines.length && lines[i].trim() !== "") {
+      group.push(lines[i].trim());
+      i++;
+    }
+    // skip blank separator lines
+    while (i < lines.length && lines[i].trim() === "") i++;
+
+    if (!group.length) continue;
+
+    // Table
+    if (isMarkdownTable(group)) {
+      const [header, , ...rowLines] = group;
+      const headers = splitTableCells(header);
+      const rows = rowLines.map((l) => {
+        const cells = splitTableCells(l);
+        return cells.length >= headers.length
+          ? cells.slice(0, headers.length)
+          : [...cells, ...Array.from({ length: headers.length - cells.length }, () => "")];
+      });
+      blocks.push({ kind: "table", headers, rows });
+      continue;
+    }
+
+    // Bullet list
+    if (group.length > 1 && group.every((l) => /^[-*]\s+/.test(l))) {
+      blocks.push({
+        kind: "bullets",
+        items: group.map((l) => parseInline(l.replace(/^[-*]\s+/, ""))),
+      });
+      continue;
+    }
+
+    // Numbered list
+    if (group.length > 1 && group.every((l) => /^\d+\.\s+/.test(l))) {
+      blocks.push({
+        kind: "numbered",
+        items: group.map((l) => parseInline(l.replace(/^\d+\.\s+/, ""))),
+      });
+      continue;
+    }
+
+    // Label (single short line ending with colon)
+    if (group.length === 1 && group[0].length <= 72 && /:$/.test(group[0])) {
+      blocks.push({ kind: "label", text: group[0].slice(0, -1) });
+      continue;
+    }
+
+    // Paragraph
+    blocks.push({ kind: "paragraph", spans: parseInline(group.join(" ")) });
   }
-  return normalized
-    .split(/\n{2,}/)
-    .map((chunk) => chunk.trim())
-    .filter(Boolean)
-    .map((chunk) => {
-      const lines = chunk.split("\n").map((line) => line.trim()).filter(Boolean);
-      if (isMarkdownTable(lines)) {
-        const [header, , ...rowLines] = lines;
-        const headers = splitTableCells(header);
-        const rows = rowLines.map((line) => {
-          const cells = splitTableCells(line);
-          if (cells.length >= headers.length) {
-            return cells.slice(0, headers.length);
-          }
-          return [...cells, ...Array.from({ length: headers.length - cells.length }, () => "")];
-        });
-        return { kind: "table", headers, rows } satisfies MessageBlock;
-      }
-      if (lines.length > 1 && lines.every((line) => /^[-*]\s+/.test(line))) {
-        return { kind: "bullets", items: lines.map((line) => line.replace(/^[-*]\s+/, "")) } satisfies MessageBlock;
-      }
-      if (lines.length > 1 && lines.every((line) => /^\d+\.\s+/.test(line))) {
-        return { kind: "numbered", items: lines.map((line) => line.replace(/^\d+\.\s+/, "")) } satisfies MessageBlock;
-      }
-      if (lines.length === 1 && lines[0].length <= 72 && /:$/.test(lines[0])) {
-        return { kind: "label", text: lines[0].slice(0, -1) } satisfies MessageBlock;
-      }
-      return { kind: "paragraph", text: chunk } satisfies MessageBlock;
-    });
+
+  return blocks;
 }
 
-function MessageContent({ content }: { content: string }) {
-  const blocks = useMemo(() => parseMessageBlocks(content), [content]);
+// ── Streaming block: stabilise re-renders ───────────────────────────────────
+// During streaming we re-parse every delta tick. To prevent layout shifts:
+// 1. Wrap the streaming article in `contain: content` via CSS.
+// 2. Only re-render the *last* paragraph block as raw text while streaming;
+//    all preceding completed blocks are rendered as full structured HTML.
+function StreamingContent({ content }: { content: string }) {
+  // Split into "settled" portion (all text up to the last \n\n) and
+  // "in-flight" tail (what the model is still typing).
+  const lastBreak = content.lastIndexOf("\n\n");
+  const settled = lastBreak > 0 ? content.slice(0, lastBreak) : "";
+  const tail = lastBreak > 0 ? content.slice(lastBreak + 2) : content;
+
+  const settledBlocks = useMemo(() => parseMessageBlocks(settled), [settled]);
+
   return (
-    <div className="message-body">
+    <div className="message-body streaming-body">
+      <BlockList blocks={settledBlocks} keyBase="settled" />
+      {tail && (
+        // Render the in-flight tail as a plain paragraph — no expensive parsing.
+        // `contain: content` on the parent means its layout won't cascade.
+        <p className="message-paragraph streaming-tail">
+          {renderInline(parseInline(tail), "tail")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Block renderer ───────────────────────────────────────────────────────────
+function BlockList({ blocks, keyBase }: { blocks: MessageBlock[]; keyBase: string }) {
+  return (
+    <>
       {blocks.map((block, index) => {
+        const k = `${keyBase}-${index}`;
         if (block.kind === "label") {
-          return <strong key={`label-${index}`} className="message-section-label">{block.text}</strong>;
+          return <strong key={k} className="message-section-label">{block.text}</strong>;
         }
         if (block.kind === "bullets") {
           return (
-            <ul key={`bullets-${index}`} className="message-list-block bulleted">
-              {block.items.map((item, itemIndex) => <li key={`bullet-${index}-${itemIndex}`}>{item}</li>)}
+            <ul key={k} className="message-list-block bulleted">
+              {block.items.map((spans, j) => (
+                <li key={`${k}-li${j}`}>{renderInline(spans, `${k}-li${j}`)}</li>
+              ))}
             </ul>
           );
         }
         if (block.kind === "numbered") {
           return (
-            <ol key={`numbered-${index}`} className="message-list-block numbered">
-              {block.items.map((item, itemIndex) => <li key={`numbered-${index}-${itemIndex}`}>{item}</li>)}
+            <ol key={k} className="message-list-block numbered">
+              {block.items.map((spans, j) => (
+                <li key={`${k}-li${j}`}>{renderInline(spans, `${k}-li${j}`)}</li>
+              ))}
             </ol>
+          );
+        }
+        if (block.kind === "code_block") {
+          return (
+            <div key={k} className="message-code-block">
+              {block.language && <span className="code-lang-label">{block.language}</span>}
+              <pre><code>{block.code}</code></pre>
+            </div>
           );
         }
         if (block.kind === "table") {
           return (
-            <div key={`table-${index}`} className="message-table-wrap">
+            <div key={k} className="message-table-wrap">
               <table className="message-table">
                 <thead>
-                  <tr>
-                    {block.headers.map((header, headerIndex) => <th key={`header-${index}-${headerIndex}`}>{header}</th>)}
-                  </tr>
+                  <tr>{block.headers.map((h, hi) => <th key={`${k}-h${hi}`}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {block.rows.map((row, rowIndex) => (
-                    <tr key={`row-${index}-${rowIndex}`}>
-                      {row.map((cell, cellIndex) => <td key={`cell-${index}-${rowIndex}-${cellIndex}`}>{cell}</td>)}
+                  {block.rows.map((row, ri) => (
+                    <tr key={`${k}-r${ri}`}>
+                      {row.map((cell, ci) => <td key={`${k}-r${ri}-c${ci}`}>{cell}</td>)}
                     </tr>
                   ))}
                 </tbody>
@@ -130,8 +252,22 @@ function MessageContent({ content }: { content: string }) {
             </div>
           );
         }
-        return <p key={`paragraph-${index}`} className="message-paragraph">{block.text}</p>;
+        // paragraph
+        return (
+          <p key={k} className="message-paragraph">
+            {renderInline((block as { kind: "paragraph"; spans: InlineSpan[] }).spans, k)}
+          </p>
+        );
       })}
+    </>
+  );
+}
+
+function MessageContent({ content }: { content: string }) {
+  const blocks = useMemo(() => parseMessageBlocks(content), [content]);
+  return (
+    <div className="message-body">
+      <BlockList blocks={blocks} keyBase="msg" />
     </div>
   );
 }
@@ -159,7 +295,6 @@ export function ChatMessageList({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId, messageIndex, rating, reason: "" })
       });
-      // Optionally show a toast or change icon color here
     } catch (e) {
       console.error("Failed to submit feedback", e);
     }
@@ -197,7 +332,7 @@ export function ChatMessageList({
       {streamingAssistant && (
         <article className="message assistant streaming">
           <span className="message-role">{assistantLabel}</span>
-          <MessageContent content={streamingAssistant} />
+          <StreamingContent content={streamingAssistant} />
         </article>
       )}
       <div ref={endRef} />
