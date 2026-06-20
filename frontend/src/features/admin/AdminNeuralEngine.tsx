@@ -1,5 +1,7 @@
-import { useEffect, useState, useRef } from "react";
-import ForceGraph2D from "react-force-graph-2d";
+import { useEffect, useState, useRef, useMemo } from "react";
+import ForceGraph3D from "react-force-graph-3d";
+import * as THREE from "three";
+import SpriteText from "three-spritetext";
 import { API_BASE } from "../../lib/api/client";
 
 // --- Types ---
@@ -15,6 +17,7 @@ interface GraphNode {
   description?: string;
   x?: number;
   y?: number;
+  z?: number;
   color?: string;
 }
 
@@ -29,18 +32,6 @@ interface GraphData {
   links: GraphLink[];
 }
 
-// --- Aesthetics ---
-const COLORS: Record<string, string> = {
-  hub: "#ffffff",
-  vc: "#3b82f6", // Blue
-  startup: "#8b5cf6", // Purple
-  finance: "#10b981", // Emerald
-  regulation: "#f43f5e", // Rose
-  macro: "#f59e0b", // Amber
-  fintech_infra: "#0ea5e9", // Sky
-  general: "#64748b", // Slate
-};
-
 export function AdminNeuralEngine() {
   const [theme, setTheme] = useState<"amber" | "blue">("amber");
   const [data, setData] = useState<GraphData | null>(null);
@@ -50,7 +41,7 @@ export function AdminNeuralEngine() {
   
   const fgRef = useRef<any>();
 
-  // Fetch Graph Data
+  // Fetch Graph Data & Apply Theme Colors
   useEffect(() => {
     async function loadGraph() {
       try {
@@ -60,13 +51,11 @@ export function AdminNeuralEngine() {
         
         json.nodes.forEach((node: GraphNode) => {
           if (theme === "amber") {
-            // Golden/Amber evolution brain scheme
             if (node.group === "hub") node.color = "#ffed4a";
             else if (node.group === "domain") node.color = "#f59e0b";
             else if (node.group === "subdomain") node.color = "#fbbf24";
             else node.color = "#fcd34d";
           } else {
-            // Cool deep blue/cyan scheme
             if (node.group === "hub") node.color = "#ffffff";
             else if (node.group === "domain") node.color = "#3b82f6";
             else if (node.group === "subdomain") node.color = "#0ea5e9";
@@ -82,38 +71,38 @@ export function AdminNeuralEngine() {
     void loadGraph();
   }, [theme]);
 
-  // Force Directed Tuning
+  // Force Directed Tuning (3D)
   useEffect(() => {
     if (fgRef.current) {
-      // Tune the d3 forces for a dense, circular, growing cluster
+      // Tune the d3 forces for a dense 3D cluster
       fgRef.current.d3Force("charge").strength((node: any) => {
-        if (node.group === "hub") return -1000;
-        if (node.group === "domain") return -250;
+        if (node.group === "hub") return -2000;
+        if (node.group === "domain") return -400;
         if (node.group === "subdomain") return -100;
-        return -40;
+        return -30;
       });
       fgRef.current.d3Force("link").distance((link: any) => {
-        if (link.value === 3) return 90; // hub to domain
-        if (link.value === 2) return 40; // domain to subdomain
+        if (link.value === 3) return 120; // hub to domain
+        if (link.value === 2) return 50;  // domain to subdomain
         return 15; // subdomain to card
       });
-      // Give it a subtle centering force to keep the hub anchored
-      fgRef.current.d3Force("center").x(0).y(0).strength(0.08);
     }
   }, [data]);
 
   const handleNodeClick = (node: GraphNode) => {
     setActiveNode(node);
     if (fgRef.current) {
-      // Dynamic zoom based on node type
-      let targetZoom = 8;
-      if (node.group === "hub") targetZoom = 2;
-      if (node.group === "domain") targetZoom = 4;
-      if (node.group === "subdomain") targetZoom = 6;
-      if (node.group === "card") targetZoom = 10;
+      // Calculate a position slightly offset from the node to look at it
+      const distance = node.group === "card" ? 60 : node.group === "subdomain" ? 120 : 250;
+      const distRatio = 1 + distance / Math.hypot(node.x || 0, node.y || 0, node.z || 0);
 
-      fgRef.current.centerAt(node.x, node.y, 1000);
-      fgRef.current.zoom(targetZoom, 2000);
+      const newPos = {
+        x: (node.x || 0) * distRatio,
+        y: (node.y || 0) * distRatio,
+        z: (node.z || 0) * distRatio
+      };
+
+      fgRef.current.cameraPosition(newPos, node, 2000); // 2000 ms transition
     }
   };
 
@@ -138,94 +127,101 @@ export function AdminNeuralEngine() {
       handleNodeClick(parentNode);
     } else {
       setActiveNode(null);
-      fgRef.current.zoomToFit(1000, 50);
+      // Zoom out to see whole cluster
+      fgRef.current.cameraPosition({ x: 0, y: 0, z: 800 }, { x: 0, y: 0, z: 0 }, 2000);
     }
   };
 
   const handleBackgroundClick = () => {
     setActiveNode(null);
     if (fgRef.current) {
-      fgRef.current.zoomToFit(1000, 50);
+      fgRef.current.cameraPosition({ x: 0, y: 0, z: 800 }, { x: 0, y: 0, z: 0 }, 2000);
     }
   };
 
-  // Node rendering custom drawing
-  const paintNode = (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
+  // Pre-create geometries and materials for performance
+  const sphereGeo = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
+  const torusGeo1 = useMemo(() => new THREE.TorusGeometry(3, 0.1, 16, 100), []);
+  const torusGeo2 = useMemo(() => new THREE.TorusGeometry(4.5, 0.05, 16, 100), []);
+  const torusGeo3 = useMemo(() => new THREE.TorusGeometry(6, 0.02, 16, 100), []);
+
+  const nodeThreeObject = (node: GraphNode) => {
+    const group = new THREE.Group();
     const isHovered = node.id === hoverNode?.id;
     const isActive = node.id === activeNode?.id;
-    const size = node.val;
-    const color = node.color || "#fff";
-    const time = Date.now() / 1000;
+    
+    // Core glowing sphere
+    const material = new THREE.MeshLambertMaterial({ 
+      color: node.color,
+      emissive: node.color,
+      emissiveIntensity: isActive ? 1.5 : isHovered ? 1.0 : 0.6,
+      transparent: true,
+      opacity: 0.9
+    });
+    
+    const sphere = new THREE.Mesh(sphereGeo, material);
+    const size = Math.max(1, Math.sqrt(node.val) * 1.5);
+    sphere.scale.set(size, size, size);
+    group.add(sphere);
 
-    // Hub holographic concentric rings
+    // Hub holographic rings
     if (node.group === "hub") {
-      const ringColor = theme === "amber" ? "rgba(245, 158, 11, " : "rgba(59, 130, 246, ";
+      const ringMat = new THREE.MeshBasicMaterial({ 
+        color: node.color, 
+        transparent: true, 
+        opacity: theme === "amber" ? 0.6 : 0.4,
+        side: THREE.DoubleSide
+      });
       
-      for (let i = 1; i <= 3; i++) {
-        const radius = size * 4 * i;
-        const offset = time * (i % 2 === 0 ? 0.5 : -0.3);
-        
-        ctx.beginPath();
-        ctx.arc(node.x!, node.y!, radius, offset, offset + Math.PI * 1.5, false);
-        ctx.strokeStyle = `${ringColor}${0.15 / i})`;
-        ctx.lineWidth = 4 / globalScale;
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(node.x!, node.y!, radius + 2, -offset, -offset + Math.PI * 0.8, false);
-        ctx.strokeStyle = `${ringColor}${0.25 / i})`;
-        ctx.lineWidth = 1 / globalScale;
-        ctx.stroke();
-      }
+      const r1 = new THREE.Mesh(torusGeo1, ringMat);
+      const r2 = new THREE.Mesh(torusGeo2, ringMat);
+      const r3 = new THREE.Mesh(torusGeo3, ringMat);
+      
+      // Animate rings using userData
+      r1.userData = { axis: new THREE.Vector3(1, 0, 0), speed: 0.02 };
+      r2.userData = { axis: new THREE.Vector3(0, 1, 0), speed: -0.015 };
+      r3.userData = { axis: new THREE.Vector3(0, 0, 1), speed: 0.01 };
+      
+      group.add(r1, r2, r3);
+      group.userData = { isHub: true, rings: [r1, r2, r3] };
+    } 
+    // Add text label only for domains/subdomains (or active/hovered nodes)
+    else if (node.group === "domain" || node.group === "subdomain" || isActive || isHovered) {
+      const sprite = new SpriteText(node.name);
+      sprite.color = "rgba(255,255,255,0.8)";
+      sprite.textHeight = node.group === "domain" ? 4 : 2;
+      sprite.position.y = -(size + sprite.textHeight); // Position below the node
+      group.add(sprite);
     }
 
-    // Pulse effect
-    const pulse = isActive ? Math.abs(Math.sin(time * 3)) * 12 : 0;
-
-    // Draw scanning ring for active node
-    if (isActive) {
-      ctx.beginPath();
-      ctx.arc(node.x!, node.y!, size * 2.8 + (Math.sin(time * 4) * 2), 0, 2 * Math.PI, false);
-      ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 + Math.sin(time * 8) * 0.2})`;
-      ctx.lineWidth = 1.5 / globalScale;
-      ctx.setLineDash([4 / globalScale, 4 / globalScale]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Glow effect - more intense on active/hover
-    const isCore = node.group === "hub" || node.group === "domain";
-    ctx.beginPath();
-    ctx.arc(node.x!, node.y!, size * (isActive ? 1.8 : isHovered ? 1.4 : 1), 0, 2 * Math.PI, false);
-    ctx.fillStyle = color;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = isActive ? 25 + pulse : isHovered ? 15 : isCore ? 8 : 2;
-    ctx.fill();
-    ctx.shadowBlur = 0; // reset
-
-    // Minimalist Labels: only draw labels if zoomed in close or if hovered/active
-    if (globalScale > 3 || isHovered || isActive || node.group === "hub" || node.group === "domain") {
-      const fontSize = (node.group === "hub" ? 14 : node.group === "domain" ? 8 : 4) / globalScale;
-      ctx.font = `${fontSize}px Inter, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = isActive ? "#ffffff" : "rgba(255, 255, 255, 0.8)";
-      ctx.fillText(node.name, node.x!, node.y! + size + (fontSize * 1.5));
-    }
+    return group;
   };
+
+  // Animation loop for hub rings
+  useEffect(() => {
+    let animationFrameId: number;
+    const animate = () => {
+      if (fgRef.current) {
+        const scene = fgRef.current.scene();
+        scene.traverse((obj: any) => {
+          if (obj.userData && obj.userData.isHub && obj.userData.rings) {
+            obj.userData.rings.forEach((ring: any) => {
+              ring.rotateOnAxis(ring.userData.axis, ring.userData.speed);
+            });
+          }
+        });
+      }
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    animate();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [data]);
 
   const cinematicBg = {
     position: "relative" as const,
     width: "100%",
     height: "100%",
-    backgroundColor: "#030305",
-    backgroundImage: `
-      radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.08) 0%, rgba(0, 0, 0, 0.9) 80%),
-      linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px)
-    `,
-    backgroundSize: "100% 100%, 60px 60px, 60px 60px",
-    backgroundPosition: "center center",
+    backgroundColor: "#000000",
     overflow: "hidden",
     color: "#fff",
     fontFamily: "Inter, sans-serif"
@@ -237,44 +233,43 @@ export function AdminNeuralEngine() {
       {/* Top Navbar */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "1.5rem 2rem", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10, pointerEvents: "none" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 15px #10b981, 0 0 30px #10b981", animation: "pulse 2s infinite" }} />
-          <h1 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 500, letterSpacing: "0.2em", textTransform: "uppercase", textShadow: "0 0 10px rgba(16,185,129,0.5)" }}>Sift Neural Engine</h1>
+          <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: theme === "amber" ? "#f59e0b" : "#10b981", boxShadow: `0 0 15px ${theme === "amber" ? "#f59e0b" : "#10b981"}, 0 0 30px ${theme === "amber" ? "#f59e0b" : "#10b981"}`, animation: "pulse 2s infinite" }} />
+          <h1 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 500, letterSpacing: "0.2em", textTransform: "uppercase", textShadow: `0 0 10px ${theme === "amber" ? "rgba(245,158,11,0.5)" : "rgba(16,185,129,0.5)"}` }}>Sift Neural Engine</h1>
         </div>
       </div>
 
-      {/* Force Graph Canvas */}
+      {/* Force Graph 3D Canvas */}
       {data && (
-        <ForceGraph2D
-        ref={fgRef}
-        graphData={data}
-        nodeLabel="name"
-        nodeCanvasObject={paintNode}
-        nodeRelSize={4}
-        linkColor={(link: any) => {
-           const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
-           return s?.color ? `${s.color}${theme === "amber" ? "50" : "30"}` : "#222222";
-        }}
-        linkWidth={(link: any) => link.value === 3 ? 1.5 : 0.8}
-        linkDirectionalParticles={(link: any) => (link.value === 3 ? 5 : link.value === 2 ? 3 : 2)}
-        linkDirectionalParticleWidth={(link: any) => link.value === 3 ? 3 : 1.5}
-        linkDirectionalParticleSpeed={0.005}
-        linkDirectionalParticleColor={(link: any) => {
-           const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
-           return s?.color || "#ffffff";
-        }}
-        onNodeHover={(node: any) => setHoverNode(node || null)}
-        onNodeClick={(node: any) => handleNodeClick(node)}
-        onBackgroundClick={handleBackgroundClick}
-        backgroundColor="rgba(0,0,0,0)"
-        d3AlphaDecay={0.015}
-        d3VelocityDecay={0.25}
-      />
+        <ForceGraph3D
+          ref={fgRef}
+          graphData={data}
+          nodeThreeObject={nodeThreeObject}
+          linkColor={(link: any) => {
+             const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
+             return s?.color ? `${s.color}${theme === "amber" ? "60" : "40"}` : "#222222";
+          }}
+          linkWidth={(link: any) => link.value === 3 ? 1.0 : 0.5}
+          linkDirectionalParticles={(link: any) => (link.value === 3 ? 5 : link.value === 2 ? 3 : 2)}
+          linkDirectionalParticleWidth={(link: any) => link.value === 3 ? 2 : 1}
+          linkDirectionalParticleSpeed={0.005}
+          linkDirectionalParticleColor={(link: any) => {
+             const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
+             return s?.color || "#ffffff";
+          }}
+          onNodeHover={(node: any) => setHoverNode(node || null)}
+          onNodeClick={(node: any) => handleNodeClick(node)}
+          onBackgroundClick={handleBackgroundClick}
+          backgroundColor="#020204"
+          d3AlphaDecay={0.015}
+          d3VelocityDecay={0.25}
+          showNavInfo={false}
+        />
       )}
 
       {/* Loading / Error States */}
       {!data && !error && (
         <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", color: "#52525b", letterSpacing: "0.1em" }}>
-          INITIALIZING TOPOLOGY...
+          INITIALIZING 3D TOPOLOGY...
         </div>
       )}
       {error && (
@@ -360,6 +355,11 @@ export function AdminNeuralEngine() {
           @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
           }
         `}
       </style>
