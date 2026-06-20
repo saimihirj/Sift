@@ -42,6 +42,7 @@ const COLORS: Record<string, string> = {
 };
 
 export function AdminNeuralEngine() {
+  const [theme, setTheme] = useState<"amber" | "blue">("amber");
   const [data, setData] = useState<GraphData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hoverNode, setHoverNode] = useState<GraphNode | null>(null);
@@ -57,12 +58,19 @@ export function AdminNeuralEngine() {
         if (!res.ok) throw new Error("Failed to load graph data");
         const json = await res.json();
         
-        // Pre-assign colors based on domain
         json.nodes.forEach((node: GraphNode) => {
-          if (node.group === "hub") {
-            node.color = COLORS.hub;
+          if (theme === "amber") {
+            // Golden/Amber evolution brain scheme
+            if (node.group === "hub") node.color = "#ffed4a";
+            else if (node.group === "domain") node.color = "#f59e0b";
+            else if (node.group === "subdomain") node.color = "#fbbf24";
+            else node.color = "#fcd34d";
           } else {
-            node.color = COLORS[node.domain || "general"] || COLORS.general;
+            // Cool deep blue/cyan scheme
+            if (node.group === "hub") node.color = "#ffffff";
+            else if (node.group === "domain") node.color = "#3b82f6";
+            else if (node.group === "subdomain") node.color = "#0ea5e9";
+            else node.color = "#38bdf8";
           }
         });
 
@@ -72,7 +80,7 @@ export function AdminNeuralEngine() {
       }
     }
     void loadGraph();
-  }, []);
+  }, [theme]);
 
   // Force Directed Tuning
   useEffect(() => {
@@ -149,6 +157,28 @@ export function AdminNeuralEngine() {
     const color = node.color || "#fff";
     const time = Date.now() / 1000;
 
+    // Hub holographic concentric rings
+    if (node.group === "hub") {
+      const ringColor = theme === "amber" ? "rgba(245, 158, 11, " : "rgba(59, 130, 246, ";
+      
+      for (let i = 1; i <= 3; i++) {
+        const radius = size * 4 * i;
+        const offset = time * (i % 2 === 0 ? 0.5 : -0.3);
+        
+        ctx.beginPath();
+        ctx.arc(node.x!, node.y!, radius, offset, offset + Math.PI * 1.5, false);
+        ctx.strokeStyle = `${ringColor}${0.15 / i})`;
+        ctx.lineWidth = 4 / globalScale;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(node.x!, node.y!, radius + 2, -offset, -offset + Math.PI * 0.8, false);
+        ctx.strokeStyle = `${ringColor}${0.25 / i})`;
+        ctx.lineWidth = 1 / globalScale;
+        ctx.stroke();
+      }
+    }
+
     // Pulse effect
     const pulse = isActive ? Math.abs(Math.sin(time * 3)) * 12 : 0;
 
@@ -215,30 +245,30 @@ export function AdminNeuralEngine() {
       {/* Force Graph Canvas */}
       {data && (
         <ForceGraph2D
-          ref={fgRef}
-          graphData={data}
-          nodeLabel={() => ""} // Disable default tooltip to use custom glassmorphic overlay
-          nodeCanvasObject={paintNode}
-          nodeRelSize={1}
-          linkColor={(link: any) => {
-             const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
-             return s?.color ? `${s.color}25` : "#222222";
-          }}
-          linkWidth={(link: any) => link.value === 3 ? 1.5 : 0.5}
-          linkDirectionalParticles={(link: any) => (link.value === 3 ? 5 : link.value === 2 ? 3 : 1)} // Heavy data flow on cores
-          linkDirectionalParticleWidth={(link: any) => link.value === 3 ? 2.5 : 1.5}
-          linkDirectionalParticleSpeed={0.008}
-          linkDirectionalParticleColor={(link: any) => {
-             const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
-             return s?.color || "#ffffff";
-          }}
-          onNodeHover={(node: any) => setHoverNode(node || null)}
-          onNodeClick={(node: any) => handleNodeClick(node)}
-          onBackgroundClick={handleBackgroundClick}
-          backgroundColor="rgba(0,0,0,0)" // Transparent so our stunning CSS background shows through
-          d3AlphaDecay={0.015} // Extremely fluid, long settling
-          d3VelocityDecay={0.25}
-        />
+        ref={fgRef}
+        graphData={data}
+        nodeLabel="name"
+        nodeCanvasObject={paintNode}
+        nodeRelSize={4}
+        linkColor={(link: any) => {
+           const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
+           return s?.color ? `${s.color}${theme === "amber" ? "50" : "30"}` : "#222222";
+        }}
+        linkWidth={(link: any) => link.value === 3 ? 1.5 : 0.8}
+        linkDirectionalParticles={(link: any) => (link.value === 3 ? 5 : link.value === 2 ? 3 : 2)}
+        linkDirectionalParticleWidth={(link: any) => link.value === 3 ? 3 : 1.5}
+        linkDirectionalParticleSpeed={0.005}
+        linkDirectionalParticleColor={(link: any) => {
+           const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
+           return s?.color || "#ffffff";
+        }}
+        onNodeHover={(node: any) => setHoverNode(node || null)}
+        onNodeClick={(node: any) => handleNodeClick(node)}
+        onBackgroundClick={handleBackgroundClick}
+        backgroundColor="rgba(0,0,0,0)"
+        d3AlphaDecay={0.015}
+        d3VelocityDecay={0.25}
+      />
       )}
 
       {/* Loading / Error States */}
@@ -252,6 +282,22 @@ export function AdminNeuralEngine() {
           {error}
         </div>
       )}
+
+      {/* Theme Toggle */}
+      <div style={{ position: "absolute", top: "2rem", right: "2rem", zIndex: 10, display: "flex", gap: "0.5rem" }}>
+        <button 
+          onClick={() => setTheme("amber")}
+          style={{ padding: "0.5rem 1rem", borderRadius: "20px", background: theme === "amber" ? "rgba(245, 158, 11, 0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${theme === "amber" ? "#f59e0b" : "transparent"}`, color: theme === "amber" ? "#fcd34d" : "#a1a1aa", cursor: "pointer", transition: "all 0.2s" }}
+        >
+          Evolution
+        </button>
+        <button 
+          onClick={() => setTheme("blue")}
+          style={{ padding: "0.5rem 1rem", borderRadius: "20px", background: theme === "blue" ? "rgba(59, 130, 246, 0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${theme === "blue" ? "#3b82f6" : "transparent"}`, color: theme === "blue" ? "#93c5fd" : "#a1a1aa", cursor: "pointer", transition: "all 0.2s" }}
+        >
+          Deep Blue
+        </button>
+      </div>
 
       {/* Glassmorphic Active Node Inspector */}
       {activeNode && (
