@@ -149,7 +149,13 @@ async def get_knowledge_graph():
     links = []
     
     # Central Hub
-    nodes.append({"id": "hub", "name": "Neural Engine", "group": "hub", "val": 20})
+    nodes.append({
+        "id": "hub", 
+        "name": "Neural Engine", 
+        "group": "hub", 
+        "val": 20, 
+        "description": "The central orchestration core of the Sift Intelligence Layer. Routes all inbound queries to the appropriate specialized expert clusters."
+    })
     
     domain_nodes = set()
     subdomain_nodes = set()
@@ -160,14 +166,26 @@ async def get_knowledge_graph():
         
         # Ensure domain node exists
         if domain not in domain_nodes:
-            nodes.append({"id": f"domain_{domain}", "name": domain.upper(), "group": "domain", "val": 10})
+            nodes.append({
+                "id": f"domain_{domain}", 
+                "name": domain.upper(), 
+                "group": "domain", 
+                "val": 10,
+                "description": f"Primary specialized macro-cluster for {domain.upper()} logic and knowledge processing."
+            })
             links.append({"source": "hub", "target": f"domain_{domain}", "value": 3})
             domain_nodes.add(domain)
             
         # Ensure subdomain node exists
         subdomain_id = f"sub_{domain}_{subdomain}"
         if subdomain_id not in subdomain_nodes:
-            nodes.append({"id": subdomain_id, "name": subdomain, "group": "subdomain", "val": 5})
+            nodes.append({
+                "id": subdomain_id, 
+                "name": subdomain, 
+                "group": "subdomain", 
+                "val": 5,
+                "description": f"Targeted subdomain cluster specifically focused on {subdomain} within the broader {domain.upper()} context."
+            })
             links.append({"source": f"domain_{domain}", "target": subdomain_id, "value": 2})
             subdomain_nodes.add(subdomain_id)
             
@@ -179,7 +197,8 @@ async def get_knowledge_graph():
             "group": "card", 
             "val": 1.5,
             "domain": domain,
-            "confidence": card.get("confidenceTier", "medium")
+            "confidence": card.get("confidenceTier", "medium"),
+            "description": card.get("content", card.get("summary", "No detailed content available."))[:200] + "..." if card.get("content") or card.get("summary") else "Specialized leaf expert node."
         })
         links.append({"source": subdomain_id, "target": card_id, "value": 1})
         

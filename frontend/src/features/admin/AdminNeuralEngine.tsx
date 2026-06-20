@@ -12,6 +12,7 @@ interface GraphNode {
   val: number;
   domain?: string;
   confidence?: string;
+  description?: string;
   x?: number;
   y?: number;
   color?: string;
@@ -87,8 +88,15 @@ export function AdminNeuralEngine() {
   const handleNodeClick = (node: GraphNode) => {
     setActiveNode(node);
     if (fgRef.current) {
+      // Dynamic zoom based on node type
+      let targetZoom = 8;
+      if (node.group === "hub") targetZoom = 2;
+      if (node.group === "domain") targetZoom = 4;
+      if (node.group === "subdomain") targetZoom = 6;
+      if (node.group === "card") targetZoom = 10;
+
       fgRef.current.centerAt(node.x, node.y, 1000);
-      fgRef.current.zoom(8, 2000);
+      fgRef.current.zoom(targetZoom, 2000);
     }
   };
 
@@ -105,6 +113,21 @@ export function AdminNeuralEngine() {
     const isActive = node.id === activeNode?.id;
     const size = node.val;
     const color = node.color || "#fff";
+    const time = Date.now() / 1000;
+
+    // Pulse effect
+    const pulse = isActive ? Math.abs(Math.sin(time * 3)) * 12 : 0;
+
+    // Draw scanning ring for active node
+    if (isActive) {
+      ctx.beginPath();
+      ctx.arc(node.x!, node.y!, size * 2.8 + (Math.sin(time * 4) * 2), 0, 2 * Math.PI, false);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 + Math.sin(time * 8) * 0.2})`;
+      ctx.lineWidth = 1.5 / globalScale;
+      ctx.setLineDash([4 / globalScale, 4 / globalScale]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     // Glow effect - more intense on active/hover
     const isCore = node.group === "hub" || node.group === "domain";
@@ -112,7 +135,7 @@ export function AdminNeuralEngine() {
     ctx.arc(node.x!, node.y!, size * (isActive ? 1.8 : isHovered ? 1.4 : 1), 0, 2 * Math.PI, false);
     ctx.fillStyle = color;
     ctx.shadowColor = color;
-    ctx.shadowBlur = isActive ? 25 : isHovered ? 15 : isCore ? 8 : 2;
+    ctx.shadowBlur = isActive ? 25 + pulse : isHovered ? 15 : isCore ? 8 : 2;
     ctx.fill();
     ctx.shadowBlur = 0; // reset
 
@@ -127,14 +150,31 @@ export function AdminNeuralEngine() {
     }
   };
 
+  const cinematicBg = {
+    position: "relative" as const,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#030305",
+    backgroundImage: `
+      radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.08) 0%, rgba(0, 0, 0, 0.9) 80%),
+      linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px)
+    `,
+    backgroundSize: "100% 100%, 60px 60px, 60px 60px",
+    backgroundPosition: "center center",
+    overflow: "hidden",
+    color: "#fff",
+    fontFamily: "Inter, sans-serif"
+  };
+
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", backgroundColor: "#0a0a0a", overflow: "hidden", color: "#fff", fontFamily: "Inter, sans-serif" }}>
+    <div style={cinematicBg}>
       
       {/* Top Navbar */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "1.5rem 2rem", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 10, pointerEvents: "none" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-          <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 10px #10b981" }} />
-          <h1 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase" }}>Neural Engine Cluster</h1>
+          <div style={{ width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 15px #10b981, 0 0 30px #10b981", animation: "pulse 2s infinite" }} />
+          <h1 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 500, letterSpacing: "0.2em", textTransform: "uppercase", textShadow: "0 0 10px rgba(16,185,129,0.5)" }}>Sift Neural Engine</h1>
         </div>
       </div>
 
@@ -147,14 +187,13 @@ export function AdminNeuralEngine() {
           nodeCanvasObject={paintNode}
           nodeRelSize={1}
           linkColor={(link: any) => {
-             // Subtle link coloring based on source
              const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
-             return s?.color ? `${s.color}40` : "#333333";
+             return s?.color ? `${s.color}25` : "#222222";
           }}
-          linkWidth={1}
-          linkDirectionalParticles={(link: any) => (link.value === 3 ? 4 : link.value === 2 ? 2 : 1)} // More particles for core branches
-          linkDirectionalParticleWidth={1.5}
-          linkDirectionalParticleSpeed={0.005}
+          linkWidth={(link: any) => link.value === 3 ? 1.5 : 0.5}
+          linkDirectionalParticles={(link: any) => (link.value === 3 ? 5 : link.value === 2 ? 3 : 1)} // Heavy data flow on cores
+          linkDirectionalParticleWidth={(link: any) => link.value === 3 ? 2.5 : 1.5}
+          linkDirectionalParticleSpeed={0.008}
           linkDirectionalParticleColor={(link: any) => {
              const s = typeof link.source === "object" ? link.source : data.nodes.find(n => n.id === link.source);
              return s?.color || "#ffffff";
@@ -162,9 +201,9 @@ export function AdminNeuralEngine() {
           onNodeHover={(node: any) => setHoverNode(node || null)}
           onNodeClick={(node: any) => handleNodeClick(node)}
           onBackgroundClick={handleBackgroundClick}
-          backgroundColor="#000000" // Deep black for better contrast with glows
-          d3AlphaDecay={0.02} // Keep it floating even longer (more fluid)
-          d3VelocityDecay={0.3} // Slightly more friction so it settles beautifully
+          backgroundColor="rgba(0,0,0,0)" // Transparent so our stunning CSS background shows through
+          d3AlphaDecay={0.015} // Extremely fluid, long settling
+          d3VelocityDecay={0.25}
         />
       )}
 
@@ -204,7 +243,13 @@ export function AdminNeuralEngine() {
             <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", backgroundColor: activeNode.color || "#fff", boxShadow: `0 0 8px ${activeNode.color}` }}></span>
             {activeNode.group === "card" ? "Expert Card" : activeNode.group}
           </div>
-          <h2 style={{ margin: "0 0 1rem 0", fontSize: "1.25rem", fontWeight: 400, lineHeight: 1.3 }}>{activeNode.name}</h2>
+          <h2 style={{ margin: "0 0 0.5rem 0", fontSize: "1.25rem", fontWeight: 400, lineHeight: 1.3 }}>{activeNode.name}</h2>
+          
+          {activeNode.description && (
+            <p style={{ margin: "0 0 1rem 0", fontSize: "0.85rem", color: "#a1a1aa", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              {activeNode.description}
+            </p>
+          )}
           
           {activeNode.group === "card" && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem", borderTop: "1px solid rgba(255, 255, 255, 0.1)", paddingTop: "1rem" }}>
