@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.0 — 2026-06-26
+
+### The Sift Pivot
+- **Universal Validator**: Redefined the platform from an "AI Workbench" to a minimalist startup validator.
+- **Brutalist Redesign**: Replaced the entire design system with a pure black/white aesthetic, 1px borders, and Inter font. Removed 88KB of legacy CSS.
+- **Stripped Dead Weight**: Removed all old persona wizards, expert interfaces, admin dashboards, and complex multi-route workflows.
+- **Streamlined Architecture**: Frontend reduced to three core routes: Input, Scorecard, and Co-Pilot. API client stripped down to 4 core endpoints.
+- **Lean Dependencies**: Removed heavy graphing libraries (Three.js, D3) completely from the bundle.
+
+
 ## v0.3.0 — 2026-06-19
 
 ### Cleanup
