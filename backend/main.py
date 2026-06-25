@@ -7,6 +7,8 @@ import os
 import time
 from pathlib import Path
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -60,7 +62,15 @@ def cookie_same_site() -> str:
         return configured
     return "lax"
 
-app = FastAPI(title="Sift API", version="0.4.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    memory.init_db()
+    asyncio.create_task(auto_stop_monitor())
+    asyncio.create_task(knowledge_daemon_task())
+    yield
+
+
+app = FastAPI(title="Sift API", version="0.4.0", lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -97,11 +107,6 @@ if SessionMiddleware is not None:
     )
 
 
-@app.on_event("startup")
-async def on_startup() -> None:
-    memory.init_db()
-    asyncio.create_task(auto_stop_monitor())
-    asyncio.create_task(knowledge_daemon_task())
 
 
 @app.get("/api/health")

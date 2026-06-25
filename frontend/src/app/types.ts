@@ -410,6 +410,9 @@ export type EvaluatorReportPayload = {
   supportsVision: boolean;
   websiteUrl: string;
   runtimeUsage: RuntimeUsageSummary;
+  // New unified contract fields
+  readinessScore?: number;
+  issues?: Array<{ severity: string; title: string; explanation: string; reference?: string }>;
 };
 
 export type AdminOverview = {

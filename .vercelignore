@@ -6,6 +6,8 @@
 backend/
 data/
 knowledge_base/
+sift_brain/
+infra/
 legacy/
 scripts/
 tests/
@@ -14,6 +16,8 @@ tools/
 Dockerfile
 render.yaml
 requirements.txt
+requirements-brain.txt
+requirements-gcp.txt
 
 **/__pycache__/
 **/*.pyc

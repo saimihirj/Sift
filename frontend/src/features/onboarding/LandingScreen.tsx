@@ -1,208 +1,238 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useRef, useState } from "react";
+import type { EvaluatorReport, SiftSession } from "../../app/sift.types";
+import { startSession, uploadFile, runEvaluator } from "../../lib/api/client";
 
-import type { ThemeMode } from "../../app/types";
+interface InputScreenProps {
+  onReportReady: (session: SiftSession, report: EvaluatorReport) => void;
+}
 
-type Props = {
-  emailOrHandle: string;
-  onEmailOrHandleChange: (value: string) => void;
-  onContinue: () => void | Promise<void>;
-  theme: ThemeMode;
-  onThemeChange: (theme: ThemeMode) => void;
-  error: string;
-  authProviders?: Array<{ key: string; label: string; configured: boolean }>;
-};
+type InputMode = "deck" | "url" | "idea";
 
-// ─── Mode Glyphs ──────────────────────────────────────────────────────────────
-
-function IdeateGlyph() {
+function UploadIcon() {
   return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="10" cy="3.5" r="2.2" />
-      <path d="M10 5.7 L10 10.5" />
-      <path d="M10 10.5 L5 16" />
-      <path d="M10 10.5 L15 16" />
-      <circle cx="5" cy="17" r="1.6" />
-      <circle cx="15" cy="17" r="1.6" />
+    <svg
+      className="dropzone-icon"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      aria-hidden="true"
+    >
+      <path d="M10 13V7M7 10l3-3 3 3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 14.5A3.5 3.5 0 0 1 4 7.5h.5A5 5 0 0 1 14.5 6H15a3 3 0 0 1 0 6H4z" strokeLinecap="round" />
     </svg>
   );
 }
 
-function EvaluateGlyph() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="1.5" y="13.5" width="3.5" height="5" rx="0.9" />
-      <rect x="8" y="8.5" width="3.5" height="10" rx="0.9" />
-      <rect x="14.5" y="3.5" width="3.5" height="15" rx="0.9" />
-      <path d="M0.5 7.5 L3 10.5 L7.5 4.5" />
-    </svg>
-  );
-}
+export function InputScreen({ onReportReady }: InputScreenProps) {
+  const [activeMode, setActiveMode] = useState<InputMode>("deck");
+  const [file, setFile] = useState<File | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [urlValue, setUrlValue] = useState("");
+  const [ideaValue, setIdeaValue] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-function ExpertGlyph() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="8.5" cy="8.5" r="5.5" />
-      <path d="M13 13 L18.5 18.5" />
-      <circle cx="5" cy="6" r="1.1" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="5.5" r="1.1" fill="currentColor" stroke="none" />
-      <path d="M5 6 L12 5.5" strokeDasharray="1.8 1.8" />
-    </svg>
-  );
-}
-
-// ─── Static Data ──────────────────────────────────────────────────────────────
-
-const THEME_SWATCHES: Array<{ key: ThemeMode; bg: string; label: string }> = [
-  { key: "light",  bg: "#164e63", label: "Light" },
-  { key: "dark",   bg: "#8bd3dd", label: "Graphite" },
-  { key: "dusk",   bg: "#d9b56f", label: "Dusk" },
-  { key: "neon",   bg: "#e2e2e2", label: "Focus" },
-];
-
-const MODE_CARDS = [
-  { idx: "01", key: "ideate",   label: "Ideate",   hint: "Pitch draft",    Glyph: IdeateGlyph },
-  { idx: "02", key: "evaluate", label: "Evaluate", hint: "Score + report", Glyph: EvaluateGlyph },
-  { idx: "03", key: "expert",   label: "Expert",   hint: "Sourced answer", Glyph: ExpertGlyph },
-] as const;
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
-export function LandingScreen({
-  emailOrHandle,
-  onEmailOrHandleChange,
-  onContinue,
-  theme,
-  onThemeChange,
-  error,
-  authProviders = [],
-}: Props) {
-  const [hoveredMode, setHoveredMode] = useState<string | null>(null);
-  const emailInputRef = useRef<HTMLInputElement>(null);
-
-  const canContinue = Boolean(emailOrHandle.trim().length >= 3);
-
-  const handleModeClick = () => {
-    if (!canContinue) {
-      emailInputRef.current?.focus();
-      return;
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) {
+      setFile(dropped);
+      setActiveMode("deck");
     }
-    onContinue();
-  };
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files?.[0];
+    if (picked) {
+      setFile(picked);
+      setActiveMode("deck");
+    }
+  }
+
+  function canEvaluate(): boolean {
+    if (loading) return false;
+    if (activeMode === "deck") return file !== null;
+    if (activeMode === "url") return urlValue.trim().length > 0;
+    if (activeMode === "idea") return ideaValue.trim().length > 10;
+    return false;
+  }
+
+  async function handleEvaluate() {
+    if (!canEvaluate()) return;
+    setError("");
+    setLoading(true);
+
+    try {
+      const sessionPayload = await startSession({
+        provider: "ollama",
+        model: "qwen3:8b",
+        founderType: "founder",
+        stage: "idea",
+        sessionType: "mentor",
+        evaluatorMode: "idea_review",
+      });
+
+      const sessionId = sessionPayload.sessionId;
+      let sourceName = "your startup";
+
+      if (activeMode === "deck" && file) {
+        await uploadFile(sessionId, file, apiKey || undefined);
+        sourceName = file.name;
+      } else if (activeMode === "url" && urlValue.trim()) {
+        await uploadFile(
+          sessionId,
+          new File([urlValue.trim()], "url-context.txt", { type: "text/plain" }),
+          apiKey || undefined,
+        );
+        sourceName = urlValue.trim().replace(/^https?:\/\//, "").split("/")[0];
+      } else if (activeMode === "idea" && ideaValue.trim()) {
+        await uploadFile(
+          sessionId,
+          new File([ideaValue.trim()], "idea.txt", { type: "text/plain" }),
+          apiKey || undefined,
+        );
+        sourceName = "your idea";
+      }
+
+      const rawReport = await runEvaluator(sessionId, apiKey || undefined);
+
+      const report: EvaluatorReport = {
+        readinessScore:
+          typeof rawReport.readinessScore === "number"
+            ? rawReport.readinessScore
+            : 0,
+        issues: Array.isArray(rawReport.issues)
+          ? rawReport.issues.map((i) => ({
+              severity: (["critical", "warning", "note"].includes(i.severity) ? i.severity : "warning") as "critical" | "warning" | "note",
+              title: i.title ?? "",
+              explanation: i.explanation ?? "",
+              reference: i.reference,
+            }))
+          : [],
+        sessionId,
+        sourceName,
+      };
+
+      const session: SiftSession = {
+        sessionId,
+        provider: "ollama",
+        model: "qwen3:8b",
+        apiKey: apiKey || undefined,
+        sourceName,
+        report,
+      };
+
+      onReportReady(session, report);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <div className="landing-pro-shell">
+    <main className="page input-page">
+      <div className="input-container">
+        <div className="input-label">Upload a deck</div>
 
-      {/* ── Left: brand + conviction ──────────────────────────────────── */}
-      <section className="landing-pro-left" aria-label="Sift — intelligence layer for startups">
-        <header className="landing-pro-brand">
-          <div className="brand-identity">
-            <span className="brand-wordmark">
-              SIFT<span className="brand-wordmark-dot">.</span>
-            </span>
-          </div>
-        </header>
-
-        {/* Mode cards — functional, not decorative */}
-        <nav className="landing-pro-modes" aria-label="Choose a workflow">
-          {MODE_CARDS.map((mode, index) => (
-            <button
-              key={mode.key}
-              type="button"
-              className={`mode-entry-card${hoveredMode === mode.key ? " hovered" : ""}`}
-              style={{ "--card-i": index } as React.CSSProperties}
-              onMouseEnter={() => setHoveredMode(mode.key)}
-              onMouseLeave={() => setHoveredMode(null)}
-              onClick={handleModeClick}
-              aria-label={`${mode.label} — ${mode.hint}`}
-            >
-              <span className="mode-card-idx" aria-hidden="true">{mode.idx}</span>
-              <span className="mode-card-glyph" aria-hidden="true">
-                <mode.Glyph />
-              </span>
-              <span className="mode-card-label">{mode.label}</span>
-              <span className="mode-card-hint" aria-hidden="true">{mode.hint}</span>
-            </button>
-          ))}
-        </nav>
-
-      </section>
-
-      {/* ── Right: entry ─────────────────────────────────────────────────── */}
-      <section className="landing-pro-right">
-
-        {/* Theme dots */}
-        <div className="theme-swatch-row" role="group" aria-label="Select theme">
-          {THEME_SWATCHES.map((swatch) => (
-            <button
-              key={swatch.key}
-              type="button"
-              className={`theme-swatch${theme === swatch.key ? " active" : ""}`}
-              style={{ "--sw-bg": swatch.bg } as React.CSSProperties}
-              onClick={() => onThemeChange(swatch.key)}
-              aria-label={swatch.label}
-              aria-pressed={theme === swatch.key}
-            />
-          ))}
+        <div
+          id="deck-dropzone"
+          className={`dropzone${dragOver ? " drag-over" : ""}${file && activeMode === "deck" ? " has-file" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); setActiveMode("deck"); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          aria-label="Upload your pitch deck"
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click(); }}
+        >
+          <UploadIcon />
+          <span className="dropzone-text">
+            {file && activeMode === "deck" ? file.name : "Drop your deck here"}
+          </span>
+          <span className="dropzone-subtext">PDF or PPTX</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.pptx"
+            onChange={handleFileChange}
+            aria-hidden="true"
+            tabIndex={-1}
+          />
         </div>
 
-        {/* Entry form */}
-        <div className="landing-pro-entry">
-          <div className="entry-pro-head">
-            <p className="entry-pro-eyebrow">Workspace</p>
-            <h2 className="entry-pro-title">Start</h2>
-          </div>
+        <div className="input-divider">or</div>
 
-          {authProviders.filter((p) => p.configured).length > 0 && (
-            <div className="identity-oauth-providers" style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
-              {authProviders.filter((p) => p.configured).map((provider) => (
-                <a
-                  key={provider.key}
-                  href={`/api/auth/login/${provider.key}`}
-                  className="solid-button pro-continue-btn"
-                  style={{ textDecoration: "none", textAlign: "center", background: "var(--layer-surface-hover)", color: "var(--text-primary)" }}
-                >
-                  Sign in with {provider.label}
-                </a>
-              ))}
-              <div style={{ textAlign: "center", margin: "0.5rem 0", color: "var(--text-muted)", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Or use local identity
-              </div>
-            </div>
-          )}
+        <div className="input-label">Paste a URL</div>
+        <input
+          id="url-input"
+          type="url"
+          className="text-input"
+          placeholder="https://yourwebsite.com or github.com/you/repo"
+          value={urlValue}
+          onChange={(e) => { setUrlValue(e.target.value); if (e.target.value) setActiveMode("url"); }}
+          aria-label="Website or GitHub URL"
+        />
 
-          <label className="identity-field">
-            <span className="rail-label">Enter your email</span>
+        <div className="input-divider">or</div>
+
+        <div className="input-label">Describe your idea</div>
+        <textarea
+          id="idea-textarea"
+          className="textarea-input"
+          placeholder="We are building a platform that helps..."
+          value={ideaValue}
+          onChange={(e) => { setIdeaValue(e.target.value); if (e.target.value) setActiveMode("idea"); }}
+          aria-label="Describe your startup idea"
+        />
+
+        {showApiKey ? (
+          <>
+            <div className="input-label" style={{ marginTop: 4 }}>Your API key (optional)</div>
             <input
-              ref={emailInputRef}
-              type="email"
-              value={emailOrHandle}
-              onChange={(event) => onEmailOrHandleChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && canContinue) {
-                  event.preventDefault();
-                  onContinue();
-                }
-              }}
-              placeholder="Used to sync your workspace"
-              aria-required="true"
-              autoComplete="email"
+              id="api-key-input"
+              type="password"
+              className="text-input"
+              placeholder="sk-..."
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              aria-label="API key"
             />
-          </label>
-          {error ? <div className="setup-alert" role="alert">{error}</div> : null}
-
+          </>
+        ) : (
           <button
             type="button"
-            className="solid-button pro-continue-btn"
-            onClick={onContinue}
-            disabled={!canContinue}
+            className="nav-link"
+            style={{ textAlign: "left", fontSize: 12, marginTop: 2 }}
+            onClick={() => setShowApiKey(true)}
           >
-            Continue
+            Use your own API key
           </button>
+        )}
 
-        </div>
+        {error && (
+          <div className="error-bar" role="alert">
+            {error}
+          </div>
+        )}
 
-      </section>
-    </div>
+        <button
+          id="evaluate-btn"
+          type="button"
+          className={`btn-primary${loading ? " loading" : ""}`}
+          onClick={handleEvaluate}
+          disabled={!canEvaluate()}
+          aria-busy={loading}
+        >
+          {loading ? "Evaluating..." : "Evaluate"}
+        </button>
+      </div>
+    </main>
   );
 }
