@@ -154,7 +154,7 @@ def _live_web_context(query: str, geography: str, max_chars: int = 420) -> dict[
     try:
         response = requests.get(
             f"https://html.duckduckgo.com/html/?q={quote(search_terms)}",
-            timeout=8,
+            timeout=1.5,
             headers={"User-Agent": "Mozilla/5.0"},
         )
         response.raise_for_status()

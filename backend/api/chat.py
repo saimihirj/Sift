@@ -302,7 +302,8 @@ async def chat(
                 session_metadata["knowledgeLane"] = route.get("knowledgeLane", "startup")
                 session_metadata["followUpMode"] = route.get("followUpMode", "answer_then_probe")
                 session_metadata["usedLiveWeb"] = False
-                retrieval = build_expert_retrieval_context(
+                retrieval = await asyncio.to_thread(
+                    build_expert_retrieval_context,
                     sessionId,
                     query,
                     route=route,

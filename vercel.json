@@ -4,6 +4,9 @@
   "installCommand": "npm --prefix frontend ci",
   "buildCommand": "npm --prefix frontend run build",
   "outputDirectory": "frontend/dist",
+  "env": {
+    "VITE_API_BASE_URL": "@sift_api_base_url"
+  },
   "rewrites": [
     {
       "source": "/(.*)",
