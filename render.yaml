@@ -2,7 +2,7 @@ services:
   - type: web
     name: sift
     runtime: docker
-    plan: starter
+    plan: free
     autoDeploy: true
     healthCheckPath: /api/health
     envVars:
