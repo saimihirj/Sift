@@ -206,6 +206,9 @@ export async function sendChatMessage(
         } else if (parsed.error && typeof parsed.error === "string") {
           handlers.onError?.(parsed.error);
           return;
+        } else if (parsed.message && typeof parsed.message === "string") {
+          handlers.onError?.(parsed.message);
+          return;
         }
       } catch {
         if (raw) handlers.onDelta?.(raw);
