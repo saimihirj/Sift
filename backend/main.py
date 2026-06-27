@@ -66,7 +66,7 @@ def cookie_same_site() -> str:
 async def lifespan(app: FastAPI):
     memory.init_db()
     asyncio.create_task(auto_stop_monitor())
-    asyncio.create_task(knowledge_daemon_task())
+    # asyncio.create_task(knowledge_daemon_task())
     yield
 
 
