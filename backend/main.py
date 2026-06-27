@@ -43,6 +43,9 @@ DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173",
     "http://127.0.0.1:5174",
     "http://localhost:5174",
+    "https://sift-blue.vercel.app",
+    "https://sift-km6to3frl-saimihirj-3488s-projects.vercel.app",
+    "https://sift-git-main-saimihirj-3488s-projects.vercel.app",
 )
 RATE_LIMIT_WINDOW_SECONDS = 60.0
 RATE_LIMIT_MAX_REQUESTS = int(os.environ.get("SIFT_RATE_LIMIT_PER_MINUTE", "120"))
