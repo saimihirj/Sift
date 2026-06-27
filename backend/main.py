@@ -33,7 +33,6 @@ from backend.services.expert_knowledge import expert_card_count, expert_data_dir
 from backend.services.model_router import active_provider, provider_catalog
 from backend.services.runtime_state import auto_stop_monitor
 from backend.services.uploads import upload_storage_status
-from backend.services.knowledge_daemon import knowledge_daemon_task
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -66,7 +65,6 @@ def cookie_same_site() -> str:
 async def lifespan(app: FastAPI):
     memory.init_db()
     asyncio.create_task(auto_stop_monitor())
-    # asyncio.create_task(knowledge_daemon_task())
     yield
 
 

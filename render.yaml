@@ -16,8 +16,6 @@ services:
         sync: false
       - key: SIFT_COOKIE_SECURE
         value: "true"
-      - key: OLLAMA_BASE_URL
-        value: http://127.0.0.1:11434
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL_SPEED
@@ -25,8 +23,4 @@ services:
       - key: GROQ_MODEL_BALANCED
         value: meta-llama/llama-4-maverick-17b-128e-instruct
       - key: SIFT_ADMIN_TOKEN
-        sync: false
-      - key: SIFT_DATABASE_URL
-        sync: false
-      - key: SIFT_DATABASE_TOKEN
         sync: false
