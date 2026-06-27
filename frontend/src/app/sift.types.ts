@@ -10,6 +10,7 @@ export interface EvaluatorReport {
   issues: Issue[];
   sessionId: string;
   sourceName?: string;
+  dimensionScores?: Array<{ key: string; label: string; status: "strong" | "weak" | "missing"; assessment: string }>;
 }
 
 export interface ChatMessage {

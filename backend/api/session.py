@@ -641,4 +641,5 @@ async def evaluate_session(session_id: str):
     return {
         "readinessScore": overall,
         "issues": issues,
+        "dimensionScores": review.get("focusedAssessments", []),
     }

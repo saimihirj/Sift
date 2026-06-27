@@ -107,13 +107,14 @@ export function InputScreen({ onReportReady }: InputScreenProps) {
             ? rawReport.readinessScore
             : 0,
         issues: Array.isArray(rawReport.issues)
-          ? rawReport.issues.map((i) => ({
+          ? rawReport.issues.map((i: any) => ({
               severity: (["critical", "warning", "note"].includes(i.severity) ? i.severity : "warning") as "critical" | "warning" | "note",
               title: i.title ?? "",
               explanation: i.explanation ?? "",
               reference: i.reference,
             }))
           : [],
+        dimensionScores: Array.isArray(rawReport.dimensionScores) ? rawReport.dimensionScores : undefined,
         sessionId,
         sourceName,
       };
@@ -138,7 +139,16 @@ export function InputScreen({ onReportReady }: InputScreenProps) {
   return (
     <main className="page input-page">
       <div className="input-container">
-        <div className="input-label">Upload a deck</div>
+        <div style={{ textAlign: "center", marginBottom: 24, animation: "fade-in 0.8s ease" }}>
+          <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: "-0.02em", color: "var(--text-primary)", marginBottom: 12 }}>
+            Get VC feedback in 10 seconds.
+          </h1>
+          <p style={{ fontSize: 16, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+            Drop your deck. Sift evaluates it against core venture criteria, scores your readiness, and helps you fix the gaps.
+          </p>
+        </div>
+
+        <div className="input-label">Upload your Pitch Deck</div>
 
         <div
           id="deck-dropzone"
@@ -222,16 +232,29 @@ export function InputScreen({ onReportReady }: InputScreenProps) {
           </div>
         )}
 
-        <button
-          id="evaluate-btn"
-          type="button"
-          className={`btn-primary${loading ? " loading" : ""}`}
-          onClick={handleEvaluate}
-          disabled={!canEvaluate()}
-          aria-busy={loading}
-        >
-          {loading ? "Evaluating..." : "Evaluate"}
-        </button>
+        {loading ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "24px 0", animation: "fade-in 0.3s ease" }}>
+            <div style={{ width: 40, height: 40, border: "3px solid var(--border-strong)", borderTopColor: "var(--brand)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+            <span style={{ color: "var(--brand)", fontWeight: 500, animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }}>
+              Evaluating VC Dimensions...
+            </span>
+            <style>{`
+              @keyframes spin { to { transform: rotate(360deg); } }
+              @keyframes pulse { 50% { opacity: 0.5; } }
+            `}</style>
+          </div>
+        ) : (
+          <button
+            id="evaluate-btn"
+            type="button"
+            className="btn-primary"
+            onClick={handleEvaluate}
+            disabled={!canEvaluate()}
+            style={{ marginTop: 8 }}
+          >
+            Get VC Feedback
+          </button>
+        )}
       </div>
     </main>
   );

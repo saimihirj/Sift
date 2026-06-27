@@ -7,17 +7,31 @@
 }
 
 :root {
-  --bg: #000000;
-  --surface: #0d0d0d;
-  --surface-hover: #141414;
-  --border: #1a1a1a;
-  --border-strong: #2a2a2a;
-  --text-primary: #ffffff;
-  --text-secondary: #a0a0a0;
-  --text-muted: #555555;
+  --bg: #09090b;
+  --surface: #18181b;
+  --surface-hover: #27272a;
+  --border: #27272a;
+  --border-strong: #3f3f46;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
   --font: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --radius: 6px;
-  --transition: 160ms ease;
+  --radius: 8px;
+  --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  --brand: #3b82f6;
+  --brand-hover: #60a5fa;
+  --brand-glow: rgba(59, 130, 246, 0.2);
+}
+
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 html, body {
@@ -70,12 +84,14 @@ input, textarea {
   top: 0;
   left: 0;
   right: 0;
-  height: 52px;
+  height: 56px;
   display: flex;
   align-items: center;
   padding: 0 32px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(9, 9, 11, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   z-index: 100;
 }
 
@@ -106,7 +122,8 @@ input, textarea {
   max-width: 520px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  animation: fade-in-up 0.5s ease forwards;
 }
 
 .input-label {
@@ -134,8 +151,9 @@ input, textarea {
 
 .dropzone:hover,
 .dropzone.drag-over {
-  border-color: var(--text-secondary);
+  border-color: var(--brand);
   background: var(--surface-hover);
+  box-shadow: 0 0 0 1px var(--brand-glow);
 }
 
 .dropzone.has-file {
@@ -205,7 +223,8 @@ input, textarea {
 
 .text-input:focus {
   outline: none;
-  border-color: var(--text-secondary);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand-glow);
 }
 
 .textarea-input {
@@ -234,14 +253,18 @@ input, textarea {
   color: var(--bg);
   border-radius: var(--radius);
   font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  transition: opacity var(--transition);
-  margin-top: 6px;
+  font-weight: 500;
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.btn-primary:hover {
-  opacity: 0.88;
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
 }
 
 .btn-primary:disabled {

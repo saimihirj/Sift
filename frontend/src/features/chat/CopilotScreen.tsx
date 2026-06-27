@@ -92,11 +92,19 @@ export function CopilotScreen({ session, onStartOver }: CopilotScreenProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    let greetingText = "What are you working on? Walk me through your startup.";
+    if (session.report) {
+      const criticals = session.report.issues.filter(i => i.severity === "critical");
+      if (criticals.length > 0) {
+        greetingText = `I've analyzed your deck. We have **${criticals.length} critical ${criticals.length === 1 ? 'gap' : 'gaps'}** standing between you and a term sheet. \n\nLet's start with the biggest one: **${criticals[0].title}**. \n\nShould I propose a rewrite for that slide?`;
+      } else {
+        greetingText = `Your deck looks surprisingly solid. We found ${session.report.issues.length} minor areas for refinement. \n\nWhere would you like to drill in?`;
+      }
+    }
+    
     const greeting: ChatMessage = {
       role: "sift",
-      content: session.report
-        ? `I reviewed ${session.sourceName ? `"${session.sourceName}"` : "your submission"} and found ${session.report.issues.length} issue${session.report.issues.length !== 1 ? "s" : ""}:\n\n${session.report.issues.map((i, idx) => `${idx + 1}. **${i.title}**: ${i.explanation}`).join("\n")}\n\nLet us work through them. Which finding do you want to address first?`
-        : "What are you working on? Walk me through your startup.",
+      content: greetingText,
       structured: false,
     };
     setMessages([greeting]);
