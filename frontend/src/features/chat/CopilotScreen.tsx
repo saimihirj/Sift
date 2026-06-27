@@ -90,7 +90,7 @@ export function CopilotScreen({ session, onStartOver }: CopilotScreenProps) {
     const greeting: ChatMessage = {
       role: "sift",
       content: session.report
-        ? `I reviewed ${session.sourceName ? `"${session.sourceName}"` : "your submission"} and found ${session.report.issues.length} issue${session.report.issues.length !== 1 ? "s" : ""}. Let us work through them. Which finding do you want to address first?`
+        ? `I reviewed ${session.sourceName ? `"${session.sourceName}"` : "your submission"} and found ${session.report.issues.length} issue${session.report.issues.length !== 1 ? "s" : ""}:\n\n${session.report.issues.map((i, idx) => `${idx + 1}. **${i.title}**: ${i.explanation}`).join("\n")}\n\nLet us work through them. Which finding do you want to address first?`
         : "What are you working on? Walk me through your startup.",
       structured: false,
     };
