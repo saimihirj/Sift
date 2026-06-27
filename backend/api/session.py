@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, File, Header, HTTPException, Query, UploadFile
 
 from backend.core import memory
 from backend.core.state import ConversationState
@@ -50,7 +50,7 @@ from backend.services.refinement import empty_answer_record, refine_founder_inpu
 from backend.services.retrieval import infer_retrieval_needs
 from backend.services.session_access import require_session_owner
 from backend.services.state_engine import coverage_items, last_assistant_message, next_gap
-from backend.services.uploads import list_active_uploads
+from backend.services.uploads import ingest_upload, list_active_uploads
 from backend.services.website_fetch import fetch_website_context
 
 
@@ -550,3 +550,83 @@ async def update_runtime(session_id: str, payload: SessionRuntimeUpdateRequest) 
         supportsVision=model_supports_vision(provider, model),
         runtimeUsage=_response_extensions(_session_metadata(memory.get_session(session_id)))["runtimeUsage"],
     )
+
+
+# ── Simplified frontend endpoints ──────────────────────────────────────────
+
+
+@router.post("/{session_id}/upload")
+async def upload_to_session(
+    session_id: str,
+    file: UploadFile = File(...),
+):
+    """Upload a file (deck, doc) to an existing session."""
+    session_row = memory.get_session(session_id)
+    if session_row is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    try:
+        entry = await ingest_upload(session_id, file)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "name": entry.get("name", ""),
+        "docType": entry.get("docType", "unknown"),
+        "chunkCount": entry.get("chunkCount", 0),
+    }
+
+
+@router.post("/{session_id}/evaluate")
+async def evaluate_session(session_id: str):
+    """One-shot evaluation: upload a deck first, then call this."""
+    from backend.services.deck_review import review_deck_session
+
+    session_row = memory.get_session(session_id)
+    if session_row is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    provider = normalize_provider(session_row.get("provider", "groq"))
+    model = (session_row.get("model", "") or "").strip() or default_model_for_provider(provider)
+
+    try:
+        review = await review_deck_session(
+            session_id=session_id,
+            provider=provider,
+            model=model,
+            api_key=None,
+            user_context="Evaluate the uploaded material.",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Evaluation failed: {exc}") from exc
+
+    # Map the rich review into the simplified frontend format
+    overall = review.get("overallScore", 0)
+    issues: list[dict] = []
+    for section in review.get("sections", []):
+        for finding in section.get("findings", []):
+            severity = "note"
+            score = finding.get("score", 50)
+            if score < 30:
+                severity = "critical"
+            elif score < 60:
+                severity = "warning"
+            issues.append({
+                "severity": severity,
+                "title": finding.get("label", section.get("section", "")),
+                "explanation": finding.get("feedback", ""),
+                "reference": section.get("section", ""),
+            })
+
+    # Fallback: if no structured sections, use top-level verdict/summary
+    if not issues:
+        verdict = review.get("verdict", review.get("summary", ""))
+        if verdict:
+            issues.append({
+                "severity": "warning" if overall < 60 else "note",
+                "title": "Overall Assessment",
+                "explanation": verdict,
+            })
+
+    return {
+        "readinessScore": overall,
+        "issues": issues,
+    }

@@ -69,12 +69,12 @@ export function InputScreen({ onReportReady }: InputScreenProps) {
 
     try {
       const sessionPayload = await startSession({
-        provider: "ollama",
-        model: "qwen3:8b",
+        provider: "groq",
+        model: "",
         founderType: "founder",
         stage: "idea",
-        sessionType: "mentor",
-        evaluatorMode: "idea_review",
+        sessionType: "evaluator",
+        evaluatorMode: "deck_review",
       });
 
       const sessionId = sessionPayload.sessionId;
@@ -120,8 +120,8 @@ export function InputScreen({ onReportReady }: InputScreenProps) {
 
       const session: SiftSession = {
         sessionId,
-        provider: "ollama",
-        model: "qwen3:8b",
+        provider: "groq",
+        model: "",
         apiKey: apiKey || undefined,
         sourceName,
         report,
