@@ -527,6 +527,7 @@ def _review_user_prompt(
         "If the London Whale hook is not present in the deck or user context, say it is not shown instead of forcing commentary.",
         "For each focused area, return status as strong, partial, missing, or unverified.",
         "For each slide review, keep it concise and specific.",
+        "CRITICAL: The slideReviews array MUST contain an object for EVERY single slide provided in the outline. Do not just review Slide 1.",
         "JSON shape:",
         json.dumps(
             {
@@ -740,8 +741,8 @@ async def review_deck_session(
 
     raw_review: dict[str, Any] = {}
     response_usage = empty_runtime_usage()["last"]
-    max_tokens = _env_int("SIFT_DECK_REVIEW_MAX_TOKENS", 2600)
-    timeout_seconds = _env_float("SIFT_DECK_REVIEW_TIMEOUT_SECONDS", 52.0)
+    max_tokens = _env_int("SIFT_DECK_REVIEW_MAX_TOKENS", 5000)
+    timeout_seconds = _env_float("SIFT_DECK_REVIEW_TIMEOUT_SECONDS", 75.0)
     try:
         if review_mode == "multimodal":
             image_paths = [slide.get("imagePath", "") for slide in slides if slide.get("imagePath")]
