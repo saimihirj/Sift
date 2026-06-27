@@ -137,17 +137,20 @@ export async function sendChatMessage(
   apiKey?: string,
 ): Promise<void> {
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     Accept: "text/event-stream",
   };
   if (apiKey) headers["X-API-Key"] = apiKey;
 
+  const form = new FormData();
+  form.append("sessionId", sessionId);
+  form.append("message", message);
+
   let response: Response;
   try {
-    response = await fetch(`${API_BASE}/api/session/${sessionId}/chat`, {
+    response = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ message, stream: true }),
+      body: form,
       signal,
       credentials: "include",
     });

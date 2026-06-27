@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import type { ChatMessage, OutlineSlide, SiftSession } from "../../app/sift.types";
 import { createChatAbortController, sendChatMessage } from "../../lib/api/client";
 
@@ -63,7 +64,9 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
         <span className="message-role">{msg.role === "sift" ? "Sift" : "You"}</span>
         <div className="message-structured">
           <div className="message-structured-header">Analysis</div>
-          <div className="message-structured-body">{msg.content}</div>
+          <div className="message-structured-body">
+            <ReactMarkdown>{msg.content}</ReactMarkdown>
+          </div>
         </div>
       </div>
     );
@@ -71,7 +74,9 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
   return (
     <div className={`message ${msg.role}`} aria-live={msg.role === "sift" ? "polite" : undefined}>
       <span className="message-role">{msg.role === "sift" ? "Sift" : "You"}</span>
-      <div className="message-bubble">{msg.content}</div>
+      <div className="message-bubble">
+        <ReactMarkdown>{msg.content}</ReactMarkdown>
+      </div>
     </div>
   );
 }
