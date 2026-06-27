@@ -601,22 +601,34 @@ async def evaluate_session(session_id: str):
     # Map the rich review into the simplified frontend format
     overall = review.get("overallScore", 0)
     issues: list[dict] = []
-    for section in review.get("sections", []):
-        for finding in section.get("findings", []):
-            severity = "note"
-            score = finding.get("score", 50)
-            if score < 30:
-                severity = "critical"
-            elif score < 60:
-                severity = "warning"
+
+    # Map top fixes as critical issues
+    for fix in review.get("topFixes", []):
+        issues.append({
+            "severity": "critical",
+            "title": "Top Priority Fix",
+            "explanation": fix,
+        })
+
+    # Map focused assessments that are weak or missing
+    for assessment in review.get("focusedAssessments", []):
+        status = assessment.get("status", "")
+        if status in ("missing", "weak"):
             issues.append({
-                "severity": severity,
-                "title": finding.get("label", section.get("section", "")),
-                "explanation": finding.get("feedback", ""),
-                "reference": section.get("section", ""),
+                "severity": "critical" if status == "missing" else "warning",
+                "title": assessment.get("label", "Assessment"),
+                "explanation": assessment.get("assessment", ""),
             })
 
-    # Fallback: if no structured sections, use top-level verdict/summary
+    # Map weak points as warnings
+    for point in review.get("weakPoints", []):
+        issues.append({
+            "severity": "warning",
+            "title": "Weak Point",
+            "explanation": point,
+        })
+
+    # Fallback if no issues were mapped (should be rare)
     if not issues:
         verdict = review.get("verdict", review.get("summary", ""))
         if verdict:
